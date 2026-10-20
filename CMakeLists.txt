@@ -390,10 +390,18 @@ add_custom_command(
 # machine without the toolkit installed only has it if it is deployed with the
 # binaries.
 if(WIN32 AND NOT USE_HIP)
-    get_filename_component(CUDA_BIN_DIR ${CMAKE_CUDA_COMPILER} DIRECTORY)
-    file(GLOB CUDA_RUNTIME_DLL "${CUDA_BIN_DIR}/cudart64_*.dll")
+    get_filename_component(CUDA_BIN_DIR "${CMAKE_CUDA_COMPILER}" DIRECTORY)
+    file(GLOB CUDA_RUNTIME_DLL LIST_DIRECTORIES false "${CUDA_BIN_DIR}/cudart64_*.dll")
     if(NOT CUDA_RUNTIME_DLL)
-        message(FATAL_ERROR "Could not find cudart64_*.dll in ${CUDA_BIN_DIR}")
+        file(GLOB CUDA_RUNTIME_DLL LIST_DIRECTORIES false "${CUDA_BIN_DIR}/x64/cudart64_*.dll")
+    endif()
+    if(NOT CUDA_RUNTIME_DLL)
+        message(FATAL_ERROR
+            "Could not find CUDA runtime DLL. Checked: ${CUDA_BIN_DIR}/cudart64_*.dll and ${CUDA_BIN_DIR}/x64/cudart64_*.dll")
+    endif()
+    list(LENGTH CUDA_RUNTIME_DLL CUDA_RUNTIME_DLL_COUNT)
+    if(NOT CUDA_RUNTIME_DLL_COUNT EQUAL 1)
+        message(FATAL_ERROR "Ambiguous CUDA runtime DLLs for ${CMAKE_CUDA_COMPILER}: ${CUDA_RUNTIME_DLL}")
     endif()
     add_custom_command(
         TARGET alien POST_BUILD
