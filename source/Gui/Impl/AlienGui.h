@@ -291,6 +291,7 @@ public:
     struct SwitcherParameters
     {
         MEMBER(SwitcherParameters, std::string, name, "");
+        MEMBER(SwitcherParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(SwitcherParameters, float, width, 0);
         MEMBER(SwitcherParameters, float, textWidth, 100);
         MEMBER(SwitcherParameters, bool, readOnly, false);
@@ -299,6 +300,7 @@ public:
         MEMBER(SwitcherParameters, std::optional<int>, defaultValue, std::nullopt);
         MEMBER(SwitcherParameters, int const*, defaultValues, nullptr);
         MEMBER(SwitcherParameters, std::vector<std::string>, values, std::vector<std::string>());
+        MEMBER(SwitcherParameters, std::vector<std::string>, displayValues, std::vector<std::string>());
         MEMBER(SwitcherParameters, std::optional<int>, disabledValue, std::nullopt);
         MEMBER(SwitcherParameters, std::optional<std::string>, highlightedSubString, std::nullopt);
         MEMBER(SwitcherParameters, std::optional<std::string>, tooltip, std::nullopt);
@@ -437,6 +439,7 @@ public:
     struct ColorButtonParameters
     {
         MEMBER(ColorButtonParameters, std::string, name, "");
+        MEMBER(ColorButtonParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ColorButtonParameters, float, textWidth, 100);
         MEMBER(ColorButtonParameters, std::optional<FloatColorRGB>, defaultValue, std::nullopt);
         MEMBER(ColorButtonParameters, std::optional<bool>, defaultEnabledValue, std::nullopt);
@@ -448,6 +451,7 @@ public:
     struct ColorVectorButtonsParameters
     {
         MEMBER(ColorVectorButtonsParameters, std::string, name, "");
+        MEMBER(ColorVectorButtonsParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ColorVectorButtonsParameters, float, textWidth, 100);
         MEMBER(ColorVectorButtonsParameters, std::optional<ColorVector<FloatColorRGB>>, defaultValue, std::nullopt);
         MEMBER(ColorVectorButtonsParameters, std::optional<ColorVector<FloatColorRGB>>, builtinDefaultValue, std::nullopt);

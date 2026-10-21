@@ -47,6 +47,66 @@ namespace
         if (references<Float2Spec>(spec, &SimulationParameters::sourceVelocity)) {
             return "parameters.location.sourcevelocity";
         }
+        if (references<ColorSpec>(spec, &SimulationParameters::backgroundColor)) {
+            return "parameters.visualization.backgroundcolor";
+        }
+        if (references<ColorSpec>(spec, &SimulationParameters::customizationColors)) {
+            return "parameters.visualization.customizationcolors";
+        }
+        if (references<AlternativeSpec>(spec, &SimulationParameters::objectColoring)) {
+            return "parameters.visualization.objectcoloring";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::glow)) {
+            return "parameters.visualization.glow";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::fluidIllumination)) {
+            return "parameters.visualization.fluidillumination";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::borderlessRendering)) {
+            return "parameters.visualization.borderlessrendering";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::gridLines)) {
+            return "parameters.visualization.gridlines";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::markReferenceDomain)) {
+            return "parameters.visualization.markreferencedomain";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::sourceShowRadiationCenter)) {
+            return "parameters.visualization.sourceshowradiationcenter";
+        }
+        if (references<ColorSpec>(spec, &SimulationParameters::sourceLightColor)) {
+            return "parameters.visualization.sourcelightcolor";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::sourceLightBrightness)) {
+            return "parameters.visualization.sourcelightbrightness";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::sourceLightRange)) {
+            return "parameters.visualization.sourcelightrange";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::layerShowForceField)) {
+            return "parameters.visualization.layershowforcefield";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::externalEnergy)) {
+            return "parameters.energy.externalenergy";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::externalEnergyInflowForConstructor)) {
+            return "parameters.energy.externalenergyinflowforconstructor";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::externalEnergyInflowThresholdFactor)) {
+            return "parameters.energy.externalenergyinflowthresholdfactor";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::externalEnergyInflowOnlyForFirstOffspring)) {
+            return "parameters.energy.externalenergyinflowonlyforfirstoffspring";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::externalEnergyInflowForSources)) {
+            return "parameters.energy.externalenergyinflowforsources";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::externalEnergyBackflowFactor)) {
+            return "parameters.energy.externalenergybackflowfactor";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::externalEnergyBackflowLimit)) {
+            return "parameters.energy.externalenergybackflowlimit";
+        }
         return {};
     }
 
@@ -102,6 +162,12 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     if (spec._name == "Location") {
         return translated("parameters.location.name", spec._name);
     }
+    if (spec._name == "Visualization") {
+        return translated("parameters.visualization.name", spec._name);
+    }
+    if (spec._name == "Guided energy supply") {
+        return translated("parameters.energy.name", spec._name);
+    }
     return spec._name;
 }
 
@@ -116,6 +182,20 @@ ParametersSpec SimulationParametersPresentation::filter(ParametersSpec const& sp
                 }
             }
         }
+    }
+    return result;
+}
+
+std::vector<std::string> SimulationParametersPresentation::alternativeLabels(ParameterSpec const& spec)
+{
+    auto const& alternative = std::get<AlternativeSpec>(spec._reference);
+    std::vector<std::string> result;
+    for (size_t index = 0; index < alternative._alternatives.size(); ++index) {
+        auto const& canonical = alternative._alternatives.at(index).first;
+        result.emplace_back(
+            references<AlternativeSpec>(spec, &SimulationParameters::objectColoring)
+                ? translated("parameters.visualization.objectcoloring.option" + std::to_string(index), canonical)
+                : canonical);
     }
     return result;
 }

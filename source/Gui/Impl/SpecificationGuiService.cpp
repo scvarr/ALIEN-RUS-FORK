@@ -20,8 +20,8 @@
 
 namespace
 {
-    auto constexpr ColumnWidth = 550.0f;
-    auto constexpr TextColumnWidth = 287.0f;  // Has to hold the revert button, the longest parameter name and the help marker
+    auto constexpr ColumnWidth = 650.0f;
+    auto constexpr TextColumnWidth = 360.0f;  // Has to hold the revert button, the longest parameter name and the help marker
 
     ColorVector<FloatColorRGB> toColorVector(FloatColorRGB const* values)
     {
@@ -194,7 +194,7 @@ void SpecificationGuiService::createWidgetsForBoolSpec(
                 .customizationColors(parameters.customizationColors.value)
                 .defaultValue(toVector<MAX_COLORS, MAX_COLORS>(*reinterpret_cast<bool(*)[MAX_COLORS][MAX_COLORS]>(origRef.value)))
                 .highlightedSubString(filter.containedText)
-                .tooltip(parameterSpec._description)
+                .tooltip(SimulationParametersPresentation::description(parameterSpec))
                 .rowLabel("[customization]")
                 .columnLabel("[target customization]")
                 .disableDiagonal(true),
@@ -205,12 +205,13 @@ void SpecificationGuiService::createWidgetsForBoolSpec(
         AlienGui::Checkbox(
             AlienGui::CheckboxParameters()
                 .name(parameterSpec._name)
+                .label(SimulationParametersPresentation::label(parameterSpec))
                 .textWidth(TextColumnWidth)
                 .colorDependence(ref.colorDependence == ColorDependence::ColorVector)
                 .customizationColors(parameters.customizationColors.value)
                 .defaultValue(origRef.value)
                 .highlightedSubString(filter.containedText)
-                .tooltip(parameterSpec._description),
+                .tooltip(SimulationParametersPresentation::description(parameterSpec)),
             ref.value);
     }
 }
@@ -453,14 +454,16 @@ void SpecificationGuiService::createWidgetsForAlternativeSpec(
     AlienGui::Switcher(
         AlienGui::SwitcherParameters()
             .name(parameterSpec._name)
+            .label(SimulationParametersPresentation::label(parameterSpec))
             .textWidth(TextColumnWidth)
             .colorDependence(valueType == ColorDependence::ColorVector)
             .customizationColors(parameters.customizationColors.value)
             .defaultValues(origValue)
             .values(values)
+            .displayValues(SimulationParametersPresentation::alternativeLabels(parameterSpec))
             .readOnly(!enabled)
             .highlightedSubString(filter.containedText)
-            .tooltip(parameterSpec._description),
+            .tooltip(SimulationParametersPresentation::description(parameterSpec)),
         value,
         enabledValue);
 
@@ -500,21 +503,23 @@ void SpecificationGuiService::createWidgetsForColorPickerSpec(
         AlienGui::ColorVectorButtons(
             AlienGui::ColorVectorButtonsParameters()
                 .name(parameterSpec._name)
+                .label(SimulationParametersPresentation::label(parameterSpec))
                 .textWidth(TextColumnWidth)
                 .defaultValue(toColorVector(origValue))
                 .builtinDefaultValue(defaultColors)
                 .highlightedSubString(filter.containedText)
-                .tooltip(parameterSpec._description),
+                .tooltip(SimulationParametersPresentation::description(parameterSpec)),
             value);
     } else {
         AlienGui::ColorButton(
             AlienGui::ColorButtonParameters()
                 .name(parameterSpec._name)
+                .label(SimulationParametersPresentation::label(parameterSpec))
                 .textWidth(TextColumnWidth)
                 .highlightedSubString(filter.containedText)
                 .defaultValue(*origValue)
                 .defaultEnabledValue(origEnabledValue != nullptr ? std::make_optional(*origEnabledValue) : std::nullopt)
-                .tooltip(parameterSpec._description),
+                .tooltip(SimulationParametersPresentation::description(parameterSpec)),
             *value,
             enabledValue);
     }

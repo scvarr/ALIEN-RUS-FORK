@@ -1,5 +1,7 @@
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/resources/locales/en.json")
 file(READ "${PROJECT_SOURCE_DIR}/resources/locales/en.json" ALIEN_DEFAULT_LOCALE)
+# Keep each raw literal below the MSVC limit while preserving the complete catalog.
+string(REPLACE "\n" "\n)ALIEN_LOCALE\"\nR\"ALIEN_LOCALE(" ALIEN_DEFAULT_LOCALE "${ALIEN_DEFAULT_LOCALE}")
 configure_file(DefaultLocale.h.in "${CMAKE_CURRENT_BINARY_DIR}/DefaultLocale.h" @ONLY)
 
 

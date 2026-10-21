@@ -830,7 +830,7 @@ TEST_F(LocalizationGuiTests, l2b2BindingsUseMembersAndKeepFourContextDescription
     select("ru");
     EXPECT_EQ("Общие", SimulationParametersPresentation::label(general));
     EXPECT_EQ("Расположение", SimulationParametersPresentation::label(location));
-    auto const& other = parameterGroup(original, "Visualization");
+    auto const& other = parameterGroup(original, "Shape");
     EXPECT_EQ(other._name, SimulationParametersPresentation::label(other));
     for (auto const& parameter : other._parameters) {
         EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
@@ -1201,4 +1201,490 @@ TEST_F(LocalizationGuiTests, l2b2ProductionGeneralPreservesAllLocationValues)
             EXPECT_EQ(*defaults, *values);
         }
     }
+}
+
+TEST_F(LocalizationGuiTests, l2b3aAllTwentyBindingsRetainSpecsAndDescriptions)
+{
+    auto const& spec = SimulationParameters::getSpec();
+    int colors = 0, booleans = 0, numbers = 0, alternatives = 0;
+    for (auto const& groupName : {"Visualization", "Guided energy supply"}) {
+        auto const& group = parameterGroup(spec, groupName);
+        EXPECT_EQ(std::string(groupName) == "Visualization" ? 13 : 7, group._parameters.size());
+        for (auto const& parameter : group._parameters) {
+            colors += std::holds_alternative<ColorSpec>(parameter._reference);
+            booleans += std::holds_alternative<BoolSpec>(parameter._reference);
+            numbers += std::holds_alternative<FloatSpec>(parameter._reference);
+            alternatives += std::holds_alternative<AlternativeSpec>(parameter._reference);
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                auto name = SimulationParametersPresentation::label(parameter);
+                auto description = SimulationParametersPresentation::description(parameter);
+                ASSERT_TRUE(description);
+                EXPECT_FALSE(description->empty());
+                if (std::string(language) == "ru") {
+                    EXPECT_NE(parameter._name, name);
+                    EXPECT_NE(parameter._description, description);
+                } else {
+                    EXPECT_EQ(parameter._name, name);
+                    EXPECT_EQ(parameter._description, description);
+                }
+                auto renamed = parameter;
+                renamed._name = "Unrelated canonical caption";
+                EXPECT_EQ(name, SimulationParametersPresentation::label(renamed));
+                EXPECT_EQ(description, SimulationParametersPresentation::description(renamed));
+            }
+        }
+    }
+    EXPECT_EQ(3, colors);
+    EXPECT_EQ(6, booleans);
+    EXPECT_EQ(10, numbers);
+    EXPECT_EQ(1, alternatives);
+    select("ru");
+    for (auto const& name : {"Shape", "Force field", "Physics: Motion", "Physics: Thresholds", "Radiation"}) {
+        auto const& group = parameterGroup(spec, name);
+        EXPECT_EQ(name, SimulationParametersPresentation::label(group));
+        for (auto const& parameter : group._parameters) {
+            EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
+            EXPECT_EQ(parameter._description, SimulationParametersPresentation::description(parameter));
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3aAlternativeLabelsAreBoundToMemberAndOriginalIndex)
+{
+    auto const& parameter = parameterGroup(SimulationParameters::getSpec(), "Visualization")._parameters.at(2);
+    auto const& original = std::get<AlternativeSpec>(parameter._reference);
+    std::vector<std::string> english = {"Energy", "Customization", "Lineage + Customization", "Lineage", "Creature"};
+    std::vector<std::string> russian = {"Энергия", "Настройка", "Происхождение + Настройка", "Происхождение", "Организм"};
+    ASSERT_EQ(5, original._alternatives.size());
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        EXPECT_EQ(std::string(language) == "ru" ? russian : english, SimulationParametersPresentation::alternativeLabels(parameter));
+        auto unrelated = ParameterSpec().name("Object coloring").reference(AlternativeSpec().alternatives(original._alternatives));
+        EXPECT_EQ(english, SimulationParametersPresentation::alternativeLabels(unrelated));
+        for (size_t i = 0; i < english.size(); ++i) {
+            EXPECT_EQ(english.at(i), original._alternatives.at(i).first);
+            EXPECT_TRUE(original._alternatives.at(i).second.empty());
+        }
+        auto tooltip = *SimulationParametersPresentation::description(parameter);
+        EXPECT_EQ(5, std::ranges::count(tooltip, '\n') / 2 - 1);
+        size_t pos = 0;
+        for (int i = 0; i < 5; ++i) {
+            pos = tooltip.find(ICON_FA_CHEVRON_RIGHT, pos);
+            ASSERT_NE(std::string::npos, pos);
+            pos += std::string(ICON_FA_CHEVRON_RIGHT).size();
+        }
+        EXPECT_EQ(std::string::npos, tooltip.find(ICON_FA_CHEVRON_RIGHT, pos));
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3aProductionControlsPreserveEveryValueAndModeAcrossLanguages)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    values->numLayers = values->numSources = 1;
+    values->layerOrderNumbers[0] = 1;
+    values->sourceOrderNumbers[0] = 2;
+    values->glow.value = 0.47f;
+    values->fluidIllumination.value = 0.63f;
+    values->borderlessRendering.value = true;
+    values->gridLines.value = true;
+    values->markReferenceDomain.value = false;
+    values->backgroundColor.baseValue = {0.23f, 0.42f, 0.73f};
+    values->backgroundColor.layerValues[0] = {.value = {0.81f, 0.12f, 0.17f}, .enabled = false};
+    values->customizationColors.value[3] = {0.17f, 0.38f, 0.91f};
+    values->sourceLightColor.sourceValues[0] = {0.13f, 0.69f, 0.45f};
+    values->sourceLightBrightness.sourceValues[0] = 0.36f;
+    values->sourceLightRange.sourceValues[0] = 217;
+    values->sourceShowRadiationCenter.sourceValues[0] = false;
+    values->layerShowForceField.layerValues[0] = false;
+    values->externalEnergy.value = 123456;
+    values->externalEnergyBackflowLimit.value = Infinity<float>::value;
+    for (int color = 0; color < MAX_COLORS; ++color) {
+        values->externalEnergyInflowForConstructor.value[color] = color + 0.5f;
+        values->externalEnergyInflowThresholdFactor.value[color] = color * 0.01f;
+        values->externalEnergyInflowOnlyForFirstOffspring.value[color] = color % 2;
+        values->externalEnergyInflowForSources.value[color] = color * 77.0f;
+        values->externalEnergyBackflowFactor.value[color] = color * 0.03f;
+    }
+    auto defaults = std::make_unique<SimulationParameters>();
+    defaults->numLayers = defaults->numSources = 1;
+    defaults->layerOrderNumbers[0] = 1;
+    defaults->sourceOrderNumbers[0] = 2;
+    for (int mode = 0; mode < 5; ++mode) {
+        values->objectColoring.value = ColorVector<CellColoring>::uniform(static_cast<CellColoring>(mode));
+        auto snapshot = std::make_unique<SimulationParameters>(*values);
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            for (int order : {0, 1, 2}) {
+                for (auto const& groupName : {"Visualization", "Guided energy supply"}) {
+                    frame([&] { parametersGroup(parameterGroup(SimulationParameters::getSpec(), groupName)._parameters, *values, *defaults, order); });
+                    EXPECT_EQ(*snapshot, *values) << groupName << ": " << language << ": " << mode << ": " << order;
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3aBilingualSearchRetainsFilterAndOriginalOrder)
+{
+    auto const& spec = SimulationParameters::getSpec();
+    for (auto const& [query, groupName, count] : std::vector<std::tuple<std::string, std::string, int>>{
+             {"виЗУАЛизация", "Visualization", 13},
+             {"VISUALIZATION", "Visualization", 13},
+             {"управляемая", "Guided energy supply", 7},
+             {"GUIDED ENERGY", "Guided energy supply", 7},
+             {"сВеЧеНие", "Visualization", 1},
+             {"GLOW", "Visualization", 1},
+             {"ЦВЕТ", "Visualization", 3},
+             {"ПЕРЕДАЧА ЭНЕРГИИ", "Guided energy supply", 2},
+             {"BACKFLOW", "Guided energy supply", 2}}) {
+        ParametersFilter filter{.containedText = query};
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            auto filtered = SimulationParametersPresentation::filter(spec, filter);
+            auto const& group = parameterGroup(filtered, groupName);
+            bool russianQuery = static_cast<unsigned char>(query.at(0)) >= 128;
+            EXPECT_EQ(russianQuery && std::string(language) != "ru" ? 0 : count, visibleParameters(group)) << query;
+            EXPECT_EQ(query, filter.containedText);
+            auto const& original = parameterGroup(spec, groupName);
+            ASSERT_EQ(original._parameters.size(), group._parameters.size());
+            for (size_t index = 0; index < group._parameters.size(); ++index) {
+                EXPECT_EQ(original._parameters.at(index)._name, group._parameters.at(index)._name);
+                EXPECT_EQ(original._parameters.at(index)._reference.index(), group._parameters.at(index)._reference.index());
+                EXPECT_EQ(original._parameters.at(index)._description, group._parameters.at(index)._description);
+            }
+        }
+        filter.containedText = "";
+        auto full = SimulationParametersPresentation::filter(spec, filter);
+        EXPECT_EQ(13, visibleParameters(parameterGroup(full, "Visualization")));
+        EXPECT_EQ(7, visibleParameters(parameterGroup(full, "Guided energy supply")));
+    }
+    select("ru");
+    auto result = Utf8Search::find("Передача энергии конструкторам", "ЭНЕРГИИ");
+    ASSERT_TRUE(result);
+    EXPECT_EQ("энергии", std::string("Передача энергии конструкторам").substr(result->begin, result->end - result->begin));
+    auto none = SimulationParametersPresentation::filter(spec, {.containedText = "absent parameter"});
+    for (auto const& group : none._groups) {
+        EXPECT_EQ(0, visibleParameters(group));
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3aMissingCatalogFallsBackForBothGroupsAndModes)
+{
+    LocalizationService::get().load("resources/locales/nonexistent-l2b3a");
+    select("ru");
+    for (auto const& groupName : {"Visualization", "Guided energy supply"}) {
+        auto const& group = parameterGroup(SimulationParameters::getSpec(), groupName);
+        EXPECT_EQ(groupName, SimulationParametersPresentation::label(group));
+        for (auto const& parameter : group._parameters) {
+            EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
+            EXPECT_EQ(parameter._description, SimulationParametersPresentation::description(parameter));
+            if (auto alternative = std::get_if<AlternativeSpec>(&parameter._reference)) {
+                auto labels = SimulationParametersPresentation::alternativeLabels(parameter);
+                for (size_t index = 0; index < labels.size(); ++index) {
+                    EXPECT_EQ(alternative->_alternatives.at(index).first, labels.at(index));
+                }
+            }
+        }
+    }
+    LocalizationService::get().load("resources/locales");
+}
+
+TEST_F(LocalizationGuiTests, l2b3aSwitcherKeepsCanonicalIdsCyclesAllModesAndReverts)
+{
+    auto const& spec = parameterGroup(SimulationParameters::getSpec(), "Visualization")._parameters.at(2);
+    std::vector<std::string> canonical = {"Energy", "Customization", "Lineage + Customization", "Lineage", "Creature"};
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    int mode = 1;
+    ImVec2 next, revert;
+    ImGuiID inputId = 0;
+    auto draw = [&] {
+        frame([&] {
+            auto start = ImGui::GetCursorScreenPos();
+            auto width = ImGui::GetContentRegionAvail().x;
+            AlienGui::Switcher(
+                AlienGui::SwitcherParameters()
+                    .name(spec._name)
+                    .label(SimulationParametersPresentation::label(spec))
+                    .textWidth(360)
+                    .values(canonical)
+                    .displayValues(SimulationParametersPresentation::alternativeLabels(spec))
+                    .defaultValue(1),
+                &mode);
+            auto labelStart = GImGui->LastItemData.Rect.Min;
+            auto spacing = ImGui::GetStyle().ItemSpacing.x;
+            auto revertWidth = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
+            revert = {labelStart.x - spacing - revertWidth / 2, labelStart.y + ImGui::GetFrameHeight() / 2};
+            next = {start.x + width - scale(360) - scale(11), start.y + ImGui::GetFrameHeight() / 2};
+            ImGui::PushID(spec._name.c_str());
+            ImGui::PushID(0);
+            auto current = ImGui::GetID("##switcher");
+            if (!inputId) {
+                inputId = current;
+            }
+            EXPECT_EQ(inputId, current);
+            ImGui::PopID();
+            ImGui::PopID();
+        });
+    };
+    auto click = [&](ImVec2 target) {
+        io.AddMousePosEvent(target.x, target.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+    };
+    draw();
+    draw();
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        for (int i = 0; i < 5; ++i) {
+            auto expected = (mode + 1) % 5;
+            click(next);
+            EXPECT_EQ(expected, mode);
+        }
+        mode = 4;
+        draw();
+        click(revert);
+        EXPECT_EQ(1, mode);
+    }
+    // An incomplete display vector must fall back without changing mode or canonical values.
+    frame([&] { AlienGui::Switcher(AlienGui::SwitcherParameters().name("Legacy").values(canonical).displayValues({"Incomplete"}), &mode); });
+    EXPECT_EQ(1, mode);
+}
+
+TEST_F(LocalizationGuiTests, l2b3aColorWidgetsPreservePopupIdsDefaultsAndPalette)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    auto color = FloatColorRGB{0.2f, 0.4f, 0.6f};
+    auto defaultColor = FloatColorRGB{0.1f, 0.3f, 0.5f};
+    bool enabled = true;
+    ImVec2 open, revert;
+    ImGuiID originalPopup = 0;
+    auto draw = [&] {
+        frame([&] {
+            auto start = ImGui::GetCursorScreenPos();
+            open = {start.x + 100, start.y + ImGui::GetFrameHeight() / 2};
+            AlienGui::ColorButton(
+                AlienGui::ColorButtonParameters()
+                    .name("Background color")
+                    .label(tr("parameters.visualization.backgroundcolor.name"))
+                    .textWidth(360)
+                    .defaultValue(defaultColor)
+                    .defaultEnabledValue(false),
+                color,
+                &enabled);
+            auto labelStart = GImGui->LastItemData.Rect.Min;
+            auto revertWidth = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
+            revert = {labelStart.x - ImGui::GetStyle().ItemSpacing.x - revertWidth / 2, start.y + ImGui::GetFrameHeight() / 2};
+            auto id = ImGui::GetID("colorpicker");
+            if (!originalPopup) {
+                originalPopup = id;
+            }
+            EXPECT_EQ(originalPopup, id);
+        });
+    };
+    auto click = [&](ImVec2 target) {
+        io.AddMousePosEvent(target.x, target.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+    };
+    draw();
+    draw();
+    click(open);
+    ASSERT_FALSE(GImGui->OpenPopupStack.empty());
+    auto popup = GImGui->OpenPopupStack.back().Window;
+    ASSERT_NE(nullptr, popup);
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        ASSERT_FALSE(GImGui->OpenPopupStack.empty());
+        EXPECT_EQ(originalPopup, GImGui->OpenPopupStack.back().PopupId);
+        EXPECT_EQ(popup, GImGui->OpenPopupStack.back().Window);
+        EXPECT_EQ((FloatColorRGB{0.2f, 0.4f, 0.6f}), color);
+    }
+    // The palette is in the right-hand group; its last row is aligned to the final group line.
+    auto paletteTop = popup->DC.CursorPosPrevLine.y + 3 * (ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.y)
+        + 2 * (40 + ImGui::GetStyle().ItemSpacing.y) + 1 + ImGui::GetStyle().ItemSpacing.y;
+    auto palette = ImVec2(popup->DC.CursorMaxPos.x - 10, paletteTop + 3 * (20 + ImGui::GetStyle().ItemSpacing.y) + 10);
+    click(palette);
+    EXPECT_NE((FloatColorRGB{0.2f, 0.4f, 0.6f}), color);
+    auto selectedColor = color;
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        EXPECT_EQ(selectedColor, color);
+    }
+    auto previous = ImVec2(
+        popup->DC.CursorMaxPos.x - 188 + 30,
+        paletteTop - (ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.y) - (1 + ImGui::GetStyle().ItemSpacing.y)
+            - (40 + ImGui::GetStyle().ItemSpacing.y) + 20);
+    click(previous);
+    EXPECT_EQ((FloatColorRGB{0.2f, 0.4f, 0.6f}), color);
+    // Close only the disposable picker before testing the reset button.
+    frame([&] { ImGui::ClosePopupToLevel(0, true); });
+    draw();
+    click(revert);
+    EXPECT_EQ(defaultColor, color);
+    EXPECT_FALSE(enabled);
+
+    auto colors = getDefaultCustomizationColorVector();
+    auto defaults = colors;
+    colors[0] = {0.12f, 0.23f, 0.34f};
+    ImRect reset;
+    ImGuiID resetId = 0;
+    auto vectorDraw = [&] {
+        frame([&] {
+            AlienGui::ColorVectorButtons(
+                AlienGui::ColorVectorButtonsParameters()
+                    .name("Customization colors")
+                    .label(tr("parameters.visualization.customizationcolors.name"))
+                    .textWidth(360)
+                    .defaultValue(defaults)
+                    .builtinDefaultValue(defaults),
+                colors.values);
+            reset = GImGui->LastItemData.Rect;
+            auto current = GImGui->LastItemData.ID;
+            ImGui::PushID("Customization colors");
+            EXPECT_EQ(ImGui::GetID("Default##Customization colors"), current);
+            ImGui::PopID();
+            if (!resetId) {
+                resetId = current;
+            }
+            EXPECT_EQ(resetId, current);
+        });
+    };
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        vectorDraw();
+    }
+    auto center = reset.GetCenter();
+    io.AddMousePosEvent(center.x, center.y);
+    vectorDraw();
+    io.AddMouseButtonEvent(0, true);
+    vectorDraw();
+    io.AddMouseButtonEvent(0, false);
+    vectorDraw();
+    EXPECT_EQ(defaults, colors);
+}
+
+TEST_F(LocalizationGuiTests, l2b3aRussianLabelsAndModesFitAtRequestedScales)
+{
+    select("ru");
+    auto font = StyleService::get().getDefaultFont();
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        for (auto const& groupName : {"Visualization", "Guided energy supply"}) {
+            auto const& group = parameterGroup(SimulationParameters::getSpec(), groupName);
+            for (auto const& parameter : group._parameters) {
+                auto label = SimulationParametersPresentation::label(parameter);
+                auto width = font->CalcTextSizeA(font->FontSize * factor, FLT_MAX, 0, label.c_str()).x;
+                auto extra = parameter._name == "Customization colors" ? 150.0f : 65.0f;
+                EXPECT_LE(width + extra * factor, 360.0f * factor) << label << ": " << factor;
+                if (std::holds_alternative<AlternativeSpec>(parameter._reference)) {
+                    for (auto const& option : SimulationParametersPresentation::alternativeLabels(parameter)) {
+                        auto optionWidth = font->CalcTextSizeA(font->FontSize * factor, FLT_MAX, 0, option.c_str()).x;
+                        EXPECT_LE(optionWidth, (650.0f - 360.0f - 100.0f) * factor) << option << ": " << factor;
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3aExternalEnergyRetainsActiveNumericInputInfinityAndReset)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    float value = 12345;
+    float original = 17;
+    ImVec2 slider, revert;
+    ImGuiID sliderId = 0;
+    bool capture = false;
+    std::string logged;
+    auto draw = [&] {
+        frame([&] {
+            auto start = ImGui::GetCursorScreenPos();
+            slider = {start.x + 120, start.y + ImGui::GetFrameHeight() / 2};
+            if (capture) {
+                ImGui::LogToBuffer();
+            }
+            AlienGui::SliderFloat(
+                AlienGui::SliderFloatParameters()
+                    .name("External energy amount")
+                    .label(tr("parameters.energy.externalenergy.name"))
+                    .textWidth(360)
+                    .min(0)
+                    .max(100000000)
+                    .logarithmic(true)
+                    .infinity(true)
+                    .format("%.0f")
+                    .defaultValue(&original),
+                &value);
+            if (capture) {
+                logged = GImGui->LogBuffer.c_str();
+                ImGui::LogFinish();
+            }
+            auto labelStart = GImGui->LastItemData.Rect.Min;
+            auto width = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
+            revert = {labelStart.x - ImGui::GetStyle().ItemSpacing.x - width / 2, start.y + ImGui::GetFrameHeight() / 2};
+            ImGui::PushID("External energy amount");
+            ImGui::PushID("");
+            ImGui::PushID(0);
+            auto current = ImGui::GetID("##slider");
+            if (!sliderId) {
+                sliderId = current;
+            }
+            EXPECT_EQ(sliderId, current);
+            ImGui::PopID();
+            ImGui::PopID();
+            ImGui::PopID();
+        });
+    };
+    draw();
+    draw();
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    io.AddMousePosEvent(slider.x, slider.y);
+    draw();
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    io.AddMouseButtonEvent(0, false);
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    draw();
+    ASSERT_EQ(sliderId, GImGui->ActiveId);
+    io.AddInputCharactersUTF8("43210");
+    draw();
+    EXPECT_FLOAT_EQ(43210, value);
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        EXPECT_EQ(sliderId, GImGui->ActiveId);
+        EXPECT_EQ(sliderId, GImGui->InputTextState.ID);
+        EXPECT_FLOAT_EQ(43210, value);
+    }
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    draw();
+    io.AddKeyEvent(ImGuiKey_Enter, false);
+    draw();
+    select("ru");
+    value = Infinity<float>::value;
+    capture = true;
+    draw();
+    capture = false;
+    EXPECT_FLOAT_EQ(Infinity<float>::value, value);
+    EXPECT_NE(std::string::npos, logged.find("Бесконечность"));
+    draw();
+    io.AddMousePosEvent(revert.x, revert.y);
+    draw();
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    io.AddMouseButtonEvent(0, false);
+    draw();
+    EXPECT_FLOAT_EQ(original, value);
 }

@@ -65,17 +65,17 @@ namespace
         }
     }
 
-    void colorButton(FloatColorRGB& color, int colorIndex, float width)
+    void colorButton(FloatColorRGB& color, int colorIndex, float width, bool localized)
     {
         auto imGuiColor = ImVec4(color.r, color.g, color.b, 1.0f);
         if (ImGui::ColorButton("##color", imGuiColor, ImGuiColorEditFlags_NoBorder, ImVec2(width, ImGui::GetFrameHeight()))) {
             ImGui::OpenPopup("colorpicker");
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Color %d", colorIndex + 1);
+            ImGui::SetTooltip("%s %d", localized ? tr("parameters.color.color").c_str() : "Color", colorIndex + 1);
         }
         if (ImGui::BeginPopup("colorpicker")) {
-            ImGui::Text("Please choose a color");
+            ImGui::TextUnformatted(localized ? tr("parameters.color.choose").c_str() : "Please choose a color");
             ImGui::Separator();
             ImGui::ColorPicker4("##picker", (float*)&imGuiColor, ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview);
             ImGui::EndPopup();
@@ -778,7 +778,10 @@ bool AlienGui::Switcher(SwitcherParameters& parameters, int* value, bool* enable
         return false;
     }
 
-    auto getSwitcherValueText = [&](int valueIndex) { return parameters._values[valueIndex]; };
+    auto getSwitcherValueText = [&](int valueIndex) {
+        auto const& values = parameters._displayValues.size() == parameters._values.size() ? parameters._displayValues : parameters._values;
+        return values.at(valueIndex);
+    };
     auto isUniform = [&] {
         if (!parameters._colorDependence) {
             return true;
@@ -896,7 +899,7 @@ bool AlienGui::Switcher(SwitcherParameters& parameters, int* value, bool* enable
                     }
                 }
                 ImGui::BeginDisabled(equal);
-                if (RevertButton(parameters._name)) {
+                if (RevertButton(parameters._name, parameters._label.has_value())) {
                     for (int row = 0; row < numDefaultRows; ++row) {
                         value[row] = defaultValues[row];
                     }
@@ -913,7 +916,7 @@ bool AlienGui::Switcher(SwitcherParameters& parameters, int* value, bool* enable
                 ImGui::EndDisabled();
             }
 
-            AlienGui::Text(TextParameters().text(parameters._name).highlightedSubString(parameters._highlightedSubString));
+            AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
 
             if (parameters._tooltip) {
                 AlienGui::HelpMarker(*parameters._tooltip);
@@ -1725,20 +1728,20 @@ void AlienGui::ColorButton(ColorButtonParameters const& parameters, FloatColorRG
         imGuiBackupColor = imGuiColor;
     }
     if (ImGui::BeginPopup("colorpicker")) {
-        ImGui::Text("Please choose a color");
+        ImGui::TextUnformatted(parameters._label ? tr("parameters.color.choose").c_str() : "Please choose a color");
         ImGui::Separator();
         ImGui::ColorPicker4("##picker", (float*)&imGuiColor, ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview);
         ImGui::SameLine();
 
         ImGui::BeginGroup();  // Lock X position
-        ImGui::Text("Current");
+        ImGui::TextUnformatted(parameters._label ? tr("parameters.color.current").c_str() : "Current");
         ImGui::ColorButton("##current", imGuiColor, ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_AlphaPreviewHalf, ImVec2(60, 40));
-        ImGui::Text("Previous");
+        ImGui::TextUnformatted(parameters._label ? tr("parameters.color.previous").c_str() : "Previous");
         if (ImGui::ColorButton("##previous", imGuiBackupColor, ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_AlphaPreviewHalf, ImVec2(60, 40))) {
             imGuiColor = imGuiBackupColor;
         }
         ImGui::Separator();
-        ImGui::Text("Palette");
+        ImGui::TextUnformatted(parameters._label ? tr("parameters.color.palette").c_str() : "Palette");
         for (int n = 0; n < IM_ARRAYSIZE(imGuiSavedPalette); n++) {
             ImGui::PushID(n);
             if ((n % 8) != 0)
@@ -1781,7 +1784,7 @@ void AlienGui::ColorButton(ColorButtonParameters const& parameters, FloatColorRG
         auto hasDefaultEnabledValue = enabled && parameters._defaultEnabledValue;
         auto equalEnabledValue = !hasDefaultEnabledValue || *parameters._defaultEnabledValue == *enabled;
         ImGui::BeginDisabled(color == *parameters._defaultValue && equalEnabledValue);
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             color = *parameters._defaultValue;
             if (hasDefaultEnabledValue) {
                 *enabled = *parameters._defaultEnabledValue;
@@ -1790,7 +1793,7 @@ void AlienGui::ColorButton(ColorButtonParameters const& parameters, FloatColorRG
         ImGui::EndDisabled();
     }
     ImGui::SameLine();
-    AlienGui::Text(TextParameters().text(parameters._name.c_str()).highlightedSubString(parameters._highlightedSubString));
+    AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }
@@ -1808,7 +1811,7 @@ void AlienGui::ColorVectorButtons(ColorVectorButtonsParameters const& parameters
     ImGui::BeginGroup();
     for (int color = 0; color < MAX_COLORS; ++color) {
         ImGui::PushID(color);
-        colorButton(colors[color], color, buttonWidth);
+        colorButton(colors[color], color, buttonWidth, parameters._label.has_value());
         if (color < MAX_COLORS - 1) {
             ImGui::SameLine();
         }
@@ -1819,19 +1822,32 @@ void AlienGui::ColorVectorButtons(ColorVectorButtonsParameters const& parameters
     ImGui::SameLine();
     if (parameters._defaultValue) {
         ImGui::BeginDisabled(isColorVectorDefault(colors, *parameters._defaultValue));
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             copyColorVector(colors, *parameters._defaultValue);
         }
         ImGui::EndDisabled();
     }
 
     ImGui::SameLine();
-    Text(TextParameters().text(parameters._name.c_str()).highlightedSubString(parameters._highlightedSubString));
+    Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
 
     if (parameters._builtinDefaultValue) {
         ImGui::SameLine();
         ImGui::BeginDisabled(isColorVectorDefault(colors, *parameters._builtinDefaultValue));
-        if (ImGui::Button(("Default##" + parameters._name).c_str())) {
+        auto defaultId = ImGui::GetID(("Default##" + parameters._name).c_str());
+        auto defaultLabel = parameters._label ? tr("parameters.color.default") : std::string("Default");
+        auto labelSize = ImGui::CalcTextSize(defaultLabel.c_str());
+        auto padding = ImGui::GetStyle().FramePadding;
+        ImGui::PushOverrideID(defaultId);
+        auto pressed = ImGui::Button("", {labelSize.x + padding.x * 2, labelSize.y + padding.y * 2});
+        ImGui::PopID();
+        auto rect = GImGui->LastItemData.Rect;
+        if (!ImGui::GetCurrentWindow()->SkipItems && ImGui::IsItemVisible()) {
+            ImGui::RenderTextClipped(
+                {rect.Min.x + padding.x, rect.Min.y + padding.y}, {rect.Max.x - padding.x, rect.Max.y - padding.y},
+                defaultLabel.c_str(), nullptr, &labelSize, ImGui::GetStyle().ButtonTextAlign, &rect);
+        }
+        if (pressed) {
             copyColorVector(colors, *parameters._builtinDefaultValue);
         }
         ImGui::EndDisabled();
@@ -3291,6 +3307,9 @@ bool AlienGui::BasicSlider(Parameter const& parameters, T* value, bool* enabled,
             format = applyFormatToValue(value[color], parameters._format, parameters._infinity, true);
             sliderValue = value[color];
             sliderValueColor = color;
+        }
+        if (parameters._label && *parameters._label != parameters._name) {
+            boost::replace_all(format, "Infinity", tr("common.infinity"));
         }
         if (parameters._infinity && value[color] == Infinity<T>::value) {
             value[color] = parameters._max;
