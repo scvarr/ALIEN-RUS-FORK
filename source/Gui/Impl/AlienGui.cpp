@@ -317,7 +317,7 @@ bool AlienGui::InputInt(InputIntParameters const& parameters, int& value, bool* 
     if (parameters._defaultValue) {
         ImGui::SameLine();
         ImGui::BeginDisabled(value == *parameters._defaultValue);
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             value = *parameters._defaultValue;
             result = true;
         }
@@ -328,7 +328,7 @@ bool AlienGui::InputInt(InputIntParameters const& parameters, int& value, bool* 
     if (enabled) {
         ImGui::EndDisabled();
     }
-    drawTextWithInfoLabel(parameters._name, parameters._infoLabel);
+    drawTextWithInfoLabel(parameters._label.value_or(parameters._name), parameters._infoLabel);
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }
@@ -399,14 +399,14 @@ bool AlienGui::InputFloat(InputFloatParameters const& parameters, float& value)
     ImGui::SameLine();
     if (parameters._defaultValue) {
         ImGui::BeginDisabled(value == *parameters._defaultValue);
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             value = *parameters._defaultValue;
             result = true;
         }
         ImGui::EndDisabled();
     }
     ImGui::SameLine();
-    drawTextWithInfoLabel(parameters._name, parameters._infoLabel);
+    drawTextWithInfoLabel(parameters._label.value_or(parameters._name), parameters._infoLabel);
 
     if (parameters._tooltip) {
         HelpMarker(*parameters._tooltip);
@@ -579,12 +579,12 @@ bool AlienGui::InputText(InputTextParameters const& parameters, char* buffer, in
             StringHelper::copy(buffer, bufferSize, (*parameters._generateValueFunc)());
             result = true;
         }
-        AlienGui::Tooltip(AlienGui::TooltipParameters().text("Generate a random name"));
+        AlienGui::Tooltip(AlienGui::TooltipParameters().text(parameters._generateValueTooltip));
     }
     if (parameters._defaultValue) {
         ImGui::SameLine();
         ImGui::BeginDisabled(std::string(buffer) == *parameters._defaultValue);
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             StringHelper::copy(buffer, bufferSize, *parameters._defaultValue);
             result = true;
         }
@@ -592,7 +592,7 @@ bool AlienGui::InputText(InputTextParameters const& parameters, char* buffer, in
     }
     if (!parameters._name.empty()) {
         ImGui::SameLine();
-        AlienGui::Text(TextParameters().text(parameters._name.c_str()).highlightedSubString(parameters._highlightedSubString));
+        AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
     }
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);

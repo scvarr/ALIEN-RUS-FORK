@@ -12,6 +12,8 @@
 
 class AlienDialog : public MainLoopEntity
 {
+    friend class LocalizationGuiTests;
+
 public:
     AlienDialog(
         std::string const& title,

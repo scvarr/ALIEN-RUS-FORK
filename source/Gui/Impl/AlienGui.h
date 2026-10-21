@@ -117,6 +117,7 @@ public:
     struct InputIntParameters
     {
         MEMBER(InputIntParameters, std::string, name, "");
+        MEMBER(InputIntParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(InputIntParameters, float, textWidth, 100);
         MEMBER(InputIntParameters, std::optional<int>, defaultValue, std::nullopt);
         MEMBER(InputIntParameters, bool, infinity, false);
@@ -131,6 +132,7 @@ public:
     struct InputFloatParameters
     {
         MEMBER(InputFloatParameters, std::string, name, "");
+        MEMBER(InputFloatParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(InputFloatParameters, std::string, id, "");
         MEMBER(InputFloatParameters, float, step, 1.0f);
         MEMBER(InputFloatParameters, std::string, format, "%.3f");
@@ -232,6 +234,7 @@ public:
     struct InputTextParameters
     {
         MEMBER(InputTextParameters, std::string, name, "");
+        MEMBER(InputTextParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(InputTextParameters, std::string, hint, "");
         MEMBER(InputTextParameters, float, width, 0);
         MEMBER(InputTextParameters, float, textWidth, 100);
@@ -241,6 +244,7 @@ public:
         MEMBER(InputTextParameters, bool, password, false);
         MEMBER(InputTextParameters, bool, folderButton, false);
         MEMBER(InputTextParameters, std::optional<std::function<std::string()>>, generateValueFunc, std::nullopt);
+        MEMBER(InputTextParameters, std::string, generateValueTooltip, "Generate a random name");
         MEMBER(InputTextParameters, std::optional<std::string>, defaultValue, std::nullopt);
         MEMBER(InputTextParameters, std::optional<std::string>, highlightedSubString, std::nullopt);
         MEMBER(InputTextParameters, std::optional<std::string>, tooltip, std::nullopt);

@@ -11,8 +11,12 @@
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
+#include <Gui/Impl/ExitDialog.h>
+#include <Gui/Impl/GenericMessageDialog.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
+#include <Gui/Impl/NewSimulationDialog.h>
+#include <Gui/Impl/SavePictureDialog.h>
 #include <Gui/Impl/StyleService.h>
 #include <Gui/Impl/TextFontService.h>
 
@@ -51,6 +55,13 @@ protected:
         content();
         ImGui::End();
         ImGui::Render();
+    }
+
+    void openWithoutSimulation(AlienDialog& dialog) { dialog._modalWindow.open(); }
+
+    void closeImmediately(AlienDialog& dialog)
+    {
+        frame([&] { dialog._modalWindow.process([&] { dialog._modalWindow.close(); }); });
     }
 
     std::string _language;
@@ -381,4 +392,158 @@ TEST_F(LocalizationGuiTests, languagePopupKeepsMenuOpenAndAcceptsMouseSelection)
     io.AddMousePosEvent(1800, 900);
     draw();
     EXPECT_FALSE(menuOpen);
+}
+
+TEST_F(LocalizationGuiTests, l2aDialogsKeepActualWindowsAndEditedInputAcrossLanguages)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (auto const& [dialog, title, hasWidth] : std::vector<std::tuple<AlienDialog*, std::string, bool>>{
+             {&NewSimulationDialog::get(), "New simulation", true}, {&ExitDialog::get(), "Exit", false}, {&SavePictureDialog::get(), "Save picture", true}}) {
+        SCOPED_TRACE(title);
+        openWithoutSimulation(*dialog);
+        ImGuiWindow* original = nullptr;
+        ImGuiID inputId = 0;
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+            ASSERT_TRUE(dialog->isOpen());
+            auto window = ImGui::FindWindowByName(("###" + title).c_str());
+            ASSERT_NE(nullptr, window);
+            if (!original) {
+                original = window;
+            }
+            EXPECT_EQ(original, window);
+            EXPECT_EQ(1, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+            if (hasWidth) {
+                auto scope = ImHashStr(title.c_str(), 0, window->ID);
+                auto widthScope = ImHashStr("Width", 0, scope);
+                auto id = ImHashStr("###input", 0, widthScope);
+                if (inputId == 0) {
+                    inputId = id;
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                    auto pos = window->DC.CursorStartPos;
+                    pos.x += 40;
+                    auto row = title == "New simulation" ? 1.0f : 0.0f;
+                    pos.y += ImGui::GetFrameHeight() * (row + 0.5f) + ImGui::GetStyle().ItemSpacing.y * row;
+                    io.AddMousePosEvent(pos.x, pos.y);
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                    io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                    io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
+                    ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);
+                    ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
+                    ImGui::GetIO().AddInputCharactersUTF8("73");
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                }
+                EXPECT_EQ(inputId, ImGui::GetActiveID());
+                auto state = ImGui::GetInputTextState(inputId);
+                ASSERT_NE(nullptr, state);
+                EXPECT_STREQ("73", state->TextA.Data);
+            }
+        }
+        closeImmediately(*dialog);
+        EXPECT_FALSE(dialog->isOpen());
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2aInputLabelsRetainLegacyIdsAndValues)
+{
+    int width = 73;
+    float energy = 1234;
+    char name[64] = "Edited project";
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        frame([&] {
+            auto verify = [&](ImGuiID id, auto const& draw) {
+                ImGui::SetActiveID(id, ImGui::GetCurrentWindow());
+                ImGui::GetCurrentContext()->ActiveIdIsAlive = 0;
+                draw();
+                EXPECT_EQ(id, ImGui::GetCurrentContext()->ActiveIdIsAlive);
+                ImGui::ClearActiveID();
+            };
+            ImGui::PushID("Width");
+            auto widthId = ImGui::GetID("###input");
+            ImGui::PopID();
+            verify(widthId, [&] { AlienGui::InputInt(AlienGui::InputIntParameters().name("Width").label(tr("common.width")), width); });
+            ImGui::PushID("");
+            auto energyId = ImGui::GetID("##Energy");
+            ImGui::PopID();
+            verify(energyId, [&] { AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Energy").label(tr("new.energy")), energy); });
+            verify(ImGui::GetID("##Project name"), [&] {
+                AlienGui::InputText(AlienGui::InputTextParameters().name("Project name").label(tr("new.project")), name, sizeof(name));
+            });
+        });
+        EXPECT_EQ(73, width);
+        EXPECT_FLOAT_EQ(1234, energy);
+        EXPECT_STREQ("Edited project", name);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2aAllMenusKeepWindowsAndDistinctItemIds)
+{
+    for (auto const& key : {"menu.simulation", "menu.network", "menu.windows", "menu.editor", "menu.view", "menu.tools", "settings.menu", "menu.help"}) {
+        bool open = true;
+        ImGuiWindow* original = nullptr;
+        ImGui::GetIO().AddMousePosEvent(10, 10);
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            frame([&] {
+                AlienGui::BeginMenuBar();
+                AlienGui::BeginMenu(tr(key) + "###" + key, open, false);
+                if (open) {
+                    auto window = ImGui::GetCurrentWindow();
+                    if (!original) {
+                        original = window;
+                    }
+                    EXPECT_EQ(original, window);
+                    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.save") + "###menu.save"), [] {});
+                    auto first = ImGui::GetItemID();
+                    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.save") + "###menu.savepicture"), [] {});
+                    EXPECT_NE(first, ImGui::GetItemID());
+                }
+                AlienGui::EndMenu();
+                AlienGui::EndMenuBar();
+            });
+            EXPECT_TRUE(open);
+        }
+        EXPECT_NE(nullptr, original);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2aLocalizedErrorKeepsIdentityAcrossLanguages)
+{
+    auto& dialog = GenericMessageDialog::get();
+    dialog.localizedInformation("Save picture error", "picture.title", "picture.error");
+    ImGuiWindow* original = nullptr;
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        frame([&] { static_cast<MainLoopEntity&>(dialog).process(); });
+        auto window = ImGui::FindWindowByName("###Save picture error");
+        ASSERT_NE(nullptr, window);
+        if (!original) {
+            original = window;
+        }
+        EXPECT_EQ(original, window);
+        EXPECT_TRUE(dialog.isOpen());
+    }
+    closeImmediately(dialog);
+}
+
+TEST_F(LocalizationGuiTests, l2aLegacyDialogGeometryMigrates)
+{
+    auto& settings = GlobalSettings::get();
+    for (auto const& title : {"New simulation", "Exit", "Save picture"}) {
+        settings.setValue("gui.imgui settings", "[Window][" + std::string(title) + "]\nPos=123,234\nSize=710,400\nCollapsed=0\n\n");
+        settings.loadImGuiSettings();
+        auto migrated = ImGui::FindWindowSettingsByID(ImHashStr(("###" + std::string(title)).c_str()));
+        ASSERT_NE(nullptr, migrated);
+        EXPECT_EQ(123, migrated->Pos.x);
+        EXPECT_EQ(710, migrated->Size.x);
+    }
 }

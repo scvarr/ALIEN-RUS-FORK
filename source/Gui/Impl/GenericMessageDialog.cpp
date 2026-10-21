@@ -69,6 +69,13 @@ void GenericMessageDialog::yesNo(std::string const& title, std::string const& me
     changeTitle(title);
 }
 
+void GenericMessageDialog::localizedInformation(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey)
+{
+    information(stableTitle, tr(messageKey));
+    setTitleKey(titleKey);
+    _messageKey = messageKey;
+}
+
 void GenericMessageDialog::localizedYesNo(
     std::string const& stableTitle,
     std::string const& titleKey,
@@ -89,7 +96,7 @@ void GenericMessageDialog::processInformation()
     processMessageText();
     AlienGui::Separator();
 
-    if (AlienGui::Button("OK")) {
+    if (AlienGui::Button(_messageKey.empty() ? "OK" : tr("common.ok") + "###OK")) {
         close();
     }
 }

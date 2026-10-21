@@ -3,19 +3,21 @@
 #include <imgui.h>
 
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 #include <Base/NameGeneratorService.h>
 #include <Base/StringHelper.h>
 
 #include <Engine/Interface/SimulationFacade.h>
 
 #include "AlienGui.h"
+#include "LocalizationGui.h"
 #include "NewSimulationService.h"
 #include "StyleService.h"
 #include <Engine/Interface/SimulationFacade.h>
 
 namespace
 {
-    auto const ContentTextInputWidth = 130.0f;
+    auto const ContentTextInputWidth = 290.0f;
     auto const ProjectNameSize = sizeof(Char64) / sizeof(char);
 }
 
@@ -31,26 +33,35 @@ void NewSimulationDialog::shutdownIntern()
 }
 
 NewSimulationDialog::NewSimulationDialog()
-    : AlienDialog("New simulation")
-{}
+    : AlienDialog("New simulation", {620.0f, 330.0f})
+{
+    setTitleKey("new.title");
+}
 
 void NewSimulationDialog::processIntern()
 {
     AlienGui::InputText(
         AlienGui::InputTextParameters()
             .name("Project name")
+            .label(tr("new.project"))
             .textWidth(ContentTextInputWidth)
+            .generateValueTooltip(tr("new.generate"))
             .generateValueFunc([] { return NameGeneratorService::get().createSimulationName(); }),
         _projectName,
         ProjectNameSize);
-    AlienGui::InputInt(AlienGui::InputIntParameters().name("Width").textWidth(ContentTextInputWidth), _width);
-    AlienGui::InputInt(AlienGui::InputIntParameters().name("Height").textWidth(ContentTextInputWidth), _height);
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Energy").textWidth(ContentTextInputWidth).format("%.0f").step(1000.0f), _externalEnergy);
-    AlienGui::Checkbox(AlienGui::CheckboxParameters().name("Adopt parameters").textWidth(ContentTextInputWidth), &_adoptSimulationParameters);
+    AlienGui::InputInt(AlienGui::InputIntParameters().name("Width").label(tr("common.width")).textWidth(ContentTextInputWidth), _width);
+    AlienGui::InputInt(AlienGui::InputIntParameters().name("Height").label(tr("common.height")).textWidth(ContentTextInputWidth), _height);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters().name("Energy").label(tr("new.energy")).textWidth(ContentTextInputWidth).format("%.0f").step(1000.0f),
+        _externalEnergy);
+    AlienGui::Checkbox(
+        AlienGui::CheckboxParameters().name("Adopt parameters").label(tr("new.adopt")).textWidth(ContentTextInputWidth), &_adoptSimulationParameters);
+
+    LocalizationGui::languageSelector();
 
     ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
     AlienGui::Separator();
-    if (AlienGui::Button("OK")) {
+    if (AlienGui::Button(tr("common.ok") + "###OK")) {
         ImGui::CloseCurrentPopup();
         onNewSimulation();
         close();
@@ -58,7 +69,7 @@ void NewSimulationDialog::processIntern()
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::Button(tr("common.cancel") + "###Cancel")) {
         ImGui::CloseCurrentPopup();
         close();
     }

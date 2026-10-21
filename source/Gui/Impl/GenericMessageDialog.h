@@ -24,6 +24,8 @@ public:
     void markdownInformation(std::string const& title, std::string const& markdownMessage);
     void yesNo(std::string const& title, std::string const& message, std::function<void()> const& yesFunction);
 
+    void localizedInformation(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey);
+
     void localizedYesNo(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey, std::function<void()> const& yesFunction);
 
 private:

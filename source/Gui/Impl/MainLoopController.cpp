@@ -423,52 +423,73 @@ void MainLoopController::processMenubar()
     AlienGui::MenuShutdownButton([&] { ExitDialog::get().open(); });
     ImGui::Dummy(ImVec2(scale(10.0f), 0.0f));
 
-    AlienGui::BeginMenu(" " ICON_FA_GAMEPAD "  Simulation ", _simulationMenuOpened);
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("New").keyCtrl(true).key(ImGuiKey_N), [&] { NewSimulationDialog::get().open(); });
+    AlienGui::BeginMenu(" " ICON_FA_GAMEPAD "  " + tr("menu.simulation") + " ###menu.simulation", _simulationMenuOpened);
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Open").keyCtrl(true).key(ImGuiKey_O), [&] { FileTransferController::get().onOpenSimulationDialog(); });
-    AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Save").keyCtrl(true).key(ImGuiKey_S), [&] { FileTransferController::get().onSaveSimulationDialog(); });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Save picture"), [&] { SavePictureDialog::get().open(); });
+        AlienGui::MenuItemParameters().name(tr("menu.new") + "###menu.new").keyCtrl(true).key(ImGuiKey_N), [&] { NewSimulationDialog::get().open(); });
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.open") + "###menu.open").keyCtrl(true).key(ImGuiKey_O), [&] {
+        FileTransferController::get().onOpenSimulationDialog();
+    });
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.save") + "###menu.save").keyCtrl(true).key(ImGuiKey_S), [&] {
+        FileTransferController::get().onSaveSimulationDialog();
+    });
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.savepicture") + "###menu.savepicture"), [&] { SavePictureDialog::get().open(); });
     AlienGui::MenuSeparator();
     auto running = _SimulationFacade::get()->isSimulationRunning();
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Run").key(ImGuiKey_Space).disabled(running).closeMenuWhenItemClicked(false), [&] {
-        _SimulationFacade::get()->runSimulation();
-        printOverlayMessage("Run");
-    });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Pause").key(ImGuiKey_Space).disabled(!running).closeMenuWhenItemClicked(false), [&] {
-        _SimulationFacade::get()->pauseSimulation();
-        printOverlayMessage("Pause");
-    });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters().name(tr("menu.run") + "###menu.run").key(ImGuiKey_Space).disabled(running).closeMenuWhenItemClicked(false), [&] {
+            _SimulationFacade::get()->runSimulation();
+            printOverlayMessage(tr("overlay.run"));
+        });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters().name(tr("menu.pause") + "###menu.pause").key(ImGuiKey_Space).disabled(!running).closeMenuWhenItemClicked(false), [&] {
+            _SimulationFacade::get()->pauseSimulation();
+            printOverlayMessage(tr("overlay.pause"));
+        });
     AlienGui::EndMenu();
 
-    AlienGui::BeginMenu(" " ICON_FA_GLOBE "  Network ", _networkMenuOpened);
-    AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Browser").keyAlt(true).key(ImGuiKey_B).closeMenuWhenItemClicked(false).selected(BrowserWindow::get().isOn()),
-        [&] { BrowserWindow::get().setOn(!BrowserWindow::get().isOn()); });
-    AlienGui::MenuSeparator();
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Login").keyAlt(true).key(ImGuiKey_L).disabled(NetworkService::get().isLoggedIn()), [&] {
-        LoginDialog::get().open();
-    });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Logout").closeMenuWhenItemClicked(false).disabled(!NetworkService::get().isLoggedIn()), [&] {
-        NetworkService::get().logout();
-        BrowserWindow::get().onRefresh();
-    });
-    AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Upload simulation").keyAlt(true).key(ImGuiKey_D).disabled(!NetworkService::get().isLoggedIn()),
-        [&] { UploadSimulationDialog::get().open(NetworkResourceType_Simulation); });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Upload genome").keyAlt(true).key(ImGuiKey_Q).disabled(!NetworkService::get().isLoggedIn()), [&] {
-        UploadSimulationDialog::get().open(NetworkResourceType_Genome);
-    });
-    AlienGui::MenuSeparator();
-    AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Delete user").disabled(!NetworkService::get().isLoggedIn()), [&] { DeleteUserDialog::get().open(); });
-    AlienGui::EndMenu();
-
-    AlienGui::BeginMenu(" " ICON_FA_WINDOW_RESTORE "  Windows ", _windowMenuOpened);
+    AlienGui::BeginMenu(" " ICON_FA_GLOBE "  " + tr("menu.network") + " ###menu.network", _networkMenuOpened);
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Temporal control")
+            .name(tr("menu.browser") + "###menu.browser")
+            .keyAlt(true)
+            .key(ImGuiKey_B)
+            .closeMenuWhenItemClicked(false)
+            .selected(BrowserWindow::get().isOn()),
+        [&] { BrowserWindow::get().setOn(!BrowserWindow::get().isOn()); });
+    AlienGui::MenuSeparator();
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters().name(tr("menu.login") + "###menu.login").keyAlt(true).key(ImGuiKey_L).disabled(NetworkService::get().isLoggedIn()),
+        [&] { LoginDialog::get().open(); });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters().name(tr("menu.logout") + "###menu.logout").closeMenuWhenItemClicked(false).disabled(!NetworkService::get().isLoggedIn()),
+        [&] {
+            NetworkService::get().logout();
+            BrowserWindow::get().onRefresh();
+        });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.uploadsimulation") + "###menu.uploadsimulation")
+            .keyAlt(true)
+            .key(ImGuiKey_D)
+            .disabled(!NetworkService::get().isLoggedIn()),
+        [&] { UploadSimulationDialog::get().open(NetworkResourceType_Simulation); });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.uploadgenome") + "###menu.uploadgenome")
+            .keyAlt(true)
+            .key(ImGuiKey_Q)
+            .disabled(!NetworkService::get().isLoggedIn()),
+        [&] { UploadSimulationDialog::get().open(NetworkResourceType_Genome); });
+    AlienGui::MenuSeparator();
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.deleteuser") + "###menu.deleteuser").disabled(!NetworkService::get().isLoggedIn()), [&] {
+        DeleteUserDialog::get().open();
+    });
+    AlienGui::EndMenu();
+
+    AlienGui::BeginMenu(" " ICON_FA_WINDOW_RESTORE "  " + tr("menu.windows") + " ###menu.windows", _windowMenuOpened);
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.temporal") + "###menu.temporal")
             .keyAlt(true)
             .key(ImGuiKey_1)
             .selected(TemporalControlWindow::get().isOn())
@@ -476,7 +497,7 @@ void MainLoopController::processMenubar()
         [&] { TemporalControlWindow::get().setOn(!TemporalControlWindow::get().isOn()); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Spatial control")
+            .name(tr("menu.spatial") + "###menu.spatial")
             .keyAlt(true)
             .key(ImGuiKey_2)
             .selected(SpatialControlWindow::get().isOn())
@@ -484,7 +505,7 @@ void MainLoopController::processMenubar()
         [&] { SpatialControlWindow::get().setOn(!SpatialControlWindow::get().isOn()); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Evolution dashboard")
+            .name(tr("menu.evolution") + "###menu.evolution")
             .keyAlt(true)
             .key(ImGuiKey_3)
             .selected(EvolutionDashboardWindow::get().isOn())
@@ -492,27 +513,42 @@ void MainLoopController::processMenubar()
         [&] { EvolutionDashboardWindow::get().setOn(!EvolutionDashboardWindow::get().isOn()); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Simulation parameters")
+            .name(tr("menu.parameters") + "###menu.parameters")
             .keyAlt(true)
             .key(ImGuiKey_4)
             .selected(SimulationParametersMainWindow::get().isOn())
             .closeMenuWhenItemClicked(false),
         [&] { SimulationParametersMainWindow::get().setOn(!SimulationParametersMainWindow::get().isOn()); });
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Autosave").keyAlt(true).key(ImGuiKey_5).selected(AutosaveWindow::get().isOn()).closeMenuWhenItemClicked(false),
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.autosave") + "###menu.autosave")
+            .keyAlt(true)
+            .key(ImGuiKey_5)
+            .selected(AutosaveWindow::get().isOn())
+            .closeMenuWhenItemClicked(false),
         [&] { AutosaveWindow::get().setOn(!AutosaveWindow::get().isOn()); });
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("MCP server").keyAlt(true).key(ImGuiKey_6).selected(McpWindow::get().isOn()).closeMenuWhenItemClicked(false),
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.mcp") + "###menu.mcp")
+            .keyAlt(true)
+            .key(ImGuiKey_6)
+            .selected(McpWindow::get().isOn())
+            .closeMenuWhenItemClicked(false),
         [&] { McpWindow::get().setOn(!McpWindow::get().isOn()); });
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Log").keyAlt(true).key(ImGuiKey_7).selected(LogWindow::get().isOn()).closeMenuWhenItemClicked(false),
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.log") + "###menu.log")
+            .keyAlt(true)
+            .key(ImGuiKey_7)
+            .selected(LogWindow::get().isOn())
+            .closeMenuWhenItemClicked(false),
         [&] { LogWindow::get().setOn(!LogWindow::get().isOn()); });
     AlienGui::EndMenu();
 
-    AlienGui::BeginMenu(" " ICON_FA_PEN_ALT "  Editor ", _editorMenuOpened);
+    AlienGui::BeginMenu(" " ICON_FA_PEN_ALT "  " + tr("menu.editor") + " ###menu.editor", _editorMenuOpened);
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Genome editor")
+            .name(tr("menu.genomeeditor") + "###menu.genomeeditor")
             .keyAlt(true)
             .key(ImGuiKey_W)
             .selected(GenomeEditorWindow::get().isOn())
@@ -521,7 +557,7 @@ void MainLoopController::processMenubar()
     AlienGui::MenuSeparator();
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Allow object editing")
+            .name(tr("menu.editobjects") + "###menu.editobjects")
             .keyAlt(true)
             .key(ImGuiKey_E)
             .selected(SimulationInteractionController::get().isEditMode())
@@ -530,21 +566,21 @@ void MainLoopController::processMenubar()
     AlienGui::MenuSeparator();
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Inspect objects")
+            .name(tr("menu.inspectobjects") + "###menu.inspectobjects")
             .keyAlt(true)
             .key(ImGuiKey_N)
             .disabled(!SimulationInteractionController::get().isEditMode() || !InspectionController::get().isObjectInspectionPossible()),
         [&] { InspectionController::get().onInspectSelectedObjects(); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Inspect genomes")
+            .name(tr("menu.inspectgenomes") + "###menu.inspectgenomes")
             .keyAlt(true)
             .key(ImGuiKey_F)
             .disabled(!SimulationInteractionController::get().isEditMode() || !InspectionController::get().isGenomeInspectionPossible()),
         [&] { InspectionController::get().onInspectSelectedGenomes(); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Inspect creatures")
+            .name(tr("menu.inspectcreatures") + "###menu.inspectcreatures")
             .keyAlt(true)
             .key(ImGuiKey_P)
             .disabled(!SimulationInteractionController::get().isEditMode() || !InspectionController::get().isCreatureInspectionPossible()),
@@ -552,43 +588,43 @@ void MainLoopController::processMenubar()
     auto inspectionWindowsActive = InspectionController::get().areInspectionWindowsActive();
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Close inspections")
+            .name(tr("menu.closeinspections") + "###menu.closeinspections")
             .key(ImGuiKey_Escape)
             .disabled(!SimulationInteractionController::get().isEditMode() || !inspectionWindowsActive),
         [&] { InspectionController::get().onCloseAllInspectorWindows(); });
     AlienGui::MenuSeparator();
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Deselect")
+            .name(tr("menu.deselect") + "###menu.deselect")
             .key(ImGuiKey_Escape)
             .disabled(!SimulationInteractionController::get().isEditMode() || !EditorController::get().isDeselectingPossible() || inspectionWindowsActive),
         [&] { EditorController::get().onDeselect(); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Copy")
+            .name(tr("menu.copy") + "###menu.copy")
             .keyCtrl(true)
             .key(ImGuiKey_C)
             .disabled(!SimulationInteractionController::get().isEditMode() || !EditorController::get().isCopyingPossible()),
         [&] { EditorController::get().onCopy(); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Paste")
+            .name(tr("menu.paste") + "###menu.paste")
             .keyCtrl(true)
             .key(ImGuiKey_V)
             .disabled(!SimulationInteractionController::get().isEditMode() || !EditorController::get().isPastingPossible()),
         [&] { EditorController::get().onPaste(); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Delete")
+            .name(tr("menu.delete") + "###menu.delete")
             .key(ImGuiKey_Delete)
             .disabled(!SimulationInteractionController::get().isEditMode() || !EditorController::get().isCopyingPossible()),
         [&] { EditorController::get().onDelete(); });
     AlienGui::EndMenu();
 
-    AlienGui::BeginMenu(" " ICON_FA_EYE "  View ", _viewMenuOpened);
+    AlienGui::BeginMenu(" " ICON_FA_EYE "  " + tr("menu.view") + " ###menu.view", _viewMenuOpened);
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Cell info overlay")
+            .name(tr("menu.celloverlay") + "###menu.celloverlay")
             .keyAlt(true)
             .key(ImGuiKey_O)
             .selected(SimulationView::get().isOverlayActive())
@@ -596,18 +632,23 @@ void MainLoopController::processMenubar()
         [&] { SimulationView::get().setOverlayActive(!SimulationView::get().isOverlayActive()); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Message overlay")
+            .name(tr("menu.messageoverlay") + "###menu.messageoverlay")
             .keyAlt(true)
             .key(ImGuiKey_X)
             .selected(OverlayController::get().isOn())
             .closeMenuWhenItemClicked(false),
         [&] { OverlayController::get().setOn(!OverlayController::get().isOn()); });
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Render UI").keyAlt(true).key(ImGuiKey_U).selected(UiController::get().isOn()).closeMenuWhenItemClicked(false),
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.renderui") + "###menu.renderui")
+            .keyAlt(true)
+            .key(ImGuiKey_U)
+            .selected(UiController::get().isOn())
+            .closeMenuWhenItemClicked(false),
         [&] { UiController::get().setOn(!UiController::get().isOn()); });
     AlienGui::MenuItem(
         AlienGui::MenuItemParameters()
-            .name("Render simulation")
+            .name(tr("menu.rendersimulation") + "###menu.rendersimulation")
             .keyAlt(true)
             .key(ImGuiKey_I)
             .selected(SimulationView::get().isRenderSimulation())
@@ -615,13 +656,20 @@ void MainLoopController::processMenubar()
         [&] { SimulationView::get().setRenderSimulation(!SimulationView::get().isRenderSimulation()); });
     AlienGui::MenuSeparator();
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Console mode").keyAlt(true).key(ImGuiKey_C).disabled(_programState != ProgramState::OperatingMode),
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.console") + "###menu.console")
+            .keyAlt(true)
+            .key(ImGuiKey_C)
+            .disabled(_programState != ProgramState::OperatingMode),
         [&] { ConsoleModeController::get().activate(); });
     AlienGui::EndMenu();
 
-    AlienGui::BeginMenu(" " ICON_FA_TOOLS "  Tools ", _toolsMenuOpened);
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Mass operations").keyAlt(true).key(ImGuiKey_H), [&] { MassEditDialog::get().open(); });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Image converter").keyAlt(true).key(ImGuiKey_Y), [&] { ImageToPatternDialog::get().show(); });
+    AlienGui::BeginMenu(" " ICON_FA_TOOLS "  " + tr("menu.tools") + " ###menu.tools", _toolsMenuOpened);
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters().name(tr("menu.mass") + "###menu.mass").keyAlt(true).key(ImGuiKey_H), [&] { MassEditDialog::get().open(); });
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.imageconverter") + "###menu.imageconverter").keyAlt(true).key(ImGuiKey_Y), [&] {
+        ImageToPatternDialog::get().show();
+    });
     AlienGui::EndMenu();
 
     AlienGui::BeginMenu(" " ICON_FA_COG "  " + tr("settings.menu") + " ###settings.menu", _settingsMenuOpened, false);
@@ -649,10 +697,14 @@ void MainLoopController::processMenubar()
         [&] { _SimulationFacade::get()->setDebugMode(!GlobalSettings::get().isDebugMode()); });
     AlienGui::EndMenu();
 
-    AlienGui::BeginMenu(" " ICON_FA_LIFE_RING "  Help ", _helpMenuOpened);
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("About"), [&] { AboutDialog::get().open(); });
+    AlienGui::BeginMenu(" " ICON_FA_LIFE_RING "  " + tr("menu.help") + " ###menu.help", _helpMenuOpened);
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("menu.about") + "###menu.about"), [&] { AboutDialog::get().open(); });
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Documentation").key(ImGuiKey_F1).selected(DocumentationWindow::get().isOn()).closeMenuWhenItemClicked(false),
+        AlienGui::MenuItemParameters()
+            .name(tr("menu.documentation") + "###menu.documentation")
+            .key(ImGuiKey_F1)
+            .selected(DocumentationWindow::get().isOn())
+            .closeMenuWhenItemClicked(false),
         [&] { DocumentationWindow::get().setOn(!DocumentationWindow::get().isOn()); });
     AlienGui::EndMenu();
     AlienGui::EndMenuBar();

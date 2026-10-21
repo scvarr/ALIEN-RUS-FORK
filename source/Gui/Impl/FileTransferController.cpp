@@ -1,6 +1,7 @@
 #include "FileTransferController.h"
 
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 
 #include <Engine/Interface/SimulationFacade.h>
 
@@ -21,7 +22,7 @@
 void FileTransferController::onOpenSimulationDialog()
 {
     GenericFileDialog::get().showOpenFileDialog(
-        "Open simulation", "Simulation file (*.sim){.sim},.*", _referencePath, [&](std::filesystem::path const& filename) {
+        tr("file.open"), tr("file.simulation") + " (*.sim){.sim},.*", _referencePath, [&](std::filesystem::path const& filename) {
             auto filenameCopy = filename;
             _referencePath = filenameCopy.remove_filename().string();
             onOpenSimulation(filename);
@@ -50,7 +51,7 @@ void FileTransferController::onOpenSimulation(std::filesystem::path const& filen
 
 void FileTransferController::onSaveSimulationDialog()
 {
-    GenericFileDialog::get().showSaveFileDialog("Save simulation", "Simulation file (*.sim){.sim},.*", _referencePath, [&](std::filesystem::path const& path) {
+    GenericFileDialog::get().showSaveFileDialog(tr("file.save"), tr("file.simulation") + " (*.sim){.sim},.*", _referencePath, [&](std::filesystem::path const& path) {
         auto firstFilename = ifd::FileDialog::Instance().GetResult();
         auto firstFilenameCopy = firstFilename;
         _referencePath = firstFilenameCopy.remove_filename().string();

@@ -356,7 +356,7 @@ void GlobalSettings::loadImGuiSettings()
 {
     ImGui::GetIO().IniFilename = nullptr;  // No imgui.ini file; the state is persisted here instead
     auto settings = getValue(ImGuiSettingsKey, std::string());
-    for (auto const& title : {"Display settings", "Content scaling"}) {
+    for (auto const& title : {"Display settings", "Content scaling", "New simulation", "Exit", "Save picture"}) {
         auto oldHeader = std::string("[Window][") + title + "]";
         auto newHeader = std::string("[Window][###") + title + "]";
         if (auto pos = settings.find(oldHeader); pos != std::string::npos) {
