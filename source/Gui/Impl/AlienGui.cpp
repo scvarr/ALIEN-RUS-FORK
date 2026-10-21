@@ -843,9 +843,29 @@ bool AlienGui::Switcher(SwitcherParameters& parameters, int* value, bool* enable
         }
 
         auto width = parameters._width != 0.0f ? scale(parameters._width) : ImGui::GetContentRegionAvail().x;
-        auto textWidth = parameters._colorDependence && isExpanded ? parameters._textWidth : color == 0 ? parameters._textWidth : 0.0f;
-        auto textAndButtonWidth = scale(textWidth + buttonWidth * 2) + ImGui::GetStyle().FramePadding.x * 2;
-        auto switcherWidth = width - textAndButtonWidth;
+        auto const& style = ImGui::GetStyle();
+        auto textWidth = color == 0 ? scale(parameters._textWidth) : 0.0f;
+        auto labelOnNextLine = false;
+        if (color == 0 && parameters._label && textWidth > 0) {
+            auto labelWidth = ImGui::CalcTextSize(parameters._label->c_str()).x + style.ItemSpacing.x;
+            if (getDefaultValues()) {
+                labelWidth += ImGui::CalcTextSize(ICON_FA_UNDO).x + style.FramePadding.x * 2 + style.ItemSpacing.x;
+            }
+            if (parameters._tooltip) {
+                labelWidth += ImGui::CalcTextSize(ICON_FA_QUESTION_CIRCLE).x + style.ItemSpacing.x;
+            }
+            textWidth = std::min(textWidth, labelWidth);
+            float widestValue = 0;
+            for (int index = 0; index < numValues; ++index) {
+                widestValue = std::max(widestValue, ImGui::CalcTextSize(getSwitcherValueText(index).c_str()).x);
+            }
+            labelOnNextLine = width < textWidth + scale(buttonWidth * 2) + style.FramePadding.x * 4 + widestValue;
+            if (labelOnNextLine) {
+                textWidth = 0;
+            }
+        }
+        auto textAndButtonWidth = textWidth + scale(buttonWidth * 2) + style.FramePadding.x * 2;
+        auto switcherWidth = std::max(1.0f, width - textAndButtonWidth);
 
         std::string text = parameters._colorDependence && !isExpanded ? getCollapsedText() : getSwitcherValueText(value[color]);
 
@@ -854,6 +874,12 @@ bool AlienGui::Switcher(SwitcherParameters& parameters, int* value, bool* enable
 
         ImGui::SetNextItemWidth(switcherWidth);
         ImGui::InputText("##switcher", buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_ReadOnly);
+        auto const& clipRect = ImGui::GetCurrentWindow()->ClipRect;
+        auto visibleWidth = std::min(ImGui::GetItemRectMax().x, clipRect.Max.x) - std::max(ImGui::GetItemRectMin().x, clipRect.Min.x)
+            - style.FramePadding.x * 2;
+        if (ImGui::CalcTextSize(text.c_str()).x > visibleWidth) {
+            Tooltip(TooltipParameters().text(text).delay(false));
+        }
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() - ImGui::GetStyle().FramePadding.x);
@@ -888,7 +914,9 @@ bool AlienGui::Switcher(SwitcherParameters& parameters, int* value, bool* enable
         ImGui::PopID();
 
         if (color == 0) {
-            ImGui::SameLine();
+            if (!labelOnNextLine) {
+                ImGui::SameLine();
+            }
             if (auto defaultValues = getDefaultValues()) {
                 auto equal = true;
                 auto numDefaultRows = parameters._colorDependence ? MAX_COLORS : 1;

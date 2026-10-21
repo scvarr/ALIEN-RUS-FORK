@@ -256,3 +256,199 @@ to scale 1.5 and accepts other scales explicitly:
 Human visual acceptance is pending. Automated checks do not establish subjective
 readability or qualify CUDA/ray-tracing behavior. Do not open user simulations,
 import real settings, merge main or start L2-B3b during this acceptance step.
+
+## Follow-up: switcher layout after visual review
+
+Baseline for this additional commit: `da2b5c98f2d6a18c71d23f5889e024b9dc7d4859`.
+The user reported clipping of Происхождение + Настройка at scale 1.5; scale 1.0
+in a maximized application fit. This is a reported defect, not visual acceptance
+of the original commit. Repeat human visual acceptance remains pending.
+
+The original Switcher width calculation reserved `parameters._textWidth` in every
+expanded color row, although only row zero renders the reset/caption/help controls.
+In the parameter editor this unnecessarily removed 360 logical units from every
+row. Row zero also reserved 360 units instead of measuring its much shorter
+Окраска объектов caption. Color swatches, the expansion button, arrows and frame
+padding further reduce the real input width. A maximized window at scale 1.0 hid
+this problem. The previous test measured text against assumed spare space; it did
+not exercise actual scaled widget geometry and could not detect this defect.
+
+The common Switcher now:
+
+- Reserves trailing text space only for row zero. Other expanded rows use the full
+  remaining width after their color swatch and arrows.
+- Measures an independent display caption plus the actual reset/help controls,
+  keeping the configured reservation as an upper bound. If caption and a complete
+  individual mode cannot fit on one line, the caption/reset/help move below the
+  input and arrows. The editor's 650/360 constants need no further increase.
+- Clamps input width to at least one pixel instead of passing a negative width
+  to ImGui, where negative widths have a different meaning.
+- Compares the complete value against the actual input rectangle, frame padding
+  and window clip rectangle. Hover reveals the full, wrapped value when clipped,
+  including the deduplicated mixed-color list. Disabled/read-only fields also
+  expose this tooltip. No alternative text is shortened or reordered.
+
+Canonical names, row scopes, input/arrow/reset IDs, selected integers, arrow
+handlers, defaults and expansion-state IDs are unchanged. Plain legacy Switcher
+callers retain their configured width/textWidth calculation; they also gain the
+full-value tooltip when clipped. SpecificationGuiService still supplies canonical
+values and independent localized labels; it requires no special-case implementation.
+
+Four additional headless GUI tests run with real fonts, ImGui style and the active
+WindowController scale at 1.0, 1.5 and 2.0. They verify expanded-row geometry at
+220/400/650 logical widths, first-row caption wrapping and full hover text at
+200/420/650 widths, uniform and mixed color modes, EN -> RU -> EN preservation,
+read-only tooltips and actual canonical input IDs through hit-testing. Legacy
+examples cover browser sorting, creation material, timeline/autosave modes,
+constructor branch counts, signal editing and preview mode. Existing real arrow,
+reset, palette, filter, active-edit and mode-index tests remain passing. Python
+contracts compare arrow handlers and mixed-list ordering against normalized hashes
+of the baseline implementation.
+
+WindowController.h and OverlayController.h only gain friend access for the existing
+headless fixture; they gain no fields, public APIs or production behavior. Pre-edit
+impact for OverlayController is HIGH (19 importers), so that risk was reported
+before editing. The ambiguous WindowController query also included a CRITICAL
+forward declaration; resolving the actual header gives MEDIUM with 13 direct
+importers and a dispatch-boundary limitation. These shared-header changes prompted
+a clean build of all ALIEN translation units in build-agent.
+
+## Follow-up: Unicode simulation paths
+
+The failure occurs at the GUI path-to-text boundary, not in the notification font.
+A Windows diagnostic on this machine reports ACP 1251. For `Start - мир.sim`:
+
+- Native UTF-16 contains U+043C U+0438 U+0440.
+- `path.string()` produces bytes EC E8 F0 for those characters.
+- `path.u8string()` produces UTF-8 D0 BC D0 B8 D1 80.
+
+ImGui expects the latter. Sending the ACP bytes to OverlayController produced
+invalid UTF-8 display even though converting them back to a native path on this
+machine round-tripped. The diagnostic records actual bytes/code points in
+`temp/l2b3a/followup/path-diagnostic.cpp` and its executable output; it does not
+infer data loss from a screenshot. The overlay's Noto Sans Mono font already
+includes Russian glyphs and U+2116. No font or code-page change is needed.
+
+The reviewed path flow is:
+
+1. ImFileDialog finalizes its UTF-8 input as `std::filesystem::path`, with native
+   directory selections. GenericFileDialog forwards the path without narrowing.
+2. FileTransferController now passes native paths directly into the existing
+   ReadSimulationRequestData/SaveSimulationRequestData path members. The save
+   callback uses its supplied native path instead of retrieving/narrowing it again.
+3. PersisterWorker already passes a native path to SerializerService and returns a
+   native basename in ReadSimulationResultData. Those request/result contracts
+   and worker processing remain unchanged.
+4. Only display/log strings use `PathHelper::toUtf8`. In particular, the completion
+   notification converts the result's basename explicitly to UTF-8.
+5. The .sim file-opening boundary used zstd's narrow-string file wrappers. It now
+   opens std::ifstream/ofstream with the native path and wraps that stream in the
+   same zstd::istream/ostream. Compression level, worker count and serialization
+   routines are unchanged. Output is explicitly flushed while errors are caught.
+
+No Persister public contract or .sim layout is changed. This is a small I/O-boundary
+fix, not a migration of the persistence subsystem. Existing CLI/MCP callers continue
+using the same native-path APIs. The new tests compare the complete output bytes
+against serializeSimulationToString, confirming identical compressed .sim data for
+the same synthetic simulation.
+
+The remembered directory has a distinct contract: GlobalSettings strings are UTF-8,
+whereas the unchanged vendored dialog's startingDir string is locale encoded.
+FileTransferController now stores its shared reference directory as UTF-8 and
+converts only at that legacy dialog boundary. This adaptation is also applied to
+its genome-dialog entry points because they share the same reference directory;
+genome serialization and file-opening code are unchanged. `toLegacyString` accepts
+only exact native-path round trips, catching MSVC's std::system_error when a
+character is unrepresentable. It never passes replacement question marks. For an
+unrepresentable starting directory, the dialog retains its current folder rather
+than losing the stored UTF-8 path. Selected native paths still load/save correctly.
+
+This patch does not rewrite all internal strings of the vendored file dialog.
+Its breadcrumb/favorite/new-entry handling and arbitrary non-ACP starting folders
+would require a separate dialog-level Unicode stage. No dependency source/version
+is changed here. The four requested Russian names and Cyrillic folders are
+representable on this Windows installation and are covered in the tests below.
+
+Regression coverage uses only synthetic data and temporary directories:
+
+| Filename | ASCII directory | Cyrillic directory |
+| --- | --- | --- |
+| start.sim | Save/read/bytes verified | Save/read/bytes verified |
+| Старт.sim | Save/read/bytes verified | Save/read/bytes verified |
+| Start - мир.sim | Save/read/bytes verified | Save/read/bytes verified |
+| Тестовый мир №1.sim | Save/read/bytes verified | Save/read/bytes verified |
+
+A ninth save/read case uses a directory with 漢, outside CP1251, to verify that
+native .sim I/O no longer depends on the system code page. GUI tests verify native
+request/result paths, UTF-8 code points, filename/parent-directory round trips,
+UTF-8 settings persistence in an isolated registry, notification contents, glyph
+coverage and actual overlay drawing. No real simulation or autosave is loaded.
+
+## Follow-up verification and repeat acceptance
+
+`build-windows-ninja.bat agent` succeeds in Release after a clean build-agent
+rebuild. The previous tree is retained in temp/l2b3a/followup/build-before-clean;
+only vcpkg_installed packages were reused. IDE trees and .vs are untouched.
+The first link exposed GTest's missing char8_t string printer in its prebuilt DLL;
+the test uses an equivalent boolean equality assertion, without changing GTest.
+The initial unsupported-character test exposed MSVC's std::system_error exception
+type; the legacy-boundary handler was corrected and the final test passes.
+
+| Suite | Passed | Failed | Disabled |
+| --- | ---: | ---: | ---: |
+| BaseTests | 41 | 0 | 0 |
+| DataTests | 247 | 0 | 0 |
+| EngineInterfaceTests | 2 | 0 | 0 |
+| McpToolsTests | 40 | 0 | 0 |
+| NetworkTests | 38 | 0 | 0 |
+| PersisterTests | 142 | 0 | 1 |
+| GuiLocalizationTests | 41 | 0 | 0 |
+| Total | 551 | 0 | 1 |
+
+All 20 Python checks pass. The full CPU/GUI run leaves real registry exports
+byte-identical, SHA-256
+`9DF2C4DC97003AC89613B1517F5F8A4FB0B33CC9F41FB52178D36245D90B24C6`.
+Tests use SettingsTestScope and temporary files; no existing profile is restored
+over user changes. GPU/stress suites are not run because engine/CUDA algorithms
+are unchanged. clang-format 19.1.5 is used only on files clean at HEAD and the new
+PathHelper header; AlienGui.cpp and FileTransferController.cpp receive narrow edits.
+
+The new isolated package is separate from the original review executable and uses
+a disposable profile, Russian, disabled autosaves/save-on-exit and scale 1.5 by
+default. It links the final production libraries. Its profile-only check passes.
+Eight synthetic, empty 256x256 .sim files are included under samples/ascii and
+samples/Тестовый каталог, with all four requested filenames in both directories.
+
+```powershell
+& 'E:\Projects\ALIEN\temp\l2b3a\followup\review\Launch-L2B3a.ps1'
+& 'E:\Projects\ALIEN\temp\l2b3a\followup\review\Launch-L2B3a.ps1' -Scale 1.0
+& 'E:\Projects\ALIEN\temp\l2b3a\followup\review\Launch-L2B3a.ps1' -Scale 2.0
+```
+
+For repeat acceptance, open one of these synthetic samples and Parameters.
+Choose Происхождение + Настройка, expand all colors, resize the window and compare
+1.0/1.5/2.0. Set different per-color modes, collapse, and hover the composite list.
+Check the full tooltip at narrow sizes, then switch EN -> RU -> EN and confirm the
+same values and modes. Open each named sample from both sample directories, inspect
+the notification and save a disposable copy into a Cyrillic directory. Reopen it
+and check that the dialog returns to the saved folder. Do not use real simulations.
+
+Repeat visual acceptance is pending. No merge into main or L2-B3b work is performed.
+
+Follow-up graph review: the index-only refresh and forced refresh both completed.
+The MCP transport closed during reindexing; the required CLI fallback and its
+same LocalBackend `detect_changes` implementation were used. The saved full JSON
+reports **10 changed files, 39 symbols, LOW risk**, with all 39 symbols listed and
+neither partial nor truncated. No indexed process is reported; the index also
+warns about its process-enumeration/receiver-resolution limits, so this is not
+proof of zero GUI impact. Explicit call-site review, source contracts and real
+headless widget/persistence tests supply the additional evidence. CLI and structured
+results agree; see temp/l2b3a/followup/graph-final.json and graph-final.log.
+
+The new review executable's profile-only check also leaves bracketed real registry
+exports identical to the full-suite hash above. The archived output autosave is
+copied back only if the new normal-output destination is absent; both copies retain
+SHA-256 `18E655712326C4CBF63AA9DCFB032C1B3263F72DBA9DFB23ADB41F8A7AF7E181`.
+It is not included in the review package. A separate sample helper uses /utf-8;
+the eight resulting basenames and the Cyrillic directory are verified against
+exact Unicode strings before delivery. No real files are used as sample data.

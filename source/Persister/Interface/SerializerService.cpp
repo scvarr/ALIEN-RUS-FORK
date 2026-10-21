@@ -22,6 +22,7 @@
 #include <cereal/types/vector.hpp>
 
 #include <Base/LoggingService.h>
+#include <Base/PathHelper.h>
 #include <Base/Resources.h>
 #include <Base/VersionParserService.h>
 
@@ -1841,17 +1842,19 @@ namespace cereal
 bool SerializerService::serializeSimulationToFiles(std::filesystem::path const& filename, SimulationDesc const& data) const
 {
     try {
-        log(Priority::Important, "save simulation to " + filename.string());
+        log(Priority::Important, "save simulation to " + PathHelper::toUtf8(filename));
 
         if (filename.has_parent_path()) {
             std::filesystem::create_directories(filename.parent_path());
         }
 
-        zstd::ofstream stream(filename.string(), std::ios::binary, zstd::DefaultCompressionLevel, zstd::recommendedWorkerCount());
-        if (!stream) {
+        std::ofstream fileStream(filename, std::ios::binary);
+        if (!fileStream) {
             return false;
         }
+        zstd::ostream stream(fileStream, zstd::DefaultCompressionLevel, zstd::recommendedWorkerCount());
         serializeSimulation(data, stream);
+        stream.flush();
         return true;
     } catch (...) {
         return false;
@@ -1861,12 +1864,13 @@ bool SerializerService::serializeSimulationToFiles(std::filesystem::path const& 
 bool SerializerService::deserializeSimulationFromFiles(SimulationDesc& data, std::filesystem::path const& filename) const
 {
     try {
-        log(Priority::Important, "load simulation from " + filename.string());
+        log(Priority::Important, "load simulation from " + PathHelper::toUtf8(filename));
 
-        zstd::ifstream stream(filename.string(), std::ios::binary);
-        if (!stream) {
+        std::ifstream fileStream(filename, std::ios::binary);
+        if (!fileStream) {
             return false;
         }
+        zstd::istream stream(fileStream);
         deserializeSimulation(data, stream);
 
         ParametersValidationService::get().validateAndCorrect({data._worldSize}, data._simulationParameters);

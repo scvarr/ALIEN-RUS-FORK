@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <Base/PathHelper.h>
 #include <Base/Resources.h>
 #include <Engine/Interface/TestData/DescTestDataFactory.h>
 
@@ -394,4 +395,42 @@ TEST_P(SerializerServiceTests_AllNodeTypes, objectWithNonEmptyGenome)
     auto data = ContentDesc().addCreature({ObjectDesc()}, creature, genome);
 
     testSerializationAndDeserialization(data);
+}
+
+TEST_F(SerializerServiceTests, unicodeSimulationFilesPreservePathsAndSerializedBytes)
+{
+    std::vector<std::u8string> names = {
+        u8"start.sim",
+        u8"\u0421\u0442\u0430\u0440\u0442.sim",
+        u8"Start - \u043c\u0438\u0440.sim",
+        u8"\u0422\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u043c\u0438\u0440 \u21161.sim"};
+    SimulationDesc before;
+    before._worldSize = {700, 300};
+    before._timestep = 1234;
+    before._mainData._energies.emplace_back(_descTestDataFactory->createNonDefaultEnergyDesc());
+    std::string expectedBytes;
+    ASSERT_TRUE(_serializerService->serializeSimulationToString(expectedBytes, before));
+    for (auto const& directory :
+         {std::filesystem::path("ascii"),
+          std::filesystem::path(u8"\u0422\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u043a\u0430\u0442\u0430\u043b\u043e\u0433")}) {
+        for (auto const& name : names) {
+            auto path = _testDirectory / "unicode" / directory / std::filesystem::path(name);
+            ASSERT_TRUE(_serializerService->serializeSimulationToFiles(path, before)) << PathHelper::toUtf8(path);
+            EXPECT_TRUE(std::filesystem::exists(path));
+            EXPECT_TRUE(name == path.filename().u8string());
+            EXPECT_EQ(expectedBytes, readFile(path));
+            SimulationDesc after;
+            ASSERT_TRUE(_serializerService->deserializeSimulationFromFiles(after, path));
+            EXPECT_EQ(before._timestep, after._timestep);
+            EXPECT_EQ(before._worldSize, after._worldSize);
+            EXPECT_EQ(before._simulationParameters, after._simulationParameters);
+            EXPECT_TRUE(_descTestDataFactory->compare(before._mainData, after._mainData));
+        }
+    }
+    auto nativeOnly = _testDirectory / std::filesystem::path(u8"\u041a\u0430\u0442\u0430\u043b\u043e\u0433 \u6f22") / "native.sim";
+    ASSERT_TRUE(_serializerService->serializeSimulationToFiles(nativeOnly, before));
+    SimulationDesc after;
+    ASSERT_TRUE(_serializerService->deserializeSimulationFromFiles(after, nativeOnly));
+    EXPECT_EQ(before._timestep, after._timestep);
+    EXPECT_EQ(expectedBytes, readFile(nativeOnly));
 }

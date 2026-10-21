@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <ranges>
 
 #include <imgui_internal.h>
@@ -9,10 +10,13 @@
 
 #include <Base/GlobalSettings.h>
 #include <Base/LocalizationService.h>
+#include <Base/PathHelper.h>
 #include <Base/Tests/SettingsTestScope.h>
 
 #include <Data/SimulationParameters.h>
 #include <Data/SpecificationEvaluationService.h>
+#include <Persister/Interface/ReadSimulationRequestData.h>
+#include <Persister/Interface/ReadSimulationResultData.h>
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
@@ -22,6 +26,7 @@
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/NewSimulationDialog.h>
+#include <Gui/Impl/OverlayController.h>
 #include <Gui/Impl/SavePictureDialog.h>
 #include <Gui/Impl/SimulationParametersBaseWidget.h>
 #include <Gui/Impl/SimulationParametersGuiText.h>
@@ -30,6 +35,7 @@
 #include <Gui/Impl/SpecificationGuiService.h>
 #include <Gui/Impl/StyleService.h>
 #include <Gui/Impl/Utf8Search.h>
+#include <Gui/Impl/WindowController.h>
 
 namespace
 {
@@ -51,6 +57,7 @@ protected:
     void SetUp() override
     {
         _language = GlobalSettings::get().getValue("settings.language", std::string("en"));
+        _originalScale = WindowController::get().getContentScaleFactor();
         ImGui::CreateContext();
         auto& io = ImGui::GetIO();
         io.IniFilename = nullptr;
@@ -62,6 +69,8 @@ protected:
 
     void TearDown() override
     {
+        WindowController::get()._contentScaleFactor = _originalScale;
+        OverlayController::get()._messageStartTimepoint.reset();
         ImGui::DestroyContext();
         GlobalSettings::get().setValue("settings.language", _language);
     }
@@ -122,6 +131,31 @@ protected:
         SpecificationGuiService::get().createWidgetsForParameterGroup(specs, true, values, defaults, orderNumber, {});
     }
 
+    void setTestScale(float factor)
+    {
+        WindowController::get()._contentScaleFactor = factor;
+        ImGui::GetIO().Fonts->Clear();
+        ImGui::GetIO().FontDefault = nullptr;
+        ImGui::GetStyle() = ImGuiStyle();
+        StyleService::get().setup();
+    }
+
+    void switcherFrame(float width, std::function<void()> const& content)
+    {
+        ImGui::GetIO().DisplaySize = {3000, 2200};
+        ImGui::NewFrame();
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({width, 1900});
+        ImGui::Begin("Switcher host");
+        content();
+        ImGui::End();
+        ImGui::Render();
+    }
+
+    std::string overlayMessage() const { return OverlayController::get()._message; }
+    void renderOverlay() { OverlayController::get().processMessage(); }
+
+    float _originalScale = 1;
     std::string _language;
     SettingsTestScope _settingsScope;
 };
@@ -1402,7 +1436,6 @@ TEST_F(LocalizationGuiTests, l2b3aSwitcherKeepsCanonicalIdsCyclesAllModesAndReve
     auto draw = [&] {
         frame([&] {
             auto start = ImGui::GetCursorScreenPos();
-            auto width = ImGui::GetContentRegionAvail().x;
             AlienGui::Switcher(
                 AlienGui::SwitcherParameters()
                     .name(spec._name)
@@ -1416,7 +1449,7 @@ TEST_F(LocalizationGuiTests, l2b3aSwitcherKeepsCanonicalIdsCyclesAllModesAndReve
             auto spacing = ImGui::GetStyle().ItemSpacing.x;
             auto revertWidth = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
             revert = {labelStart.x - spacing - revertWidth / 2, labelStart.y + ImGui::GetFrameHeight() / 2};
-            next = {start.x + width - scale(360) - scale(11), start.y + ImGui::GetFrameHeight() / 2};
+            next = {labelStart.x - 2 * spacing - revertWidth - scale(11), start.y + ImGui::GetFrameHeight() / 2};
             ImGui::PushID(spec._name.c_str());
             ImGui::PushID(0);
             auto current = ImGui::GetID("##switcher");
@@ -1687,4 +1720,270 @@ TEST_F(LocalizationGuiTests, l2b3aExternalEnergyRetainsActiveNumericInputInfinit
     io.AddMouseButtonEvent(0, false);
     draw();
     EXPECT_FLOAT_EQ(original, value);
+}
+
+TEST_F(LocalizationGuiTests, switcherExpandedRowsUseTheAvailableWidthAtEveryScale)
+{
+    auto const& spec = parameterGroup(SimulationParameters::getSpec(), "Visualization")._parameters.at(2);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    auto values = ColorVector<int>::uniform(2);
+    auto defaults = ColorVector<int>::uniform(1);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        select("ru");
+        ImVec2 start;
+        ImRect right;
+        float available = 0;
+        float hostWidth = 650 * factor;
+        auto draw = [&] {
+            switcherFrame(hostWidth, [&] {
+                ImGui::PushID(static_cast<int>(factor * 10));
+                start = ImGui::GetCursorScreenPos();
+                available = ImGui::GetContentRegionAvail().x;
+                AlienGui::Switcher(
+                    AlienGui::SwitcherParameters()
+                        .name(spec._name)
+                        .label(SimulationParametersPresentation::label(spec))
+                        .textWidth(360)
+                        .colorDependence(true)
+                        .defaultValues(defaults.values)
+                        .values({"Energy", "Customization", "Lineage + Customization", "Lineage", "Creature"})
+                        .displayValues(SimulationParametersPresentation::alternativeLabels(spec))
+                        .tooltip("Help"),
+                    values.values);
+                right = GImGui->LastItemData.Rect;
+                ImGui::PopID();
+            });
+        };
+        draw();
+        draw();
+        io.AddMousePosEvent(start.x + scale(10), start.y + ImGui::GetFrameHeight() / 2);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+        for (float width : {220.0f, 400.0f, 650.0f}) {
+            hostWidth = width * factor;
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                draw();
+                draw();
+                auto const& style = ImGui::GetStyle();
+                auto toggleWidth = ImGui::CalcTextSize(ICON_FA_PLUS_SQUARE).x + style.FramePadding.x * 2;
+                auto inputX = std::floor(start.x + toggleWidth + style.ItemSpacing.x) + scale(30) + style.ItemSpacing.x;
+                auto actualInputWidth = right.Max.x - inputX - scale(44) - style.ItemSpacing.x * 2 + style.FramePadding.x * 2;
+                auto expectedInputWidth = available - (inputX - start.x) - scale(44) - style.FramePadding.x * 2;
+                EXPECT_NEAR(expectedInputWidth, actualInputWidth, 1.1f) << factor << ": " << width;
+                EXPECT_GT(actualInputWidth, 1);
+                EXPECT_LE(right.Max.x, start.x + available + 1);
+                EXPECT_GT(right.Min.y, start.y + 8 * ImGui::GetFrameHeight());
+                EXPECT_EQ(ColorVector<int>::uniform(2), values);
+                if (width >= 400) {
+                    EXPECT_GE(
+                        actualInputWidth - style.FramePadding.x * 2,
+                        ImGui::CalcTextSize(SimulationParametersPresentation::alternativeLabels(spec).at(2).c_str()).x);
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, switcherShowsCompleteClippedValuesAndMixedListsOnHover)
+{
+    auto const& spec = parameterGroup(SimulationParameters::getSpec(), "Visualization")._parameters.at(2);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    auto values = ColorVector<int>::uniform(2);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (bool mixed : {false, true}) {
+            for (int color = 0; color < MAX_COLORS; ++color) {
+                values[color] = mixed ? color % 5 : 2;
+            }
+            auto original = values;
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                auto labels = SimulationParametersPresentation::alternativeLabels(spec);
+                auto fullText = labels.at(2);
+                if (mixed) {
+                    fullText.clear();
+                    for (auto const& label : labels) {
+                        fullText += (fullText.empty() ? "" : ", ") + label;
+                    }
+                }
+                for (float width : {200.0f, 420.0f, 650.0f}) {
+                    std::string logged;
+                    ImVec2 start;
+                    ImRect labelRect;
+                    float available = 0;
+                    bool tooltip = false;
+                    auto draw = [&] {
+                        switcherFrame(width * factor, [&] {
+                            ImGui::PushID("Hover check");
+                            start = ImGui::GetCursorScreenPos();
+                            available = ImGui::GetContentRegionAvail().x;
+                            ImGui::LogToBuffer();
+                            AlienGui::Switcher(
+                                AlienGui::SwitcherParameters()
+                                    .name(spec._name)
+                                    .label(SimulationParametersPresentation::label(spec))
+                                    .textWidth(360)
+                                    .readOnly(width == 200)
+                                    .colorDependence(mixed)
+                                    .values({"Energy", "Customization", "Lineage + Customization", "Lineage", "Creature"})
+                                    .displayValues(labels),
+                                values.values);
+                            labelRect = GImGui->LastItemData.Rect;
+                            logged = GImGui->LogBuffer.c_str();
+                            ImGui::LogFinish();
+                            tooltip = false;
+                            for (auto window : GImGui->Windows) {
+                                tooltip |= (window->Flags & ImGuiWindowFlags_Tooltip) && window->Active && !window->Hidden;
+                            }
+                            ImGui::PopID();
+                        });
+                    };
+                    io.AddMousePosEvent(-100, -100);
+                    draw();
+                    draw();
+                    auto const& style = ImGui::GetStyle();
+                    auto prefix = mixed ? ImGui::CalcTextSize(ICON_FA_PLUS_SQUARE).x + style.FramePadding.x * 2 + style.ItemSpacing.x : 0.0f;
+                    auto inputX = std::floor(start.x + prefix);
+                    auto labelWidth = ImGui::CalcTextSize(SimulationParametersPresentation::label(spec).c_str()).x + style.ItemSpacing.x;
+                    float widest = 0;
+                    for (auto const& label : labels) {
+                        widest = std::max(widest, ImGui::CalcTextSize(label.c_str()).x);
+                    }
+                    bool ownLine = available - prefix < labelWidth + scale(44) + style.FramePadding.x * 4 + widest;
+                    EXPECT_EQ(ownLine, labelRect.Min.y > start.y + ImGui::GetFrameHeight());
+                    auto expectedWidth = available - prefix - scale(44) - style.FramePadding.x * 2 - (ownLine ? 0 : labelWidth);
+                    if (!ownLine) {
+                        auto actualWidth = labelRect.Min.x - inputX - scale(44) - 3 * style.ItemSpacing.x + 2 * style.FramePadding.x;
+                        EXPECT_NEAR(expectedWidth, actualWidth, 1.1f);
+                    }
+                    io.AddMousePosEvent(inputX + std::min(20.0f, expectedWidth / 2), start.y + ImGui::GetFrameHeight() / 2);
+                    draw();
+                    draw();
+                    auto clipped = ImGui::CalcTextSize(fullText.c_str()).x > expectedWidth - style.FramePadding.x * 2;
+                    EXPECT_EQ(clipped, tooltip) << factor << ": " << width << ": " << mixed << ": " << language;
+                    auto first = logged.find(fullText);
+                    ASSERT_NE(std::string::npos, first);
+                    if (clipped) {
+                        EXPECT_NE(std::string::npos, logged.find(fullText, first + fullText.size()));
+                    }
+                    EXPECT_EQ(original, values);
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, legacySwitchersRetainWidthsIndicesAndIds)
+{
+    struct Example
+    {
+        std::string name;
+        float width;
+        float textWidth;
+        std::vector<std::string> values;
+    };
+    std::vector<Example> examples = {
+        {"Sort by", 340, 55, {"Most reactions", "Newest", "Most downloads"}},
+        {"Material", 0, 180, {"Solid", "Fluid", "Free cells", "Energy particles"}},
+        {"Mode", 260, 45, {"Entire history", "Last steps"}},
+        {"Mode", 0, 200, {"Limited save files", "Unlimited save files"}},
+        {"Number of branches", 0, 180, {"1", "2", "3", "4", "5", "6"}},
+        {"Edit signal", 0, 200, {"0", "1", "2"}},
+        {"Display mode", 0, 120, {"Node index", "Cell type"}},
+        {"Mode", 0, 180, {"Number of energy particles", "Number of cells"}}};
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto const& example : examples) {
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                int value = 1;
+                ImVec2 input;
+                ImGuiID inputId = 0;
+                auto draw = [&] {
+                    switcherFrame(800 * factor, [&] {
+                        auto start = ImGui::GetCursorScreenPos();
+                        input = {start.x + scale(10), start.y + ImGui::GetFrameHeight() / 2};
+                        auto available = ImGui::GetContentRegionAvail().x;
+                        AlienGui::Switcher(
+                            AlienGui::SwitcherParameters().name(example.name).width(example.width).textWidth(example.textWidth).values(example.values), &value);
+                        auto const& style = ImGui::GetStyle();
+                        auto expected = (example.width ? scale(example.width) : available) - scale(example.textWidth + 44) - style.FramePadding.x * 2;
+                        auto actual = GImGui->LastItemData.Rect.Min.x - start.x - scale(44) - 3 * style.ItemSpacing.x + 2 * style.FramePadding.x;
+                        EXPECT_NEAR(expected, actual, 1.1f) << example.name;
+                        ImGui::PushID(example.name.c_str());
+                        ImGui::PushID(0);
+                        inputId = ImGui::GetID("##switcher");
+                        ImGui::PopID();
+                        ImGui::PopID();
+                    });
+                };
+                draw();
+                draw();
+                ImGui::GetIO().AddMousePosEvent(input.x, input.y);
+                draw();
+                EXPECT_EQ(inputId, GImGui->HoveredId) << example.name;
+                EXPECT_EQ(1, value);
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, unicodeSimulationPathsReachTheOverlayAsUtf8)
+{
+    std::vector<std::u8string> names = {u8"start.sim", u8"Старт.sim", u8"Start - мир.sim", u8"Тестовый мир №1.sim"};
+    for (auto const& directory : {std::filesystem::path("test"), std::filesystem::path(u8"Тестовый каталог")}) {
+        for (auto const& name : names) {
+            auto path = directory / std::filesystem::path(name);
+            auto request = ReadSimulationRequestData{.filename = path, .initSimulation = false};
+            EXPECT_EQ(path.native(), request.filename.native());
+            auto result = std::make_unique<ReadSimulationResultData>();
+            result->filename = request.filename.filename();
+            auto expected = std::string(reinterpret_cast<char const*>(name.data()), name.size());
+            auto message = PathHelper::toUtf8(result->filename);
+            EXPECT_EQ(expected, message);
+            EXPECT_EQ(std::string::npos, message.find('?'));
+            EXPECT_EQ(path, std::filesystem::path(path.u8string()));
+            EXPECT_EQ(path, PathHelper::fromUtf8(PathHelper::toUtf8(path)));
+            auto remembered = PathHelper::toUtf8(path.parent_path());
+            GlobalSettings::get().setValue("tests.paths.reference", remembered);
+            EXPECT_EQ(path.parent_path(), PathHelper::fromUtf8(GlobalSettings::get().getValue("tests.paths.reference", std::string())));
+            if (auto legacy = PathHelper::toLegacyString(path.parent_path())) {
+                EXPECT_EQ(path.parent_path(), std::filesystem::path(*legacy));
+            }
+            printOverlayMessage(message);
+            EXPECT_EQ(expected, overlayMessage());
+            std::vector<unsigned int> decoded;
+            auto font = StyleService::get().getMonospaceLargeFont();
+            for (auto cursor = message.c_str(); *cursor;) {
+                unsigned int codepoint;
+                auto count = ImTextCharFromUtf8(&codepoint, cursor, nullptr);
+                ASSERT_GT(count, 0);
+                EXPECT_NE(nullptr, font->FindGlyphNoFallback(static_cast<ImWchar>(codepoint)));
+                decoded.push_back(codepoint);
+                cursor += count;
+            }
+            if (name == u8"Start - мир.sim") {
+                EXPECT_EQ(0x043c, decoded.at(8));
+                EXPECT_EQ(0x0438, decoded.at(9));
+                EXPECT_EQ(0x0440, decoded.at(10));
+            }
+            frame([&] {
+                auto draw = ImGui::GetForegroundDrawList();
+                auto before = draw->VtxBuffer.Size;
+                renderOverlay();
+                EXPECT_GT(draw->VtxBuffer.Size, before);
+            });
+        }
+    }
+    auto unsupported = PathHelper::toLegacyString(std::filesystem::path(u8"Каталог 漢"));
+    if (unsupported) {
+        EXPECT_EQ(std::filesystem::path(u8"Каталог 漢"), std::filesystem::path(*unsupported));
+    }
 }

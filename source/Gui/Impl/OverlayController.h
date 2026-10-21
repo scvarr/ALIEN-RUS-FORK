@@ -9,6 +9,7 @@
 class OverlayController
 {
     MAKE_SINGLETON(OverlayController);
+    friend class LocalizationGuiTests;
 
 public:
     void setup();

@@ -111,5 +111,39 @@ class L2b3aContracts(unittest.TestCase):
             self.assertIn(f'parameters.color.{key}', ru)
 
 
+    def test_switcher_arrow_handlers_and_mixed_order_keep_baseline(self):
+        import hashlib
+        switcher = read(GUI / "AlienGui.cpp").split('bool AlienGui::Switcher(', 1)[1].split('bool AlienGui::ComboColor(', 1)[0]
+        def digest(text):
+            return hashlib.sha256(re.sub(r'\s+', '', text).encode()).hexdigest()
+        arrows = switcher.split('if (ImGui::Button(ICON_FA_CARET_LEFT', 1)[1].split('ImGui::PopID();', 1)[0]
+        collapsed = switcher.split('auto getCollapsedText =', 1)[1].split('auto setAllSwitcherValues =', 1)[0]
+        self.assertEqual('a3224eaa4b1d198ed3c7f847525969335c13249c5a457e6f5b90e2014bacbe2f', digest(arrows))
+        self.assertEqual('56fb968024144dbb5e4d2cf4f4fa183c74dc1453b16a93aa9f3ed0fc971cebc2', digest(collapsed))
+        self.assertIn('auto textWidth = color == 0 ?', switcher)
+        self.assertIn('std::max(1.0f, width - textAndButtonWidth)', switcher)
+        self.assertIn('Tooltip(TooltipParameters().text(text).delay(false))', switcher)
+
+    def test_simulation_file_boundaries_keep_native_paths_and_use_utf8_for_display(self):
+        source = read(GUI / "FileTransferController.cpp").split('void FileTransferController::onOpenGenomeDialog', 1)[0]
+        self.assertIn('ReadSimulationRequestData{.filename = filename,', source)
+        self.assertIn('SaveSimulationRequestData{firstFilename,', source)
+        self.assertIn('printOverlayMessage(PathHelper::toUtf8(data.filename))', source)
+        self.assertNotIn('filename.string()', source)
+        self.assertNotIn('firstFilename.string()', source)
+        serializer = read(ROOT / "source/Persister/Interface/SerializerService.cpp")
+        io = serializer.split('bool SerializerService::serializeSimulationToFiles', 1)[1].split('bool SerializerService::deleteSimulation', 1)[0]
+        self.assertIn('std::ofstream fileStream(filename, std::ios::binary)', io)
+        self.assertIn('std::ifstream fileStream(filename, std::ios::binary)', io)
+        self.assertNotIn('filename.string()', io)
+        for header in ('ReadSimulationRequestData.h', 'ReadSimulationResultData.h', 'SaveSimulationRequestData.h'):
+            self.assertIn('std::filesystem::path filename;', read(ROOT / 'source/Persister/Interface' / header))
+        helper = read(ROOT / 'source/Base/PathHelper.h')
+        self.assertIn('path.u8string()', helper)
+        self.assertIn('std::filesystem::path(text) == path', helper)
+        self.assertNotIn('SetConsoleOutputCP', helper + source + io)
+        self.assertNotIn('setlocale', helper + source + io)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
