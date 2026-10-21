@@ -250,7 +250,7 @@ TEST_F(CommunicatorTests, sender_signalPriority_signalReceived)
     // lies in the opposite half-plane should transmit.
     auto data = ContentDesc().addCreature(
         {
-            ObjectDesc().id(100).pos({100.0f, 100.0f}).type(CellDesc().frontAngle(0.0f).cellType(CommunicatorDesc().mode(SenderDesc().range(50)))),
+            ObjectDesc().id(100).pos({100.0f, 100.0f}).type(CellDesc().frontAngle(90.0f).cellType(CommunicatorDesc().mode(SenderDesc().range(50)))),
             ObjectDesc().id(101).pos({101.0f, 100.0f}).type(CellDesc().neuralActivity(NeuralActivityDesc().signals({1.0f, 0, 0, 0, 0, 0, 0, 0}))),
         },
         CreatureDesc().id(1));
@@ -258,7 +258,7 @@ TEST_F(CommunicatorTests, sender_signalPriority_signalReceived)
 
     data.addCreature(
         {
-            ObjectDesc().id(200).pos({100.0f, 120.0f}).type(CellDesc().frontAngle(0.0f).cellType(CommunicatorDesc().mode(SenderDesc().range(50)))),
+            ObjectDesc().id(200).pos({100.0f, 120.0f}).type(CellDesc().frontAngle(90.0f).cellType(CommunicatorDesc().mode(SenderDesc().range(50)))),
             ObjectDesc().id(201).pos({101.0f, 120.0f}).type(CellDesc().neuralActivity(NeuralActivityDesc().signals({-1.0f, 0, 0, 0, 0, 0, 0, 0}))),
         },
         CreatureDesc().id(2));
