@@ -89,6 +89,9 @@ public:
     struct SliderFloat2Parameters
     {
         MEMBER(SliderFloat2Parameters, std::string, name, "");
+        MEMBER(SliderFloat2Parameters, std::optional<std::string>, label, std::nullopt);
+        MEMBER(SliderFloat2Parameters, std::string, mousePickerTooltip, "Select a position with the mouse");
+        MEMBER(SliderFloat2Parameters, std::string, mousePickerMessage, "Select a position in the simulation view");
         MEMBER(SliderFloat2Parameters, RealVector2D, min, RealVector2D());
         MEMBER(SliderFloat2Parameters, RealVector2D, max, RealVector2D());
         MEMBER(SliderFloat2Parameters, std::string, format, "%.3f");
@@ -236,6 +239,7 @@ public:
         MEMBER(InputTextParameters, std::string, name, "");
         MEMBER(InputTextParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(InputTextParameters, std::string, hint, "");
+        MEMBER(InputTextParameters, std::optional<std::string>, hintId, std::nullopt);
         MEMBER(InputTextParameters, float, width, 0);
         MEMBER(InputTextParameters, float, textWidth, 100);
         MEMBER(InputTextParameters, bool, monospaceFont, false);
@@ -255,6 +259,7 @@ public:
     struct InputFilterParameters
     {
         MEMBER(InputFilterParameters, float, width, 0);
+        MEMBER(InputFilterParameters, std::optional<std::string>, id, std::nullopt);
         MEMBER(InputFilterParameters, std::string, hint, "Filter (case insensitive)");
     };
     static bool InputFilter(InputFilterParameters const& parameters, std::string& filter);

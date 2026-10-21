@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <ranges>
+
 #include <imgui_internal.h>
 
 #include <Fonts/IconsFontAwesome5.h>
@@ -8,6 +11,8 @@
 #include <Base/LocalizationService.h>
 #include <Base/Tests/SettingsTestScope.h>
 
+#include <Data/SimulationParameters.h>
+#include <Data/SpecificationEvaluationService.h>
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
@@ -21,7 +26,23 @@
 #include <Gui/Impl/SimulationParametersBaseWidget.h>
 #include <Gui/Impl/SimulationParametersGuiText.h>
 #include <Gui/Impl/SimulationParametersMainWindow.h>
+#include <Gui/Impl/SimulationParametersPresentation.h>
+#include <Gui/Impl/SpecificationGuiService.h>
 #include <Gui/Impl/StyleService.h>
+#include <Gui/Impl/Utf8Search.h>
+
+namespace
+{
+    ParameterGroupSpec const& parameterGroup(ParametersSpec const& spec, std::string const& name)
+    {
+        return *std::ranges::find_if(spec._groups, [&](auto const& group) { return group._name == name; });
+    }
+
+    size_t visibleParameters(ParameterGroupSpec const& group)
+    {
+        return std::ranges::count_if(group._parameters, [](auto const& parameter) { return parameter._visible; });
+    }
+}
 #include <Gui/Impl/TextFontService.h>
 
 class LocalizationGuiTests : public ::testing::Test
@@ -94,6 +115,11 @@ protected:
         EXPECT_EQ("User layer", window._locations.at(1).name);
         EXPECT_EQ("(12, 34)", window._locations.at(1).position);
         EXPECT_EQ("50.0%", window._locations.at(1).strength);
+    }
+
+    void parametersGroup(std::vector<ParameterSpec> const& specs, SimulationParameters& values, SimulationParameters& defaults, int orderNumber)
+    {
+        SpecificationGuiService::get().createWidgetsForParameterGroup(specs, true, values, defaults, orderNumber, {});
     }
 
     std::string _language;
@@ -757,5 +783,422 @@ TEST_F(LocalizationGuiTests, l2b1LocalizedErrorsRemainOpenAndConfirmable)
         draw();
         draw();
         EXPECT_FALSE(dialog.isOpen());
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b2BindingsUseMembersAndKeepFourContextDescriptions)
+{
+    auto const& original = SimulationParameters::getSpec();
+    auto const& general = parameterGroup(original, "General");
+    auto const& location = parameterGroup(original, "Location");
+    ASSERT_EQ(5, general._parameters.size());
+    ASSERT_EQ(4, location._parameters.size());
+    std::vector<std::string> slugs = {
+        "general.project",
+        "general.layer",
+        "general.source",
+        "general.opacity",
+        "general.share",
+        "location.layerposition",
+        "location.layervelocity",
+        "location.sourceposition",
+        "location.sourcevelocity"};
+    std::vector<ParameterSpec> parameters = general._parameters;
+    parameters.insert(parameters.end(), location._parameters.begin(), location._parameters.end());
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        for (size_t i = 0; i < parameters.size(); ++i) {
+            auto const& parameter = parameters.at(i);
+            auto key = "parameters." + slugs.at(i);
+            EXPECT_EQ(tr(key + ".name"), SimulationParametersPresentation::label(parameter));
+            EXPECT_EQ(tr(key + ".description"), SimulationParametersPresentation::description(parameter));
+            if (std::string(language) == "en") {
+                EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
+                EXPECT_EQ(parameter._description, SimulationParametersPresentation::description(parameter));
+            }
+            auto renamed = parameter;
+            renamed._name = "Same canonical display name";
+            EXPECT_EQ(SimulationParametersPresentation::label(parameter), SimulationParametersPresentation::label(renamed));
+        }
+        EXPECT_NE(
+            SimulationParametersPresentation::description(location._parameters.at(0)),
+            SimulationParametersPresentation::description(location._parameters.at(2)));
+        EXPECT_NE(
+            SimulationParametersPresentation::description(location._parameters.at(1)),
+            SimulationParametersPresentation::description(location._parameters.at(3)));
+    }
+    select("ru");
+    EXPECT_EQ("Общие", SimulationParametersPresentation::label(general));
+    EXPECT_EQ("Расположение", SimulationParametersPresentation::label(location));
+    auto const& other = parameterGroup(original, "Visualization");
+    EXPECT_EQ(other._name, SimulationParametersPresentation::label(other));
+    for (auto const& parameter : other._parameters) {
+        EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
+        EXPECT_EQ(parameter._description, SimulationParametersPresentation::description(parameter));
+    }
+    auto const& untouched = parameterGroup(SimulationParameters::getSpec(), "Location");
+    EXPECT_EQ("Position (x,y)", untouched._parameters.at(0)._name);
+    EXPECT_EQ("Center of the layer in world coordinates.", untouched._parameters.at(0)._description);
+    EXPECT_EQ("%.2f", std::get<Float2Spec>(untouched._parameters.at(0)._reference)._format);
+    EXPECT_EQ(-4.0f, std::get<RealVector2D>(std::get<Float2Spec>(untouched._parameters.at(1)._reference)._min).x);
+    EXPECT_EQ(4.0f, std::get<RealVector2D>(std::get<Float2Spec>(untouched._parameters.at(1)._reference)._max).y);
+}
+
+TEST_F(LocalizationGuiTests, l2b2BilingualFilterPreservesIndicesReferencesAndGroupMatches)
+{
+    auto const& original = SimulationParameters::getSpec();
+    select("ru");
+    for (auto const& [query, group, count] : std::vector<std::tuple<std::string, std::string, size_t>>{
+             {"оБщИе", "General", 5},
+             {"GENERAL", "General", 5},
+             {"название", "General", 3},
+             {"Opacity", "General", 1},
+             {"дОлЯ", "General", 1},
+             {"расположение", "Location", 4},
+             {"поЛоЖеНие", "Location", 4},
+             {"Положение (", "Location", 2},
+             {"POSITION", "Location", 2},
+             {"СКОРОСТЬ", "Location", 2},
+             {"velocity", "Location", 2},
+             {"Visualization", "Visualization", 13},
+             {"Glow", "Visualization", 1},
+             {"no such parameter", "General", 0}}) {
+        SCOPED_TRACE(query);
+        ParametersFilter queryFilter{.containedText = query};
+        auto filtered = SimulationParametersPresentation::filter(original, queryFilter);
+        EXPECT_EQ(original._groups.size(), filtered._groups.size());
+        auto const& result = parameterGroup(filtered, group);
+        EXPECT_EQ(count, visibleParameters(result));
+        auto const& source = parameterGroup(original, group);
+        ASSERT_EQ(source._parameters.size(), result._parameters.size());
+        for (size_t i = 0; i < source._parameters.size(); ++i) {
+            EXPECT_EQ(source._parameters.at(i)._name, result._parameters.at(i)._name);
+            EXPECT_EQ(source._parameters.at(i)._description, result._parameters.at(i)._description);
+        }
+        EXPECT_EQ(query, queryFilter.containedText);
+    }
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto const& query : {ParametersFilter{}, ParametersFilter{.containedText = ""}}) {
+            auto full = SimulationParametersPresentation::filter(original, query);
+            for (size_t i = 0; i < original._groups.size(); ++i) {
+                EXPECT_EQ(original._groups.at(i)._name, full._groups.at(i)._name);
+                EXPECT_EQ(original._groups.at(i)._parameters.size(), full._groups.at(i)._parameters.size());
+                for (size_t j = 0; j < full._groups.at(i)._parameters.size(); ++j) {
+                    EXPECT_EQ(original._groups.at(i)._parameters.at(j)._visible, full._groups.at(i)._parameters.at(j)._visible);
+                }
+            }
+        }
+        auto filtered = SimulationParametersPresentation::filter(original, {.containedText = "Доля"});
+        EXPECT_EQ(std::string(language) == "ru" ? 1 : 0, visibleParameters(parameterGroup(filtered, "General")));
+    }
+    auto nested = ParameterSpec().name("Parent").reference(AlternativeSpec().alternatives({{"Mode", {ParameterSpec().name("Child")}}}));
+    auto tree = ParametersSpec().groups({ParameterGroupSpec().name("Group").parameters({nested})});
+    auto filtered = SimulationParametersPresentation::filter(tree, {.containedText = "cHiLd"});
+    auto const& parent = filtered._groups.at(0)._parameters.at(0);
+    EXPECT_TRUE(parent._visible);
+    EXPECT_TRUE(std::get<AlternativeSpec>(parent._reference)._alternatives.at(0).second.at(0)._visible);
+    filtered = SimulationParametersPresentation::filter(tree, {.containedText = "gRoUp"});
+    EXPECT_TRUE(std::get<AlternativeSpec>(filtered._groups.at(0)._parameters.at(0)._reference)._alternatives.at(0).second.at(0)._visible);
+}
+
+TEST_F(LocalizationGuiTests, l2b2Utf8SearchAndHighlightUseCompleteCharacters)
+{
+    for (auto const& query : {"Ёж", "ёЖ"}) {
+        auto found = Utf8Search::find("АБ Ёжик xyz", query);
+        ASSERT_TRUE(found);
+        EXPECT_EQ("Ёж", std::string("АБ Ёжик xyz").substr(found->begin, found->end - found->begin));
+    }
+    EXPECT_TRUE(Utf8Search::find("MiXeD ПОЛОЖЕНИЕ", "mixed положение"));
+    EXPECT_FALSE(Utf8Search::find("Еж", "ёж"));
+    for (auto const& invalid :
+         {std::string("\xd0"), std::string("\xc0\x80"), std::string("\xed\xa0\x80"), std::string("\xf4\x90\x80\x80"), std::string("\x80")}) {
+        EXPECT_FALSE(Utf8Search::find("Положение", invalid));
+        EXPECT_FALSE(Utf8Search::find(invalid, "a"));
+    }
+    for (bool tree : {false, true}) {
+        auto vertices = [&](std::optional<std::string> query) {
+            int result = 0;
+            frame([&] {
+                auto draw = ImGui::GetWindowDrawList();
+                auto before = draw->VtxBuffer.Size;
+                if (tree) {
+                    AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name("Highlight").label("АБ Ёжик xyz").highlightedSubString(query));
+                    result = draw->VtxBuffer.Size - before;
+                    AlienGui::EndTreeNode();
+                } else {
+                    AlienGui::Text(AlienGui::TextParameters().text("АБ Ёжик xyz").highlightedSubString(query));
+                    result = draw->VtxBuffer.Size - before;
+                }
+            });
+            return result;
+        };
+        vertices(std::nullopt);
+        auto plain = vertices(std::nullopt);
+        EXPECT_EQ(plain + 16, vertices("ёЖ"));  // Two complete glyphs drawn twice.
+        EXPECT_EQ(plain, vertices(std::string("\x81")));
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b2ProductionTextAndVelocityRetainIdsEditsAndValues)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    values->numLayers = defaults->numLayers = 1;
+    values->layerOrderNumbers[0] = defaults->layerOrderNumbers[0] = 1;
+    values->layerVelocity.layerValues[0] = {1.25f, -2.5f};
+    std::string name = "Layer draft";
+    std::copy(name.begin(), name.end(), values->layerName.layerValues[0]);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ParametersFilter filter{.containedText = "Layer name"};
+    ImGuiID id = 0;
+    auto draw = [&](bool focus) {
+        frame([&] {
+            auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), filter);
+            if (focus) {
+                ImGui::SetKeyboardFocusHere();
+            }
+            parametersGroup(parameterGroup(filtered, "General")._parameters, *values, *defaults, 1);
+            ImGui::PushID(1);  // Original index of Layer name, even when other parameters are hidden.
+            auto current = ImGui::GetID("##Layer name");
+            ImGui::PopID();
+            if (!id) {
+                id = current;
+            }
+            EXPECT_EQ(id, current);
+        });
+    };
+    draw(false);
+    draw(true);
+    draw(false);
+    ASSERT_EQ(id, GImGui->ActiveId);
+    io.AddInputCharactersUTF8("Edited layer");
+    draw(false);
+    auto draft = std::string(values->layerName.layerValues[0]);
+    EXPECT_NE(name, draft);
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw(false);
+        EXPECT_EQ(id, GImGui->ActiveId);
+        EXPECT_EQ(id, GImGui->InputTextState.ID);
+        EXPECT_EQ(draft, std::string(values->layerName.layerValues[0]));
+        EXPECT_EQ("Layer name", filter.containedText);
+    }
+    ImGui::ClearActiveID();
+    for (int order : {1, 2}) {
+        values->numSources = defaults->numSources = 1;
+        values->sourceOrderNumbers[0] = defaults->sourceOrderNumbers[0] = 2;
+        values->sourceVelocity.sourceValues[0] = {-1.125f, 2.25f};
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            auto before = *values;
+            frame([&] {
+                auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = "Velocity"});
+                parametersGroup(parameterGroup(filtered, "Location")._parameters, *values, *defaults, order);
+            });
+            EXPECT_EQ(before, *values);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b2GroupStateSurvivesLanguageAndCanonicalNameStaysEnglish)
+{
+    for (auto const& name : {"General", "Location"}) {
+        auto const& group = parameterGroup(SimulationParameters::getSpec(), name);
+        ImGuiID originalId = 0;
+        int iteration = 0;
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            frame([&] {
+                ImGui::PushID(name);
+                bool open = AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name(name).label(SimulationParametersPresentation::label(group)));
+                auto current = ImGui::GetItemID();
+                if (iteration++ == 0) {
+                    originalId = current;
+                    ImGui::GetStateStorage()->SetInt(current, 0);
+                } else {
+                    EXPECT_EQ(originalId, current);
+                    EXPECT_FALSE(open);
+                }
+                AlienGui::EndTreeNode();
+                ImGui::PopID();
+            });
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b2PickerKeepsCallbacksValuesAndSliderIdentity)
+{
+    auto const& spec = parameterGroup(SimulationParameters::getSpec(), "Location")._parameters.at(0);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    float x = 12.5f, y = 34.25f;
+    bool enabled = false;
+    int transitions = 0;
+    std::optional<RealVector2D> selected;
+    ImVec2 button;
+    ImVec2 revert;
+    ImGuiID sliderY = 0;
+    auto draw = [&] {
+        frame([&] {
+            auto pos = ImGui::GetCursorScreenPos();
+            auto width = ImGui::GetContentRegionAvail().x - scale(287) - scale(22) - ImGui::GetStyle().FramePadding.x;
+            button = {pos.x + width + scale(11), pos.y + ImGui::GetFrameHeight() * 0.5f};
+            auto const& style = ImGui::GetStyle();
+            revert = {
+                pos.x + width + style.ItemSpacing.x - style.FramePadding.x + scale(22) + style.ItemSpacing.x
+                    + (ImGui::CalcTextSize(ICON_FA_UNDO).x + style.FramePadding.x * 2) * 0.5f,
+                button.y};
+            AlienGui::SliderFloat2(
+                AlienGui::SliderFloat2Parameters()
+                    .name(spec._name)
+                    .label(SimulationParametersPresentation::label(spec))
+                    .min({0, 0})
+                    .max({100, 100})
+                    .format("%.2f")
+                    .defaultValue(RealVector2D{9, 10})
+                    .textWidth(287)
+                    .tooltip(SimulationParametersPresentation::description(spec))
+                    .mousePickerTooltip(tr("parameters.location.pick.tooltip"))
+                    .mousePickerMessage(tr("parameters.location.pick.message"))
+                    .getMousePickerEnabledFunc([&] { return enabled; })
+                    .setMousePickerEnabledFunc([&](bool value) {
+                        enabled = value;
+                        ++transitions;
+                    })
+                    .getMousePickerPositionFunc([&] { return selected; }),
+                x,
+                y);
+            if (!sliderY) {
+                sliderY = ImGui::GetItemID();
+            }
+            EXPECT_EQ(sliderY, ImGui::GetItemID());
+        });
+    };
+    draw();
+    draw();
+    io.AddMousePosEvent(button.x, button.y);
+    draw();
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    draw();
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    draw();
+    ASSERT_TRUE(enabled);
+    EXPECT_EQ(1, transitions);
+    selected = RealVector2D{47.5f, 62.25f};
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        EXPECT_FLOAT_EQ(47.5f, x);
+        EXPECT_FLOAT_EQ(62.25f, y);
+        EXPECT_TRUE(enabled);
+        EXPECT_EQ(1, transitions);
+    }
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    draw();
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    draw();
+    EXPECT_FALSE(enabled);
+    selected = RealVector2D{1, 2};
+    draw();
+    EXPECT_FLOAT_EQ(47.5f, x);
+    EXPECT_FLOAT_EQ(62.25f, y);
+    EXPECT_EQ(2, transitions);
+    select("ru");
+    draw();
+    io.AddMousePosEvent(revert.x, revert.y);
+    draw();
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    draw();
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    draw();
+    EXPECT_FLOAT_EQ(9, x);
+    EXPECT_FLOAT_EQ(10, y);
+    EXPECT_EQ(2, transitions);
+    AlienGui::SliderFloat2Parameters legacy;
+    EXPECT_EQ("Select a position with the mouse", legacy._mousePickerTooltip);
+    EXPECT_EQ("Select a position in the simulation view", legacy._mousePickerMessage);
+}
+
+TEST_F(LocalizationGuiTests, l2b2FilterRetainsActiveInputAndUtf8QueryAcrossLanguages)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    std::string query;
+    ImGuiID original = 0;
+    auto draw = [&](bool focus) {
+        frame([&] {
+            if (focus) {
+                ImGui::SetKeyboardFocusHere();
+            }
+            AlienGui::InputFilter(AlienGui::InputFilterParameters().id("Filter (case insensitive)").hint(tr("parameters.filter")), query);
+            auto id = ImGui::GetID("##Filter (case insensitive)");
+            if (!original) {
+                original = id;
+            }
+            EXPECT_EQ(original, id);
+        });
+    };
+    draw(false);
+    draw(true);
+    draw(false);
+    ASSERT_EQ(original, GImGui->ActiveId);
+    io.AddInputCharactersUTF8("ПоЛоЖеНие Ёё");
+    draw(false);
+    ASSERT_EQ("ПоЛоЖеНие Ёё", query);
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        draw(false);
+        EXPECT_EQ(original, GImGui->ActiveId);
+        EXPECT_EQ(original, GImGui->InputTextState.ID);
+        EXPECT_EQ("ПоЛоЖеНие Ёё", query);
+    }
+    ImGui::ClearActiveID();
+    // Without the additive ID, existing callers still derive identity from their hint.
+    frame([&] {
+        ImGui::SetKeyboardFocusHere();
+        AlienGui::InputFilter(AlienGui::InputFilterParameters().hint("Legacy search"), query);
+    });
+    frame([&] { AlienGui::InputFilter(AlienGui::InputFilterParameters().hint("Legacy search"), query); });
+    frame([&] {
+        AlienGui::InputFilter(AlienGui::InputFilterParameters().hint("Legacy search"), query);
+        EXPECT_EQ(ImGui::GetID("##Legacy search"), GImGui->ActiveId);
+    });
+}
+
+TEST_F(LocalizationGuiTests, l2b2PresentationFallsBackToOriginalEnglishWithoutExternalCatalogs)
+{
+    LocalizationService::get().load("resources/locales/nonexistent-test-directory");
+    select("ru");
+    for (auto const& groupName : {"General", "Location"}) {
+        auto const& group = parameterGroup(SimulationParameters::getSpec(), groupName);
+        EXPECT_EQ(groupName, SimulationParametersPresentation::label(group));
+        for (auto const& parameter : group._parameters) {
+            EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
+            EXPECT_EQ(parameter._description, SimulationParametersPresentation::description(parameter));
+        }
+    }
+    LocalizationService::get().load("resources/locales");
+}
+
+TEST_F(LocalizationGuiTests, l2b2ProductionGeneralPreservesAllLocationValues)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    values->numLayers = values->numSources = 1;
+    values->layerOrderNumbers[0] = 1;
+    values->sourceOrderNumbers[0] = 2;
+    values->layerOpacity.layerValues[0] = 0.37f;
+    values->sourceRelativeStrength.sourceValues[0].value = 0.42f;
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        for (int order : {0, 1, 2}) {
+            frame([&] {
+                auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = "General"});
+                parametersGroup(parameterGroup(filtered, "General")._parameters, *values, *defaults, order);
+            });
+            EXPECT_EQ(*defaults, *values);
+        }
     }
 }

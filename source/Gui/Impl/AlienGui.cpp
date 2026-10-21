@@ -28,6 +28,7 @@
 #include "LayerColorPalette.h"
 #include "OverlayController.h"
 #include "StyleService.h"
+#include "Utf8Search.h"
 
 namespace
 {
@@ -168,10 +169,10 @@ bool AlienGui::SliderFloat2(SliderFloat2Parameters const& parameters, float& val
         if (AlienGui::SelectableButton(AlienGui::SelectableButtonParameters().name(ICON_FA_CROSSHAIRS).width(MousePickerButtonWidth), mousePickerEnabled)) {
             parameters._setMousePickerEnabledFunc.value()(mousePickerEnabled);
             if (mousePickerEnabled) {
-                OverlayController::get().showMessage("Select a position in the simulation view");
+                OverlayController::get().showMessage(parameters._mousePickerMessage);
             }
         }
-        AlienGui::Tooltip(AlienGui::TooltipParameters().text("Select a position with the mouse"));
+        AlienGui::Tooltip(AlienGui::TooltipParameters().text(parameters._mousePickerTooltip));
         if (parameters._getMousePickerEnabledFunc.value()()) {
             if (auto pos = parameters._getMousePickerPositionFunc.value()()) {
                 valueX = pos->x;
@@ -185,7 +186,7 @@ bool AlienGui::SliderFloat2(SliderFloat2Parameters const& parameters, float& val
         ImGui::SameLine();
 
         ImGui::BeginDisabled(valueX == parameters._defaultValue->x && valueY == parameters._defaultValue->y);
-        if (AlienGui::RevertButton(parameters._name)) {
+        if (AlienGui::RevertButton(parameters._name, parameters._label.has_value())) {
             valueX = parameters._defaultValue->x;
             valueY = parameters._defaultValue->y;
         }
@@ -195,7 +196,7 @@ bool AlienGui::SliderFloat2(SliderFloat2Parameters const& parameters, float& val
     // Label
     if (!parameters._name.empty()) {
         ImGui::SameLine();
-        AlienGui::Text(TextParameters().text(parameters._name.c_str()).highlightedSubString(parameters._highlightedSubString));
+        AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
     }
 
     // Tooltip
@@ -543,7 +544,7 @@ bool AlienGui::InputText(InputTextParameters const& parameters, char* buffer, in
     }
     auto result = [&] {
         if (!parameters._hint.empty()) {
-            return ImGui::InputTextWithHint(("##" + parameters._hint).c_str(), parameters._hint.c_str(), buffer, bufferSize, flags);
+            return ImGui::InputTextWithHint(("##" + parameters._hintId.value_or(parameters._hint)).c_str(), parameters._hint.c_str(), buffer, bufferSize, flags);
         }
         return ImGui::InputText(("##" + parameters._name).c_str(), buffer, bufferSize, flags);
     }();
@@ -615,7 +616,7 @@ bool AlienGui::InputFilter(InputFilterParameters const& parameters, std::string&
 {
     auto width = std::min(parameters._width != 0.0f ? parameters._width : scaleInverse(ImGui::GetContentRegionAvail().x), MaxFilterWidth);
     auto result = AlienGui::InputText(
-        AlienGui::InputTextParameters().hint(parameters._hint).bold(!filter.empty()).textWidth(0).width(width - FilterClearButtonWidth), filter);
+        AlienGui::InputTextParameters().hint(parameters._hint).hintId(parameters._id).bold(!filter.empty()).textWidth(0).width(width - FilterClearButtonWidth), filter);
     if (ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         filter.clear();
         result = true;
@@ -1336,8 +1337,10 @@ namespace
 {
     void hightlightSubstring(std::string const& label, std::string const& substring, ImVec2 const& refPos)
     {
-        auto [beforeMatch, match] = StringHelper::decomposeCaseInsensitiveMatch(label, substring);
-        if (!match.empty()) {
+        auto range = Utf8Search::find(label, substring);
+        if (range) {
+            auto beforeMatch = label.substr(0, range->begin);
+            auto match = label.substr(range->begin, range->end - range->begin);
             auto prefixSize = ImGui::CalcTextSize(beforeMatch.c_str()).x;
             ImGui::GetWindowDrawList()->AddText(
                 ImGui::GetFont(),

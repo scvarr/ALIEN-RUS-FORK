@@ -3,12 +3,14 @@
 #include <algorithm>
 #include <ranges>
 
+#include <Base/LocalizationService.h>
+
 #include <boost/range/adaptors.hpp>
 
 #include <Data/SimulationParameters.h>
 #include <Data/SimulationParametersTypes.h>
 #include <Data/SpecificationEvaluationService.h>
-#include <Data/SpecificationFilterService.h>
+#include "SimulationParametersPresentation.h"
 
 #include <Engine/Interface/SimulationFacade.h>
 
@@ -39,7 +41,7 @@ void SpecificationGuiService::createWidgetsForParameters(
 {
     auto& evaluationService = SpecificationEvaluationService::get();
     auto const& parametersSpecs = SimulationParameters::getSpec();
-    auto filteredParametersSpecs = _specCache.find(filter, [&] { return SpecificationFilterService::get().filter(parametersSpecs, filter); });
+    auto filteredParametersSpecs = SimulationParametersPresentation::filter(parametersSpecs, filter);
     auto locationType = LocationAccessService::get().getLocationType(orderNumber, parameters);
 
     AlienGui::DynamicTableLayout table(ColumnWidth);
@@ -71,6 +73,7 @@ void SpecificationGuiService::createWidgetsForParameters(
                 }
                 if (AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters()
                                                 .name(name)
+                                                .label(isExpertSettings ? name : SimulationParametersPresentation::label(groupSpec))
                                                 .startBlinking(visibilityChanged)
                                                 .enableBlinking(isExpertSettings)
                                                 .highlightedSubString(filter.containedText))) {
@@ -323,6 +326,7 @@ void SpecificationGuiService::createWidgetsForFloatSpec(
         if (AlienGui::SliderFloat(
                 AlienGui::SliderFloatParameters()
                     .name(parameterSpec._name)
+                    .label(SimulationParametersPresentation::label(parameterSpec))
                     .textWidth(TextColumnWidth)
                     .min(min)
                     .max(max)
@@ -336,7 +340,7 @@ void SpecificationGuiService::createWidgetsForFloatSpec(
                     .colorDependence(valueType == ColorDependence::ColorVector)
                     .customizationColors(parameters.customizationColors.value)
                     .highlightedSubString(filter.containedText)
-                    .tooltip(parameterSpec._description),
+                    .tooltip(SimulationParametersPresentation::description(parameterSpec)),
                 value,
                 enabledValue,
                 pinnedValue)) {
@@ -382,16 +386,19 @@ void SpecificationGuiService::createWidgetsForFloat2Spec(
     AlienGui::SliderFloat2(
         AlienGui::SliderFloat2Parameters()
             .name(parameterSpec._name)
+            .label(SimulationParametersPresentation::label(parameterSpec))
             .textWidth(TextColumnWidth)
             .min(min)
             .max(max)
             .defaultValue(*origValue)
             .format(float2Spec._format)
+            .mousePickerTooltip(tr("parameters.location.pick.tooltip"))
+            .mousePickerMessage(tr("parameters.location.pick.message"))
             .getMousePickerEnabledFunc(float2Spec._mousePicker ? std::make_optional(getMousePickerEnabledFunc) : std::nullopt)
             .setMousePickerEnabledFunc(float2Spec._mousePicker ? std::make_optional(setMousePickerEnabledFunc) : std::nullopt)
             .getMousePickerPositionFunc(float2Spec._mousePicker ? std::make_optional(getMousePickerPositionFunc) : std::nullopt)
             .highlightedSubString(filter.containedText)
-            .tooltip(parameterSpec._description),
+            .tooltip(SimulationParametersPresentation::description(parameterSpec)),
         value->x,
         value->y);
 }
@@ -414,10 +421,11 @@ void SpecificationGuiService::createWidgetsForChar64Spec(
     AlienGui::InputText(
         AlienGui::InputTextParameters()
             .name(parameterSpec._name)
+            .label(SimulationParametersPresentation::label(parameterSpec))
             .textWidth(TextColumnWidth)
             .defaultValue(*origValue)
             .highlightedSubString(filter.containedText)
-            .tooltip(parameterSpec._description),
+            .tooltip(SimulationParametersPresentation::description(parameterSpec)),
         *value,
         sizeof(Char64) / sizeof(char));
 }

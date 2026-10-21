@@ -214,6 +214,9 @@ add_library(GuiImpl
     SimulationView.h
     SpatialControlWindow.cpp
     SpatialControlWindow.h
+    SimulationParametersPresentation.cpp
+    SimulationParametersPresentation.h
+    Utf8Search.h
     SpecificationGuiService.cpp
     SpecificationGuiService.h
     StartupCheckService.cpp

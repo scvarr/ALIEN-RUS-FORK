@@ -85,7 +85,7 @@ class LocalizationL2aContracts(unittest.TestCase):
 
         catalogs = [json.loads(read(ROOT / f"resources/locales/{lang}.json"), object_pairs_hook=unique) for lang in ("en", "ru")]
         self.assertEqual(set(catalogs[0]), set(catalogs[1]))
-        self.assertEqual(138, len(catalogs[0]))
+        self.assertEqual(160, len(catalogs[0]))
         for file in ("MainLoopController.cpp", "NewSimulationDialog.cpp", "ExitDialog.cpp", "SavePictureDialog.cpp", "FileTransferController.cpp"):
             for key in re.findall(r'(?:tr|setTitleKey)\("([a-z.]+)"\)', read(GUI / file)):
                 self.assertIn(key, catalogs[0])

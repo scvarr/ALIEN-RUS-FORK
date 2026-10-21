@@ -251,7 +251,7 @@ void SimulationParametersMainWindow::processDetailWidget()
 
             ImGui::Spacing();
             startFilterTypingIfNeeded();
-            AlienGui::InputFilter(AlienGui::InputFilterParameters().hint(tr("parameters.filter")), _filter);
+            AlienGui::InputFilter(AlienGui::InputFilterParameters().id("Filter (case insensitive)").hint(tr("parameters.filter")), _filter);
         }
         AlienGui::EndTreeNode();
     }

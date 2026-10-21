@@ -1,9 +1,8 @@
 #pragma once
 
-#include <Base/Cache.h>
 #include <Base/Singleton.h>
 
-#include <Data/ParametersFilterHash.h>
+#include <Data/ParametersFilter.h>
 #include <Data/SimulationParametersSpecification.h>
 
 #include "ColorMatrixDialog.h"
@@ -12,6 +11,7 @@
 class SpecificationGuiService
 {
     MAKE_SINGLETON(SpecificationGuiService);
+    friend class LocalizationGuiTests;
 
 public:
     void createWidgetsForParameters(SimulationParameters& parameters, SimulationParameters& origParameters, int orderNumber, ParametersFilter const& filter)
@@ -86,8 +86,6 @@ private:
         ParametersFilter const& filter) const;
 
 private:
-    mutable Cache<ParametersFilter, ParametersSpec, 10000> _specCache;
-
     mutable std::unordered_map<unsigned int, bool> _visibilityById;
 
     mutable std::unordered_map<unsigned int, ColorMatrixDialog<bool>> _boolColorMatrixDialogById;
