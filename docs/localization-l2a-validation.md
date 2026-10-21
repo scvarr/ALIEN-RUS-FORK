@@ -42,8 +42,9 @@ rather than physical source lines or every rendered occurrence.
 - ALIEN-owned open/save simulation file-picker titles and simulation filter
   description, plus picture-picker title and PNG filter description. The filter
   patterns ` (*.sim){.sim},.*` and ` (*.png){.png},.*` are unchanged.
-- The existing language selector is available inside all three basic dialogs,
-  allowing language changes while a modal blocks the main menu.
+- The existing language selector is available inside New simulation and Save
+  picture, allowing language changes while a modal blocks the main menu. Exit
+  contains only its confirmation and buttons.
 
 Dialog defaults and label space are enlarged for Russian. Existing icons,
 shortcuts, selected/disabled conditions, callbacks and menu-closing behavior are
@@ -198,8 +199,9 @@ Manual checklist, still pending:
    and F1. Cancel file/network dialogs; do not submit account operations.
 3. Create a small test simulation (for example 100 × 100); Run/Pause it and check
    translated overlay messages.
-4. Open/cancel New simulation, Exit and Save picture. Edit dimensions/project name,
-   switch language using each dialog's selector, and confirm values remain.
+4. Open/cancel New simulation, Exit and Save picture. Edit dimensions/project name
+   in New simulation and Save picture, switch language using their selectors, and
+   confirm values remain. Exit should contain only its confirmation and buttons.
 5. Save a small PNG only to
    `E:\Projects\ALIEN\temp\l2a\review\l2a-picture.png`; inspect the result.
    Exercise an invalid test path and check the translated error and log details.
@@ -229,3 +231,13 @@ the explicitly selected window interiors; plan network/account dialogs as a
 separate bounded slice. Keep third-party ImFileDialog localization separately
 scoped, retain stable IDs and extend the same catalog/test infrastructure.
 No L2-B implementation is included here.
+
+## Exit dialog correction
+
+Following user review, the language selector was removed from Exit and its default
+height reduced from 210 to 150. Confirmation, translated buttons, stable IDs and
+exit/cancel actions are unchanged. The source contract now rejects a language
+selector in this dialog. The required Release build, all 14 headless GUI tests,
+all five Python source checks and clang-format 19.1.5 validation passed. The local
+isolated review runner was relinked. This GUI-only correction does not change
+shared headers or engine code; the full-suite results above remain applicable.

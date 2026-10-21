@@ -5,11 +5,10 @@
 #include <Base/LocalizationService.h>
 
 #include "AlienGui.h"
-#include "LocalizationGui.h"
 #include "MainLoopController.h"
 
 ExitDialog::ExitDialog()
-    : AlienDialog("Exit", {520.0f, 210.0f})
+    : AlienDialog("Exit", {520.0f, 150.0f})
 {
     setTitleKey("exit.title");
 }
@@ -17,8 +16,6 @@ ExitDialog::ExitDialog()
 void ExitDialog::processIntern()
 {
     ImGui::TextWrapped("%s", tr("exit.confirm").c_str());
-
-    LocalizationGui::languageSelector();
 
     ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
     AlienGui::Separator();

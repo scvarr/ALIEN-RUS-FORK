@@ -53,7 +53,10 @@ class LocalizationL2aContracts(unittest.TestCase):
         for file in ("NewSimulationDialog.cpp", "ExitDialog.cpp", "SavePictureDialog.cpp"):
             source = read(GUI / file)
             self.assertIn('setTitleKey("', source)
-            self.assertIn('LocalizationGui::languageSelector()', source)
+            if file == "ExitDialog.cpp":
+                self.assertNotIn('LocalizationGui::languageSelector()', source)
+            else:
+                self.assertIn('LocalizationGui::languageSelector()', source)
             self.assertNotRegex(source, r'AlienGui::Button\("[A-Za-z]')
             self.assertNotRegex(source, r'ImGui::TextWrapped\("%s", "[A-Za-z]')
             for name in re.findall(r'\.name\("([^"\n]+)"\)', source):
