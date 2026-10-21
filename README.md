@@ -1,3 +1,74 @@
+# ALIEN-RUS-FORK
+
+An independently maintained fork of [ALIEN by Christian Heinemann](https://github.com/chrxh/alien), adding a Russian-language interface while preserving the original simulation engine and Git history. This is not an official Russian release of the upstream project.
+
+## Translation status
+
+Russian localization is in progress. The current L1 implementation provides:
+
+- English and Russian JSON catalogs with semantic keys, validation, diagnostics, and English fallback.
+- Live language switching and persistence through `settings.language`.
+- Cyrillic-capable regular, bold, and monospace fonts with their redistribution license.
+- Translated Settings menu entries and the complete Display settings dialog, including tooltips and scaling confirmation.
+- Stable Dear ImGui identifiers so translated captions do not replace window/control identity.
+- Automated tests for catalogs, settings, fonts, window state, startup font readiness, and language selection by mouse.
+
+Select **Settings → Language → Russian** using the option labelled `Русский`, or use the same selector inside **Display settings**. Other windows, editors, built-in documentation, and engine messages are still English. The simulation algorithms and file formats are not translated.
+
+Implementation and validation history: [L1 validation report](docs/localization-l1-validation.md). The original source baseline is `d1365091ae51b091ab205407cb4142e61f5644fc`; later upstream changes must be integrated deliberately using the synchronization guide below.
+
+## Build and run on Windows
+
+Use the repository's pinned dependencies and follow [AGENTS.md](AGENTS.md). For this checkout, the validated toolchain is Visual Studio 2022 with C++ and CMake tools, Ninja, CUDA 13.2, and an NVIDIA RTX 5080. These are the tested versions, not a complete compatibility matrix.
+
+From the repository root:
+
+```powershell
+.\build-windows-ninja.bat agent
+```
+
+Run the resulting application from its own directory so it can resolve `resources`:
+
+```powershell
+Set-Location .\build-agent\Release
+.\alien.exe
+```
+
+Keep the complete output directory, including `resources` and runtime DLLs, together. The original upstream nightly downloads and Docker images do not contain this fork's Russian localization. This repository does not currently publish a separate binary release.
+
+For an initial clone, use this repository rather than the upstream URL:
+
+```powershell
+git clone --recurse-submodules https://github.com/scvarr/ALIEN-RUS-FORK.git
+Set-Location ALIEN-RUS-FORK
+```
+
+This initial-clone command is for a human setting up a new checkout. Agents working in the existing workspace must follow the repository prohibition on `git submodule update`. Do not advance the pinned `external/vcpkg` revision as part of ordinary localization work.
+
+## Keep the fork current
+
+The maintained branch is `main`. The remotes are:
+
+| Remote | Purpose |
+| --- | --- |
+| `origin` | This repository: `https://github.com/scvarr/ALIEN-RUS-FORK.git` |
+| `upstream` | Original project: `https://github.com/chrxh/alien.git`, branch `develop` |
+
+Read [Updating from upstream without losing localization work](docs/upstream-sync.md) before integrating developer updates. The guide uses a temporary synchronization branch, a backup branch/bundle, an ordinary merge, conflict review, and validation before publication. It preserves published history and does not require a force push. The local `upstream` push URL is deliberately disabled.
+
+Local build trees, runtime state, credentials, GitNexus indexes/metadata, and generated GitNexus assistant context are excluded by `.gitignore`. Project instructions in the already tracked `AGENTS.md` remain versioned. Existing GitHub workflows are inherited from upstream; their self-hosted runners, deployment secrets, and official publishing destinations are not configured for this fork.
+
+## Credits and license
+
+ALIEN is created by Christian Heinemann and the [upstream contributors](https://github.com/chrxh/alien/graphs/contributors). This repository adds Russian localization and related compatibility fixes; upstream authors retain credit for the original project. See the [original project website](https://alien-project.org) and the upstream overview below for the simulator itself.
+
+The project retains its [BSD 3-Clause license](LICENSE) and original copyright notice. Added Noto font assets are distributed under the SIL Open Font License 1.1, with [license and provenance](resources/fonts/README.md) included. Other third-party components retain their respective licenses.
+
+<details>
+<summary>Original upstream README: simulator overview and upstream installation reference</summary>
+
+The following text is retained from upstream. Its download, clone, branch, and publishing instructions describe the original project. For this fork, use the instructions above and the synchronization guide.
+
 <h1 align="center">
 <a href="https://alien-project.org" target="_blank">ALIEN: Explore worlds of artificial life</a>
 </h1>
@@ -310,3 +381,5 @@ Free icons and icon font:
 ALIEN is licensed under the [BSD 3-Clause](LICENSE) license.
 
 <a href="https://hellogithub.com/repository/d53e3c352f294f72a1bfd8f48ac0f866" target="_blank"><img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=d53e3c352f294f72a1bfd8f48ac0f866&claim_uid=dKUYgLps8t45BW7&theme=small" alt="Featured｜HelloGitHub" /></a>
+
+</details>

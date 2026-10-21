@@ -313,3 +313,37 @@ _codeql_detected_source_root
 
 # Payload staged for the Docker image (see Dockerfile)
 docker/payload/
+
+# Local ALIEN runtime state, diagnostics, and deployment archives
+/resources/autosave/
+/imgui.ini
+/profile.txt
+/trace.txt
+/deploy/
+/*.bundle
+*.dmp
+*.reg
+
+# Local CMake/vcpkg configuration and generated files
+/CMakeUserPresets.json
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/compile_commands.json
+/Testing/
+/vcpkg_installed/
+
+# Local credentials; distributable environment templates remain versioned
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# GitNexus indexes, metadata, and generated assistant context
+.gitnexus*
+gitnexus.config.*
+/.claude/skills/gitnexus*/
+/.agents/skills/gitnexus*/
+/.codex/skills/gitnexus*/
+/CLAUDE.md
