@@ -2,8 +2,9 @@
 
 Date: 2026-10-21 (Europe/Moscow). Branch: `feat/ru-localization-l2b3a`.
 Base: `628868dbc9135750c38210179fdada0f20335ca3` (local `main` and
-`origin/main` verified after fetching origin). Visual acceptance is pending;
-this branch must not be merged before the user's acceptance. L2-B3b is outside scope.
+`origin/main` verified after fetching origin). The user has accepted the corrected
+switcher layout and authorized integration; see the final integration review below.
+L2-B3b is outside scope.
 
 ## Scope and files
 
@@ -27,7 +28,8 @@ this branch must not be merged before the user's acceptance. L2-B3b is outside s
 
 The local AGENTS.md and its skip-worktree flag are preserved. README, glossary,
 submodule, dependencies, upstream, Data specifications/filter, engine/CUDA, physics,
-serialization, CLI and MCP are unchanged. Accepted General/Location catalog entries
+serialization format, CLI and MCP are unchanged. The follow-up changes native-path
+file opening in SerializerService, as detailed below. Accepted General/Location catalog entries
 are unchanged. No energy-balance functionality is added.
 
 ## Translated declarations
@@ -253,7 +255,7 @@ to scale 1.5 and accepts other scales explicitly:
 6. Confirm General/Location still work and Shape/Force field/Physics/Radiation retain
    their original English presentation and behavior. Close the isolated runner.
 
-Human visual acceptance is pending. Automated checks do not establish subjective
+At the initial review, human visual acceptance was pending. Automated checks do not establish subjective
 readability or qualify CUDA/ray-tracing behavior. Do not open user simulations,
 import real settings, merge main or start L2-B3b during this acceptance step.
 
@@ -262,7 +264,8 @@ import real settings, merge main or start L2-B3b during this acceptance step.
 Baseline for this additional commit: `da2b5c98f2d6a18c71d23f5889e024b9dc7d4859`.
 The user reported clipping of Происхождение + Настройка at scale 1.5; scale 1.0
 in a maximized application fit. This is a reported defect, not visual acceptance
-of the original commit. Repeat human visual acceptance remains pending.
+of the original commit. The repeat acceptance outcome is recorded in the final
+integration review below.
 
 The original Switcher width calculation reserved `parameters._textWidth` in every
 expanded color row, although only row zero renders the reset/caption/help controls.
@@ -433,7 +436,8 @@ same values and modes. Open each named sample from both sample directories, insp
 the notification and save a disposable copy into a Cyrillic directory. Reopen it
 and check that the dialog returns to the saved folder. Do not use real simulations.
 
-Repeat visual acceptance is pending. No merge into main or L2-B3b work is performed.
+At delivery of the follow-up, repeat visual acceptance was pending. The subsequent
+acceptance and integration decision are recorded below. L2-B3b remains outside scope.
 
 Follow-up graph review: the index-only refresh and forced refresh both completed.
 The MCP transport closed during reindexing; the required CLI fallback and its
@@ -452,3 +456,50 @@ SHA-256 `18E655712326C4CBF63AA9DCFB032C1B3263F72DBA9DFB23ADB41F8A7AF7E181`.
 It is not included in the review package. A separate sample helper uses /utf-8;
 the eight resulting basenames and the Cyrillic directory are verified against
 exact Unicode strings before delivery. No real files are used as sample data.
+
+## Integration review and user acceptance
+
+Date: 2026-10-21 (Europe/Moscow). The reviewed feature tip is
+`14ce92cf28a2ab542c9292b53ccd78f99af0b2bb`; both local main and origin/main were
+`628868dbc9135750c38210179fdada0f20335ca3` after fetching origin. The working tree
+was clean, and the complete branch diff, including both follow-up fixes, was reviewed.
+
+The user explicitly confirmed that the long coloring-mode caption no longer clips
+after the follow-up and authorized fast-forward integration into main. This records
+the user's visual acceptance of the switcher layout. It does not claim separate
+user confirmation of every scale/window-size combination or Unicode notification.
+Unicode filenames, notification contents/drawing, glyph coverage and native file
+save/read behavior are supported by the automated checks described above; a separate
+human visual confirmation of Unicode notifications was not explicitly reported.
+
+The specific review of PathHelper.h, FileTransferController.cpp and
+SerializerService.cpp found no integration blocker. Native paths remain native
+through the dialog callback and existing Persister requests/results. Display/log
+text uses UTF-8. The legacy starting-directory conversion requires an exact native
+round trip and catches conversion errors. File-open failures return false; the
+unchanged zstd stream buffer reports compression/write/sync errors via badbit
+exceptions, and the explicit flush runs inside the existing exception handler.
+The native file stream outlives its compression wrapper. Serialization routines,
+compression settings and public path contracts remain unchanged; byte-comparison
+and round-trip tests cover compatibility with the existing .sim format.
+
+The final integration rerun passes all seven CPU/headless GUI suites: **551 C++
+tests passed, zero failures/errors, one existing disabled test**. All **20 Python
+checks pass**. Logs and XML are under temp/l2b3a/integration. The successful clean
+Windows Release build recorded in the follow-up applies to the reviewed code tip;
+integration changes only this report, so no new compilation or GPU run is required.
+
+The index-only GitNexus refresh succeeds. The full comparison with main reports
+21 changed files, 82 symbols, one affected process (ColorVectorButtons -> Get),
+and MEDIUM risk. The documentation-only all-scope check reports one file, five
+symbols and LOW risk. Both structured responses list every reported changed symbol
+without partial/truncated flags; they are saved as graph-compare.json and
+graph-all.json in the integration log directory. The index retains its documented
+receiver-resolution and process-enumeration limits; source review and passing
+runtime tests supplement the graph rather than treating absent flows as proof.
+
+The vendored file dialog's Unicode breadcrumb/favorite/new-entry navigation and
+non-ACP starting-directory limitation remain a future dialog-level task. This
+integration does not change dependencies or expand that scope. Local AGENTS.md and
+its skip-worktree flag, user simulations, autosaves and existing diagnostics are
+preserved. No L2-B3b work is included.
