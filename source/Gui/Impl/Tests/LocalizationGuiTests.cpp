@@ -11,6 +11,7 @@
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
+#include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/StyleService.h>
 #include <Gui/Impl/TextFontService.h>
@@ -299,4 +300,85 @@ TEST_F(LocalizationGuiTests, legacyDisplayIniGeometryMigratesWithoutChangingSett
         EXPECT_EQ(420, migrated->Size.y);
     }
     settings.setValue("gui.imgui settings", original);
+}
+
+TEST_F(LocalizationGuiTests, languagePopupKeepsMenuOpenAndAcceptsMouseSelection)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    bool menuOpen = true;
+    ImRect comboRect;
+    ImGuiWindow* menuWindow = nullptr;
+    auto draw = [&] {
+        LocalizationService::get().applyPendingLanguage();
+        frame([&] {
+            AlienGui::BeginMenuBar();
+            AlienGui::BeginMenu(tr("settings.menu") + "###settings.menu", menuOpen, false);
+            if (menuOpen) {
+                for (auto const& key : {"settings.saveonexit", "settings.darkmode", "settings.display", "settings.network"}) {
+                    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr(key) + "###" + key), [] {});
+                }
+                ImGui::Dummy({scale(280.0f), 0});
+                auto pos = ImGui::GetCursorScreenPos();
+                comboRect = ImRect(pos, ImVec2(pos.x + ImGui::GetContentRegionAvail().x - scale(120.0f), pos.y + ImGui::GetFrameHeight()));
+                LocalizationGui::languageSelector();
+                AlienGui::MenuSeparator();
+                AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("settings.debug") + "###settings.debug"), [] {});
+                menuWindow = ImGui::GetCurrentWindow();
+            }
+            AlienGui::EndMenu();
+            AlienGui::EndMenuBar();
+        });
+    };
+
+    io.AddMousePosEvent(10, 10);
+    for (int i = 0; i < 3; ++i) {
+        draw();
+    }
+    ASSERT_TRUE(menuOpen);
+    ASSERT_NE(nullptr, menuWindow);
+    for (auto const& [index, language] : std::vector<std::pair<int, std::string>>{{1, "ru"}, {0, "en"}}) {
+        io.AddMousePosEvent(10, 10);
+        draw();
+        draw();
+        ASSERT_TRUE(menuOpen);
+        auto center = comboRect.GetCenter();
+        io.AddMousePosEvent(center.x, center.y);
+        draw();
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+        draw();
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+        draw();
+        draw();
+        draw();
+        auto& popups = ImGui::GetCurrentContext()->OpenPopupStack;
+        ASSERT_EQ(1, popups.Size);
+        auto popup = popups.back().Window;
+        ASSERT_NE(nullptr, popup);
+        auto pos = popup->DC.CursorStartPos;
+        pos.x += 20;
+        pos.y += ImGui::GetTextLineHeight() * 0.5f + static_cast<float>(index) * ImGui::GetTextLineHeightWithSpacing();
+        if (language == "ru") {
+            auto popupEdge = ImVec2(pos.x, popup->Rect().Max.y - 1);
+            ASSERT_GT(popupEdge.y, menuWindow->Rect().Max.y);
+            io.AddMousePosEvent(popupEdge.x, popupEdge.y);
+            draw();
+            ASSERT_TRUE(menuOpen);
+        }
+        io.AddMousePosEvent(pos.x, pos.y);
+        draw();
+        ASSERT_TRUE(menuOpen);
+        ASSERT_EQ(1, popups.Size);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+        draw();
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+        draw();
+        draw();
+        EXPECT_EQ(language, LocalizationService::get().getLanguage());
+        EXPECT_TRUE(popups.empty());
+    }
+
+    io.AddMousePosEvent(1800, 900);
+    draw();
+    EXPECT_FALSE(menuOpen);
 }

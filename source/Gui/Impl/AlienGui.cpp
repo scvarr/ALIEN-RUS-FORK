@@ -1573,8 +1573,10 @@ void AlienGui::BeginMenu(std::string const& text, bool& toggled, float focus)
 
             auto mousePos = ImGui::GetMousePos();
             auto windowSize = ImGui::GetWindowSize();
-            if (/*ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||*/
-                ((mousePos.x < windowPos.x || mousePos.y < windowPos.y || mousePos.x > windowPos.x + windowSize.x || mousePos.y > windowPos.y + windowSize.y)
+            auto hasFocusedPopup = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)
+                && ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId);
+            if (!hasFocusedPopup
+                && ((mousePos.x < windowPos.x || mousePos.y < windowPos.y || mousePos.x > windowPos.x + windowSize.x || mousePos.y > windowPos.y + windowSize.y)
                  && (mousePos.x < buttonPos.x || mousePos.y < buttonPos.y || mousePos.x > buttonPos.x + buttonSize.x
                      || mousePos.y > buttonPos.y + buttonSize.y))) {
                 EndMenu();

@@ -288,3 +288,15 @@ To launch the rebuilt application from PowerShell with its resource directory co
 Set-Location 'E:\Projects\ALIEN\build-agent\Release'
 .\alien.exe
 ```
+
+## L1 language-popup interaction correction — 2026-10-21
+
+The user reported that the Settings language selector lost focus before Russian could be selected. The custom `AlienGui::BeginMenu()` closed the menu whenever the pointer left the menu/button rectangles. A combo list is a separate ImGui popup and can extend beyond its parent menu, so moving within that list incorrectly stopped submission of the owning menu and selector.
+
+The outside-rectangle check now preserves a menu while its focused popup hierarchy is active. This uses ImGui's popup and child-focus queries; it does not force focus back to the parent window. Normal pointer-leave closure remains when no popup is active, and an unrelated focused window does not keep the menu open. Locale persistence and application frame-boundary handling are unchanged.
+
+A new headless integration test drives actual ImGui mouse events through the production menu and language selector. It opens the combo, moves into the portion of the popup beyond the parent rectangle, selects Russian, reopens Settings and selects English, then verifies ordinary closure after leaving the menu with the popup dismissed. The old code failed because `menuOpen` became false while the pointer was still inside the popup; the corrected code passes. The test also verifies that queued language changes take effect and that each selection dismisses the combo.
+
+`build-windows-ninja.bat agent` succeeded, and all **9 GuiLocalizationTests passed**. The test source passes clang-format 19.1.5; `AlienGui.cpp` remains exempt from whole-file formatting because it was already non-clean at HEAD. Whitespace/diff checks passed. This GUI-only correction does not rebuild or change engine/CUDA code, so the full GPU regression was not repeated. Logs and XML are stored with the earlier evidence as `language-popup-before.*`, `language-popup-fix-build.log`, `language-popup-final-build.log` and `language-popup-gui.*`.
+
+No real GUI launch or visual inspection was performed by the agent. Mouse events were simulated entirely inside the headless ImGui test context with isolated test settings. The user should restart the rebuilt `build-agent/Release/alien.exe` to load the correction.
