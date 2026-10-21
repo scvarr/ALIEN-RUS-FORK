@@ -110,7 +110,8 @@ archived at `temp/l2b1/build-before-clean`; only `vcpkg_installed` was moved int
 new tree. No compiled ALIEN object/library was reused. All consumers of the changed
 AlienGui header were compiled afresh. IDE-owned build trees were untouched.
 Subsequent required-script builds after formatting and stronger test assertions
-also passed. The final source build is recorded in `temp/l2b1/build-click.log`.
+also passed. The final source build, including the language-selector removal,
+is recorded in `temp/l2b1/selector-removal-build.log`.
 
 | Suite | Passed | Failed | Disabled |
 | --- | ---: | ---: | ---: |
@@ -121,7 +122,7 @@ also passed. The final source build is recorded in `temp/l2b1/build-click.log`.
 | NetworkTests | 38 | 0 | 0 |
 | PersisterTests | 141 | 0 | 1 |
 | GuiLocalizationTests | 19 | 0 | 0 |
-| Total | 628 | 0 | 1 |
+| Total | 528 | 0 | 1 |
 
 All 14 existing GUI tests are retained. The five added GUI tests cover tree ID
 and saved-state behavior, the production table, dynamic window captions/identity,
@@ -130,7 +131,8 @@ All 138 embedded English values are checked with external catalogs absent.
 Existing malformed-catalog, duplicate-key, invalid-UTF-8, font, fallback,
 frame-boundary switching and isolated settings tests remain passing.
 
-Both Python programs pass: five L2-A checks and four L2-B1 checks. They supplement
+Both Python programs pass: six L2-A checks and four L2-B1 checks (10 total after
+the language-selector placement correction). They supplement
 runtime tests with strict UTF-8/duplicate-free key parity, message-slot parity,
 complete toolbar text coverage, unchanged actions/conditions, file patterns and
 settings/camera contracts. These checks run from any working directory.
@@ -184,7 +186,9 @@ without opening the GUI. This is an ignored local acceptance aid, not a release.
 & 'E:\Projects\ALIEN\temp\l2b1\review\Launch-L2B1.ps1' -Scale 1.5
 ```
 
-Manual acceptance remains pending:
+The user reported successful visual acceptance of branch HEAD
+`258f6589943cebf72f86c4ab24108a075eb663a2` before integration. The acceptance
+checklist is retained below for reference:
 
 1. In the isolated runner create a small disposable simulation, open Parameters,
    and switch Settings -> Language EN -> RU -> EN. Check all three section captions,
@@ -206,7 +210,8 @@ Manual acceptance remains pending:
 
 Real renderer/layout quality, DPI clipping, full simulation-backed selection/edit
 round trips, layer/source rename lifecycle, successful file I/O and maximum-count
-workflows remain manual checks. The headless fixture directly submits the actual
+workflows are outside automated coverage; user visual acceptance is recorded
+above. The headless fixture directly submits the actual
 table and toolbar without initializing a simulation facade; it does not pretend
 to run the whole simulation-dependent processIntern or mutate real engine data.
 
@@ -239,3 +244,25 @@ results remain applicable. GitNexus impact returned UNKNOWN for the three virtua
 processIntern methods; their AlienDialog dispatch and actual call sites were
 checked in source. Diff/format checks passed; the already non-clean new-simulation
 file received only narrow removals. No user GUI or simulation was opened.
+
+## Pre-integration evidence reconciliation
+
+The integration audit checked the stored GoogleTest XML against the corresponding
+logs. The correct total is **528 passed**, not 628: 41 + 247 + 2 + 40 + 38 + 141
++ 19. PersisterTests additionally has one disabled test, which is not counted as
+passed. The incorrect earlier total was an arithmetic reporting error; no suite
+was missing or failing.
+
+All seven CPU/headless suites were rerun before integration and again passed
+528 tests with zero failures and one disabled test. Fresh XML and logs are stored
+in ignored `temp/l2b1/integration`. Both Python contract programs were rerun:
+six L2-A checks and four L2-B1 checks passed, **10 total**. Stored final build,
+GUI-test and review-runner build exit codes were all zero. This documentation-only
+correction requires no rebuild or GPU/stress test.
+
+The complete branch diff against main was reviewed, and whitespace/protected-path
+checks passed. GitNexus compare analysis reported 27 changed symbols and three
+presentation execution flows at medium risk, without partial/truncated flags.
+No technical integration blocker was found. The local and origin branch heads
+matched the user-accepted SHA; main remained an ancestor, allowing fast-forward
+integration. No program code was changed by this reconciliation.
