@@ -289,6 +289,10 @@ void StyleService::setup()
 
     _reefMediumFont = io.Fonts->AddFontFromMemoryCompressedTTF(Reef_compressed_data, Reef_compressed_size, 24.0f * scaleFactor);
     _reefLargeFont = io.Fonts->AddFontFromMemoryCompressedTTF(Reef_compressed_data, Reef_compressed_size, 64.0f * scaleFactor);
+
+    if (!io.Fonts->Build()) {
+        throw std::runtime_error("Could not build GUI font atlas.");
+    }
 }
 
 void StyleService::process()

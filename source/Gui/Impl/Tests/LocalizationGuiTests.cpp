@@ -26,7 +26,6 @@ protected:
         io.IniFilename = nullptr;
         io.DisplaySize = {1920, 1080};
         StyleService::get().setup();
-        ASSERT_TRUE(io.Fonts->Build());
         LocalizationService::get().load("resources/locales");
         select("en");
     }
@@ -56,6 +55,38 @@ protected:
     std::string _language;
     SettingsTestScope _settingsScope;
 };
+
+TEST_F(LocalizationGuiTests, fontsAreReadyBeforeSimulationRenderingStarts)
+{
+    auto& style = StyleService::get();
+    auto atlas = ImGui::GetIO().Fonts;
+    ASSERT_TRUE(atlas->IsBuilt());
+    for (auto font :
+         {style.getDefaultFont(),
+          style.getTinyFont(),
+          style.getSmallBoldFont(),
+          style.getMediumBoldFont(),
+          style.getMediumFont(),
+          style.getLargeFont(),
+          style.getMonospaceMediumFont(),
+          style.getMonospaceLargeFont(),
+          style.getIconFont(),
+          style.getReefMediumFont(),
+          style.getReefLargeFont()}) {
+        ASSERT_EQ(atlas, font->ContainerAtlas);
+        EXPECT_TRUE(font->IsLoaded());
+    }
+
+    auto labelFont = style.getDefaultFont();
+    unsigned char* pixels = nullptr;
+    int width = 0;
+    int height = 0;
+    labelFont->ContainerAtlas->GetTexDataAsAlpha8(&pixels, &width, &height);
+    EXPECT_NE(nullptr, pixels);
+    EXPECT_GT(width, 0);
+    EXPECT_GT(height, 0);
+    EXPECT_NE(nullptr, labelFont->FindGlyphNoFallback('A'));
+}
 
 TEST_F(LocalizationGuiTests, textRolesContainRussianPunctuationAndIcons)
 {

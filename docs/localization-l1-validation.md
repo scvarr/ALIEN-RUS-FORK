@@ -269,3 +269,22 @@ Manual checks remain explicitly unverified: EN → RU → EN in the real rendere
 The L1 implementation is limited to the selected slice. Visual validation remains pending by user choice. Only the Windows CUDA build and available GPU were exercised; Linux/HIP portability has not been established by execution. There is no runtime file watcher, plural selection, interpolation grammar or generalized Unicode search; add these when later screens need them. English fallback is resilience behavior, not evidence of complete translation.
 
 Expand L2 one reviewed screen at a time, extending completeness and state-preservation tests. Keep specifications, enums, settings names, serialized fields and protocols canonical. Address the cell-label atlas, Unicode search and filesystem/cloud/input compatibility as separately tested changes. Preserve font licenses and package checks. Bulk translation is not started automatically.
+
+## L1 startup regression correction — 2026-10-21
+
+After commit `681b79acf540bc1c74801d777f8a08b4afcd5d38`, the user reported that `build-agent/Release/alien.exe` displayed a console briefly and exited. The existing application journal reached successful CUDA/Vulkan initialization and stopped at `initialize main loop elements`; Windows recorded exception `0xc0000005`. This was a startup regression in L1, not a missing-resource working-directory failure.
+
+The cause was removal of the explicit atlas build from `StyleService::setup()`. In ImGui 1.91.9, adding fonts does not initialize `ImFont::ContainerAtlas`; atlas construction does. `SimulationView::setup()` immediately passes the default font to simulation rendering, whose existing cell-label preparation dereferences `labelFont->ContainerAtlas` before the first ImGui frame. With the unbuilt atlas that pointer was null. The headless GUI fixture had called `Fonts->Build()` itself, hiding the production startup defect.
+
+The fix builds the complete atlas once at the end of `StyleService::setup()`, after all text and icon fonts have been registered, and reports a normal exception if construction fails. No cell-label renderer, engine, font ranges, locale switching or GPU synchronization logic is changed. Language switching still uses the same startup atlas without rebuilding it.
+
+The test fixture no longer performs the missing production work. A new regression test checks that the atlas and every text/icon font are ready immediately after setup and exercises the default font's atlas pixel access used by rendering, before any frame or explicit test-side build. It failed before the fix (`IsBuilt()` was false) and passed afterward. The required `build-windows-ninja.bat agent` succeeded, and all **8 GuiLocalizationTests passed**. clang-format 19.1.5 and diff whitespace checks passed. The earlier full-suite results remain historical evidence; only the affected headless GUI suite was rerun for this GUI-only correction.
+
+Evidence is stored alongside the previous logs as `startup-regression-before.*`, `startup-fix-build.log` and `startup-fix-gui.*`. ALIEN has no GitNexus index, so diagnosis used the actual startup source, pinned ImGui source and existing crash evidence directly. No GUI launch, visual check, user-profile modification or real-simulation test was performed by the agent for this correction. Real-window validation remains with the user.
+
+To launch the rebuilt application from PowerShell with its resource directory correctly resolved:
+
+```powershell
+Set-Location 'E:\Projects\ALIEN\build-agent\Release'
+.\alien.exe
+```
