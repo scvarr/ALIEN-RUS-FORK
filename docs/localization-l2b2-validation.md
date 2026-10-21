@@ -18,7 +18,8 @@ Relative strength uses the accepted radiation-distribution term "Доля".
 
 README, upstream, dependencies, the pinned vcpkg submodule, engine parameters,
 CUDA/physics, enum values, serialization, MCP/CLI and simulation-field cell labels
-are unchanged. There is no merge into main and no L2-B3 work.
+are unchanged. The implementation phase left main unchanged; integration review
+and user acceptance are recorded below. No L2-B3 work is included.
 
 ## Presentation adapter and extension path
 
@@ -209,7 +210,15 @@ The launcher defaults to interface scale 1.5 and permits 1..4 explicitly:
 & 'E:\Projects\ALIEN\temp\l2b2\review\Launch-L2B2.ps1' -Scale 1.5
 ```
 
-Visual acceptance (pending user review; the agent has not claimed a visual pass):
+User-reported visual acceptance passed for implementation commit
+`9d221aac23c1da11465e8c644f3738fc40fac7d6`. The user reported checking the interface,
+numeric input and filtering while switching languages, with no problems found.
+This records only that reported scope. It does not assert that the user completed
+every item in the original checklist, tested a particular scale, inspected every
+tooltip, exercised mouse picking or reviewed other editors individually.
+
+Original visual acceptance checklist (retained as reference, not a record that
+every item was performed):
 
 1. Create a small disposable simulation; open Parameters and add a layer and a
    radiation source. Check General/Location on the base, layer and source.
@@ -228,3 +237,33 @@ Visual acceptance (pending user review; the agent has not claimed a visual pass)
 6. Check an untranslated group and an existing editor for normal English labels,
    working controls and unchanged behavior. Close the isolated runner without
    opening user simulations or importing real settings.
+
+## Integration review
+
+Date: 2026-10-21 (Europe/Moscow).
+
+An origin fetch confirmed main and origin/main at
+`c36bf891802035486a454cb9c0586d805a5f4c4e` and both feature-branch refs at the
+user-tested implementation commit above. The working tree was clean and no other
+worktree was registered. No parallel branch update was observed at this check.
+
+Final review against main found no blocking issue. Engine specifications and
+structures, ranges, physics, serialization and protocols have no diff. The nine
+typed member bindings distinguish repeated names. Original vector positions and
+canonical widget/group names preserve ImGui scopes; filtering changes visibility
+without renumbering. The filter ID is independent of its translated hint, and
+UTF-8 matching/highlighting uses validated character boundaries. Unbound groups
+retain English text, and additive widget options preserve existing defaults.
+UNKNOWN graph results were cross-checked against the actual base/layer/source,
+browser, documentation and Text/tree callers rather than treated as unused code.
+
+The existing Release build success and saved test XML were inspected. A fresh
+integration run of all seven CPU/GUI executables confirms 537 successful tests,
+zero failures and one disabled Persister test; all 14 Python checks pass again.
+Logs/XML are retained under `temp/l2b2/integration`. The implementation code is
+unchanged from the user-tested commit. This follow-up changes documentation only;
+no rebuild or heavy GPU test is required for it.
+
+The user authorized fast-forward integration into main and removal of the completed
+feature branch after successful synchronization. Local AGENTS.md content and its
+skip-worktree flag, user data, autosaves and diagnostic materials are preserved.
