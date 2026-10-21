@@ -1,385 +1,164 @@
 # ALIEN-RUS-FORK
 
-An independently maintained fork of [ALIEN by Christian Heinemann](https://github.com/chrxh/alien), adding a Russian-language interface while preserving the original simulation engine and Git history. This is not an official Russian release of the upstream project.
+Неофициальный форк [ALIEN](https://github.com/chrxh/alien) с русской локализацией интерфейса. Форк сопровождает [scvarr](https://github.com/scvarr) для личного использования и экспериментов; он сохраняет историю и симуляционный движок оригинального проекта.
 
-## Translation status
+**Перевод частичный:** завершены L1 и L2-A, доступны English и Русский. Отдельные бинарные релизы форка сейчас не публикуются — русифицированную версию нужно собрать из исходников.
 
-Russian localization is in progress. The current L1 implementation provides:
+Проект не является официальной русской версией ALIEN и не подразумевает одобрения оригинальными разработчиками.
 
-- English and Russian JSON catalogs with semantic keys, validation, diagnostics, and English fallback.
-- Live language switching and persistence through `settings.language`.
-- Cyrillic-capable regular, bold, and monospace fonts with their redistribution license.
-- Translated Settings menu entries and the complete Display settings dialog, including tooltips and scaling confirmation.
-- Stable Dear ImGui identifiers so translated captions do not replace window/control identity.
-- Automated tests for catalogs, settings, fonts, window state, startup font readiness, and language selection by mouse.
+[Английский README оригинального ALIEN](README.upstream.md) сохранён без редактирования из исходной ревизии `d1365091ae51b091ab205407cb4142e61f5644fc`. Его инструкции по загрузке и сборке относятся к оригинальному проекту; инструкции для этого форка приведены ниже.
 
-Select **Settings → Language → Russian** using the option labelled `Русский`, or use the same selector inside **Display settings**. Other windows, editors, built-in documentation, and engine messages are still English. The simulation algorithms and file formats are not translated.
+![Пример мира ALIEN](https://github.com/user-attachments/assets/ee578848-7dd7-458d-873f-89662a7c15f0)
 
-Implementation and validation history: [L1 validation report](docs/localization-l1-validation.md). The original source baseline is `d1365091ae51b091ab205407cb4142e61f5644fc`; later upstream changes must be integrated deliberately using the synchronization guide below.
+## Что такое ALIEN
 
-## Build and run on Windows
+**ALIEN** (Artificial Life Environment) — симулятор искусственной жизни на основе двумерного движка частиц. Частицы образуют упругие структуры и жидкости, а специализированные клетки объединяются в цифровые организмы. Сенсоры, мышцы, атакующие клетки, конвертеры, память и коммуникаторы обеспечивают восприятие среды, движение, обмен энергией и передачу сигналов. Небольшие нейросети клеток совместно управляют поведением организма.
 
-Use the repository's pinned dependencies and follow [AGENTS.md](AGENTS.md). For this checkout, the validated toolchain is Visual Studio 2022 with C++ and CMake tools, Ninja, CUDA 13.2, and an NVIDIA RTX 5080. These are the tested versions, not a complete compatibility matrix.
+Геномы задают построение потомства. При включённых мутациях ограниченная энергия, конкуренция за пространство и взаимодействие организмов создают условия для естественного отбора без заранее заданной функции приспособленности. Можно наблюдать изменение популяций и формирование экосистем, отслеживать происхождение организмов.
 
-From the repository root:
+### Возможности симулятора
 
-```powershell
-.\build-windows-ninja.bat agent
-```
+- **Физика на GPU:** мягкие и твёрдые структуры, жидкости, сцепление, разрушение и взаимодействие миллионов частиц. CUDA выполняет расчёты, Vulkan отвечает за отображение и эффекты, включая аппаратную трассировку лучей на поддерживаемом оборудовании.
+- **Конструирование организмов:** редактор геномов с предварительным просмотром, нейросети клеток, настройка мутаций и распределения энергии.
+- **Эксперименты с эволюцией:** неоднородные среды, источники излучения, статистика популяций, графики, автосохранения и возврат к сохранённым моментам.
+- **Работа с миром:** рисование частиц, геометрические инструменты, преобразование изображений в материю, инспекторы объектов и массовые операции во время симуляции.
+- **Обмен результатами:** встроенный браузер симуляций и геномов оригинального ALIEN; просмотр и загрузка доступны без учётной записи, публикация — с учётной записью.
+- **Автоматизация:** консольное приложение `alien-cli` для длительных расчётов и встроенный MCP-сервер для подключения ИИ-агентов. Настройка описана в [документации об ИИ-агентах](resources/docs/ai-agents.md).
+- **Обучение:** встроенная документация по клавише **F1**, руководства и справочники в [resources/docs](resources/docs).
 
-Run the resulting application from its own directory so it can resolve `resources`:
+Эти возможности относятся к самому ALIEN. Наличие функции в симуляторе не означает, что её окно уже переведено в форке.
 
-```powershell
-Set-Location .\build-agent\Release
-.\alien.exe
-```
+### Иллюстрации оригинального ALIEN
 
-Keep the complete output directory, including `resources` and runtime DLLs, together. The original upstream nightly downloads and Docker images do not contain this fork's Russian localization. This repository does not currently publish a separate binary release.
+Популяции вокруг источника излучения:
 
-For an initial clone, use this repository rather than the upstream URL:
+![Популяции вокруг источника излучения](https://user-images.githubusercontent.com/73127001/229311601-839649a6-c60c-4723-99b3-26086e3e4340.jpg)
+
+Клеточные структуры организмов:
+
+![Клеточные структуры организмов крупным планом](https://user-images.githubusercontent.com/73127001/229311604-3ee433d4-7dd8-46e2-b3e6-489eaffbda7b.jpg)
+
+Редактор геномов:
+
+![Редактор геномов оригинального ALIEN](https://github.com/user-attachments/assets/0b5c8328-31c7-46bb-816c-d4c0e0315f50)
+
+Остальные иллюстрации, видео и подробное описание возможностей сохранены в [английском README](README.upstream.md).
+
+## Что изменено в форке
+
+Форк добавляет инфраструктуру локализации с JSON-каталогами, переключением языка без перезапуска, сохранением выбора и возвратом к английскому тексту при отсутствии перевода. Шрифты Noto обеспечивают кириллицу в обычном, полужирном и моноширинном тексте интерфейса. Идентификаторы окон и элементов управления отделены от переводимых подписей, чтобы смена языка не сбрасывала их состояние.
+
+Сопутствующие исправления затрагивают поиск CUDA runtime при сборке Windows, готовность атласа шрифтов при запуске и выбор языка мышью в меню настроек. Это отдельные изменения форка, а не возможности, приписываемые оригинальному ALIEN.
+
+Архитектура локализации рассчитана на добавление других языков. **Сейчас реализованы только English и Русский.**
+
+## Состояние перевода
+
+| Этап | Что завершено |
+| --- | --- |
+| **L1** | Инфраструктура EN/RU, JSON-каталоги, переключение и сохранение языка, шрифты с кириллицей, меню «Настройки» и окно «Настройки экрана» с параметрами, подсказками и подтверждением масштаба. |
+| **L2-A** | Основные меню и их команды, создание симуляции, подтверждение выхода, сохранение изображений и связанные сообщения; заголовки и описания фильтров выбора файлов, принадлежащие ALIEN. |
+| **Словарь** | Отдельно согласованы и сохранены 75 переводов терминов для дальнейшей работы. |
+
+После L2-A в каждом каталоге — [английском](resources/locales/en.json) и [русском](resources/locales/ru.json) — **89 ключей** с совпадающими наборами идентификаторов. Это число сообщений в каталогах, а не число всех надписей приложения и не показатель полного перевода.
+
+**Пока не переведены:** остальные окна и их содержимое, специализированные редакторы и инспекторы, большая часть параметров, сетевые и учётные диалоги, встроенная документация, консольные и многие технические сообщения. Сторонний диалог выбора файлов сохраняет английские кнопки, навигацию и другие собственные элементы; переведённый пункт меню может открывать ещё англоязычное окно.
+
+Симуляционный движок, внутренние идентификаторы, протоколы и форматы сохранений не локализуются. Согласованные названия из [словаря терминологии](docs/localization-terminology.md) используются в документации, но не обязательно уже отображаются в соответствующих экранах. L2-B не реализован.
+
+Подробности реализации, исправлений и проверок: [отчёт L1](docs/localization-l1-validation.md) и [отчёт L2-A](docs/localization-l2a-validation.md). Отчёты сохраняют историю ранних ограничений и последующих исправлений; они не заменяют описание текущего объёма перевода выше.
+
+## Установка и сборка
+
+### Windows: подготовка
+
+Проверенный для форка вариант — **Windows, NVIDIA GPU и CUDA**. Для него нужны:
+
+- Git и доступ к сети для получения исходников и зависимостей.
+- Visual Studio 2022 с компонентами «Разработка классических приложений на C++» и «Средства C++ CMake для Windows»; последний включает CMake и Ninja.
+- NVIDIA CUDA Toolkit и совместимый драйвер видеокарты с поддержкой Vulkan 1.3.
+
+В отчётах форка проверена конфигурация **MSVC 19.44, CUDA 13.2 и GeForce RTX 5080**. Это проверенная конфигурация, а не полная матрица совместимости. Исходная документация ALIEN указывает NVIDIA с compute capability 7.5 и выше (GeForce RTX 20 и новее). Поддержка Linux и AMD описана в [английском README](README.upstream.md), но выполнение сборки русифицированного форка на этих платформах не подтверждено.
+
+### Получение исходников
+
+В PowerShell из каталога, где будут храниться исходники:
 
 ```powershell
 git clone --recurse-submodules https://github.com/scvarr/ALIEN-RUS-FORK.git
 Set-Location ALIEN-RUS-FORK
 ```
 
-This initial-clone command is for a human setting up a new checkout. Agents working in the existing workspace must follow the repository prohibition on `git submodule update`. Do not advance the pinned `external/vcpkg` revision as part of ordinary localization work.
+`--recurse-submodules` нужен при первоначальном клонировании для получения закреплённого submodule `external/vcpkg`. Зависимости управляются vcpkg в manifest mode; их версии не нужно менять ради сборки локализации. Для пути к проекту лучше использовать латинские символы без пробелов, как рекомендует исходная документация.
 
-## Keep the fork current
+### Сборка и запуск
 
-The maintained branch is `main`. The remotes are:
+Из корня репозитория:
 
-| Remote | Purpose |
-| --- | --- |
-| `origin` | This repository: `https://github.com/scvarr/ALIEN-RUS-FORK.git` |
-| `upstream` | Original project: `https://github.com/chrxh/alien.git`, branch `develop` |
-
-Read [Updating from upstream without losing localization work](docs/upstream-sync.md) before integrating developer updates. The guide uses a temporary synchronization branch, a backup branch/bundle, an ordinary merge, conflict review, and validation before publication. It preserves published history and does not require a force push. The local `upstream` push URL is deliberately disabled.
-
-Local build trees, runtime state, credentials, GitNexus indexes/metadata, and generated GitNexus assistant context are excluded by `.gitignore`. Project instructions in the already tracked `AGENTS.md` remain versioned. Existing GitHub workflows are inherited from upstream; their self-hosted runners, deployment secrets, and official publishing destinations are not configured for this fork.
-
-## Credits and license
-
-ALIEN is created by Christian Heinemann and the [upstream contributors](https://github.com/chrxh/alien/graphs/contributors). This repository adds Russian localization and related compatibility fixes; upstream authors retain credit for the original project. See the [original project website](https://alien-project.org) and the upstream overview below for the simulator itself.
-
-The project retains its [BSD 3-Clause license](LICENSE) and original copyright notice. Added Noto font assets are distributed under the SIL Open Font License 1.1, with [license and provenance](resources/fonts/README.md) included. Other third-party components retain their respective licenses.
-
-<details>
-<summary>Original upstream README: simulator overview and upstream installation reference</summary>
-
-The following text is retained from upstream. Its download, clone, branch, and publishing instructions describe the original project. For this fork, use the instructions above and the synchronization guide.
-
-<h1 align="center">
-<a href="https://alien-project.org" target="_blank">ALIEN: Explore worlds of artificial life</a>
-</h1>
-
-<p align="center">
-A GPU-accelerated artificial life simulator for studying emergent ecosystems<br>
-and the conditions for open-ended evolution
-</p>
-
-<p align="center">
-🏆 <b>First prize at the <a href="https://youtu.be/qwbMGPkoJmg" target="_blank">ALIFE 2024 Virtual Creatures Competition</a></b><br>
-<sub>with the video <i>Emerging Ecosystems</i></sub>
-</p>
-
-<p align="center">
-<a href="#windows-nightly-build"><img src="https://img.shields.io/badge/download-nightly%20build-59DACE?style=flat-square" alt="Download nightly build"></a>
-<a href="https://hub.docker.com/r/chrxh/alien" target="_blank"><img src="https://img.shields.io/badge/docker-chrxh%2Falien-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker image"></a>
-<a href="resources/docs/getting-started.md"><img src="https://img.shields.io/badge/docs-built--in-8A63D2?style=flat-square" alt="Documentation"></a>
-<a href="https://discord.gg/7bjyZdXXQ2" target="_blank"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD%203--Clause-blue?style=flat-square" alt="License: BSD 3-Clause"></a>
-</p>
-
-![Preview](https://github.com/user-attachments/assets/ee578848-7dd7-458d-873f-89662a7c15f0)
-
-## 🧬 About
-
-**ALIEN** (**A**rtificial **LI**fe **EN**vironment) is an artificial life simulator built on a specialized 2D particle engine for soft bodies and fluids. Every object in a simulated world consists of particles. They can be bonded into elastic solids, flow as fluids or act as **cells** with specialized functions such as sensors, muscles, weapons and constructors. Each cell is controlled by its own small neural network. Networks of cells form **creatures**, digital organisms that perceive their environment, move, feed, compete and build offspring according to their **genome**. Once mutations are switched on, the simulation needs no further intervention. Populations can adapt, lineages diverge and entire ecosystems emerge.
-
-The engine runs entirely on the graphics card and simulates worlds with millions of particles in real time. You can interact with a running world at any moment: draw matter, push creatures around, change the laws of physics or let an AI agent do it for you.
-
-The development is driven by the desire to better understand the conditions for (pre-)biotic evolution, the growing complexity of biological systems and the open question of how evolution can keep producing novelty. At the same time, ALIEN aims to be approachable, with a modern user interface, appealing rendering and a playful spirit.
-
-## ⚡ Highlights
-
-### Physics on the GPU
-- Particle-based simulation of soft and rigid bodies, fluids, adhesion, fracture and damage
-- Millions of particles in real time, written entirely in CUDA and also available for AMD GPUs
-- Rendering and post-processing via Vulkan with CUDA-Vulkan interoperability
-- Hardware ray tracing: living tissue, glowing nebulae, and shafts of light and shadow
-- Real-time interaction with the running simulation
-
-https://github.com/user-attachments/assets/27f244b2-2792-4854-9042-6c8b179638c0
-
-### Digital organisms
-- Creatures are networks of cells, held together by elastic connections that carry energy and signals
-- 15 cell types, among them sensors, muscles, attackers, injectors, digestors, memory cells and communicators
-- Every cell runs a small neural network. Together, these networks form the nervous system of a creature.
-- Genomes are blueprints made of genes. Cells read them and build offspring cell by cell.
-- Energy never appears out of nothing. It circulates between cells, free energy particles and an optional external pool.
-
-### Evolution without a fitness function
-- Mutations of neural networks, cell properties and the genome structure, with mutation rates that can evolve themselves (meta-mutations)
-- Selection arises naturally from limited energy, predation and competition for space
-- Layers and radiation sources let the simulation parameters vary across the world and create diverse habitats
-- Evolution dashboard with lineages, population statistics and long-term plots
-- Autosave with save points and flashbacks to return to interesting moments
-
-https://user-images.githubusercontent.com/73127001/229569056-0db6562b-0147-43c8-a977-5f12c1b6277b.mp4
-
-### AI agents
-- Built-in MCP server: connect an AI agent and describe in plain language what you want
-- Agents build worlds, design genomes, run experiments, read statistics and inspect the result through screenshots
-
-### Tools for creators
-- Genome editor with live preview for designing your own creatures
-- Freehand and geometric drawing tools and an image converter that turns pictures into matter
-- Inspection windows for every object, creature and genome, plus mass operations
-- Built-in documentation with tutorials and a complete reference (press F1)
-
-### Simulation browser
-- Built-in access to the simulations and genomes on the ALIEN server, no account needed for browsing and downloading
-- **Featured** worlds of the ALIEN project and **Community** worlds shared by other users, shown as a gallery with preview pictures or as a table with folders
-- With an account, upload your own simulations and genomes and keep them private or share them with the community
-- React to the work of others and sort the gallery by reactions, date or downloads
-
-## 🤖 Let an AI agent drive ALIEN
-
-ALIEN contains a built-in server for the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). Connect Claude Code or any other AI agent that supports MCP and simply describe what you want, for example:
-
-- *"Create a mysterious deep sea scene with glowing jellyfish-like creatures."*
-- *"Design a small creature that swims towards energy particles and place five of them."*
-- *"Set up an evolution experiment with simple self-replicators and report how the population develops."*
-- *"My population dies out after a while. Check the energy balance and suggest better parameters."*
-
-The chapter [AI agents](resources/docs/ai-agents.md) of the documentation explains the setup in detail and contains many more example prompts.
-
-## ❓ But what is this useful for?
-
-- **The curious answer:** Watching evolution at work. Once self-reproducing creatures and mutations come into play, the simulation does the rest.
-- **The honest answer:** Fun! A fast physics engine lets you push, smash and rebuild hundreds of thousands of objects with the mouse. It feels like playing god in a universe with your own rules.
-- **The academic answer:** Artificial life research. How does complexity arise from simple components? How do ecosystems adapt to environmental change? And which conditions keep evolution open-ended instead of letting it stagnate?
-- **The artistic answer:** Generative art. Evolution is a creative force that leads to ever new forms and behaviors.
-
-Plenty of examples can be found on the [YouTube channel](https://youtube.com/channel/UCtotfE3yvG0wwAZ4bDfPGYw).
-
-## 🌌 Gallery
-
-**Plant-like populations around a radiation source**
-
-![Plant-like populations around a radiation source](https://user-images.githubusercontent.com/73127001/229311601-839649a6-c60c-4723-99b3-26086e3e4340.jpg)
-
-**Close-up of different organisms showing their cell networks**
-
-![Close-up of different organisms showing their cell networks](https://user-images.githubusercontent.com/73127001/229311604-3ee433d4-7dd8-46e2-b3e6-489eaffbda7b.jpg)
-
-**Swarms attacking an ecosystem**
-
-![Swarms attacking an ecosystem](https://user-images.githubusercontent.com/73127001/229311606-2f590bfb-71a8-4f71-8ff7-7013de9d7496.jpg)
-
-**Genome editor**
-
-<img width="1920" height="1080" alt="Genome editor" src="https://github.com/user-attachments/assets/0b5c8328-31c7-46bb-816c-d4c0e0315f50" />
-
-## 💻 Installation
-
-### Supported platforms
-
-|                    | NVIDIA GPU (CUDA)                   | AMD GPU (HIP or SCALE)              |
-| ------------------ | ----------------------------------- | ----------------------------------- |
-| **Windows**        | nightly build or build from sources | nightly build or build from sources |
-| **Linux**          | build from sources                  | build from sources                  |
-| **Cloud instance** | Docker image, headless              | not available                       |
-
-NVIDIA: compute capability 7.5 or higher, i.e. GeForce RTX 20 series or newer ([list of supported GPUs](https://en.wikipedia.org/wiki/CUDA#GPUs_supported)). AMD: RDNA2 or newer.
-
-### Windows: nightly build
-
-Download and unpack https://alien-project.org/files/alien-develop.zip, which is built every night from the `develop` branch. It contains two executables:
-- `alien.exe` for NVIDIA GPUs
-- `alien-amd.exe` for AMD GPUs (RDNA2, RDNA3 and RDNA4)
-
-Start it directly from the unpacked folder, otherwise it will not find the resource folder. If the program crashes for an unknown reason, please refer to the [troubleshooting](#-troubleshooting) section below.
-
-### Cloud and Docker
-
-For long runs without local hardware, a nightly image containing the headless [command-line interface](#command-line-interface) is published on Docker Hub as `chrxh/alien:nightly`. It holds `alien-cli` and its resource folder. There is no GUI in the image.
-
-On a rented GPU instance (for example [vast.ai](https://vast.ai)), enter `chrxh/alien:nightly` as the instance image and filter the offers for a GeForce RTX 20 to 50 series GPU. Upload your simulation file to the instance with `scp`, then connect via SSH and start it by hand:
-```
-cd /opt/alien
-alien-cli -i example.sim -o output.sim
+```powershell
+.\build-windows-ninja.bat agent
 ```
 
-Locally, with an NVIDIA GPU and the NVIDIA container toolkit installed:
-```
-docker run --rm --gpus all -v "$PWD":/data --entrypoint alien-cli chrxh/alien:nightly -i /data/example.sim -o /data/output.sim -t 1000
-```
+Скрипт подготавливает окружение MSVC и собирает Release через Ninja Multi-Config в `build-agent`. При первой сборке загрузка и подготовка зависимостей могут занять заметное время.
 
-### Building from the sources
+Запускайте приложение **из `build-agent\Release`**, чтобы оно находило каталог ресурсов:
 
-Windows and Linux are built the same way, using the cross-platform CMake build system, the **Ninja** build tool and the vcpkg package manager, which is included as a Git submodule.
-
-**Getting the sources**
-
-Open a command prompt in a suitable directory (which should not contain whitespace characters) and enter:
-```
-git clone --recursive https://github.com/chrxh/alien.git
-```
-The `--recursive` parameter is necessary to check out the vcpkg submodule as well. Submodules are not updated by a plain `git pull`, so use `git pull --recurse-submodules` instead.
-
-**Prerequisites**
-- [CUDA Toolkit 11.2+](https://developer.nvidia.com/cuda-downloads) for NVIDIA GPUs, or [ROCm 7.2+](https://rocm.docs.amd.com/) providing HIP for AMD GPUs
-- Windows: [Visual Studio](https://visualstudio.microsoft.com/vs/) with the "Desktop development with C++" and "C++ CMake tools for Windows" components (the latter ships Ninja). The MSVC environment must be active while building.
-- Linux: GCC, ninja-build, pkg-config and the X11 development libraries:
-  ```
-  sudo apt-get install ninja-build libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxext-dev libxfixes-dev libgl1-mesa-dev libglu-dev libxcb1-dev pkg-config
-  ```
-
-**NVIDIA GPUs (CUDA)**
-
-On Windows, just run `build-windows-ninja.bat` from the repository root. It sets up the MSVC environment and locates Ninja and CMake from your Visual Studio installation automatically.
-
-On Linux, or on Windows from a *Developer Command Prompt*, invoke the CMake preset directly:
-```
-cmake --preset ninja
-cmake --build --preset ninja-release
-```
-The executable is written to `build-ninja/Release/` (`alien.exe` on Windows, `alien` on Linux) and has to be started from there, otherwise it will not find the resource folder.
-
-**AMD GPUs (HIP)**
-
-The HIP path builds the same sources for AMD GPUs in place of CUDA. On Windows: `build-windows-ninja.bat HIP`, which writes to `build-ninja-hip/Release/` and covers RDNA2, RDNA3 and RDNA4.
-
-On Linux:
-```
-cmake --preset ninja-hip -DCMAKE_HIP_ARCHITECTURES=gfx1100 -DCMAKE_PREFIX_PATH=/opt/rocm
-cmake --build --preset ninja-hip-release
-```
-`CMAKE_HIP_ARCHITECTURES` selects the target architecture (`gfx1100` for RDNA3, `gfx90a` for CDNA2 / MI200). If omitted, it is auto-detected from the GPUs of the host. `CMAKE_PREFIX_PATH` lets `find_package(hip)` locate the ROCm installation when CMake uses the vcpkg toolchain. Adjust it if ROCm is installed elsewhere.
-
-**AMD GPUs (SCALE)**
-
-Alternatively, the unchanged CUDA sources can be compiled for AMD GPUs with [SCALE](https://docs.scale-lang.com) (Linux), whose `nvcc` is a drop-in replacement for the NVIDIA one:
-```
-cmake --preset ninja -DCMAKE_CUDA_COMPILER=/opt/scale/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=gfx1100
-cmake --build --preset ninja-release
+```powershell
+Set-Location .\build-agent\Release
+.\alien.exe
 ```
 
-### Command-line interface
+При переносе сборки сохраняйте весь выходной каталог: исполняемый файл, `resources` и необходимые DLL. Если приложение не запускается, проверьте рабочий каталог, драйвер и [руководство по устранению неполадок](resources/docs/troubleshooting.md).
 
-Besides the graphical program, ALIEN includes `alien-cli` (`alien-cli.exe` on Windows), which runs simulations without a window. It is useful for long experiments, performance measurements and the automated evaluation of simulations with different parameters. For example,
-```
-alien-cli -i example.sim -o output.sim -t 1000
-```
-runs the simulation file `example.sim` for 1000 time steps and writes the result to `output.sim`. Without `-t`, the simulation runs until you press Q or Ctrl+C. All options are described in the chapter [Files and command line](resources/docs/files.md#command-line-interface).
+**Отдельные бинарные релизы форка сейчас не публикуются.** Ночные сборки оригинального ALIEN и его Docker-образы относятся к оригинальному проекту и не содержат русскую локализацию этого форка.
 
-## 📘 Documentation
+## Как включить русский язык
 
-ALIEN comes with a complete documentation built into the program. Press **F1** to open it. It is organized in three parts:
+1. Запустите собранный `alien.exe` из `build-agent\Release`.
+2. В верхнем меню откройте **Settings**.
+3. В поле **Language** выберите **Русский**.
+4. Интерфейс переключится без перезапуска; выбор языка сохраняется для следующих запусков.
 
-- **Start here:** [Getting started](resources/docs/getting-started.md), [the user interface](resources/docs/user-interface.md) and [AI agents](resources/docs/ai-agents.md)
-- **Explore:** the central concepts step by step, from the [physics sandbox](resources/docs/sandbox.md) and [how life works](resources/docs/how-life-works.md) to [your first creature](resources/docs/first-creature.md), [evolution experiments](resources/docs/evolution.md) and [generative art](resources/docs/generative-art.md)
-- **Reference:** [cell types](resources/docs/cell-types.md), [genomes](resources/docs/genomes.md), [neural networks](resources/docs/neural-networks.md), [energy](resources/docs/energy.md), [simulation parameters](resources/docs/simulation-parameters.md) and more
+Тот же выбор доступен в **Settings → Display settings** («Настройки → Настройки экрана»), а также внутри окон создания симуляции и сохранения изображения. Для возврата к английскому выберите **English**. В диалоге выхода переключателя языка нет.
 
-The same chapters can also be read here on GitHub in [resources/docs](resources/docs).
+Английские надписи в ещё не переведённых окнах ожидаемы и не означают, что русский язык отключён.
 
-## 🔎 Troubleshooting
+## Разработка и участие Codex
 
-If ALIEN does not start or crashes, please make sure that:
-1) You have a supported graphics card: an NVIDIA GPU with compute capability 7.5 or higher (for example GeForce RTX 20 series) or an AMD GPU of the RDNA2 generation or newer.
-2) You have the latest graphics driver installed. It has to support Vulkan 1.3.
-3) The name of the installation directory (including the parent directories) contains no non-English characters. On Windows, the user name should not contain such characters either.
-4) ALIEN has write access to its own directory.
-5) With multiple graphics cards, your primary monitor is connected to the card that ALIEN uses. ALIEN computes and renders on the same card and chooses the one with the highest compute capability.
-6) On computers with integrated and dedicated graphics, ALIEN runs on the dedicated card. On Windows, open the *Graphics settings*, add `alien.exe`, click *Options* and choose *High performance*.
+Русская локализация и сопутствующие технические изменения программного кода выполняются с использованием **OpenAI Codex**.
 
-If the error still occurs, enable **Settings > Debug mode**, reproduce the error and create a [GitHub issue](https://github.com/chrxh/alien/issues) with the `log.txt` attached. More solutions can be found in the chapter [Troubleshooting](resources/docs/troubleshooting.md).
+Владелец форка, **scvarr**, определяет требования, принимает архитектурные решения, проверяет работоспособность и результаты изменений. Программный код этих изменений владелец форка вручную не пишет — его реализация поручается Codex. Это описание рабочего процесса форка; авторство оригинального ALIEN принадлежит его создателю и участникам.
 
-## 💬 Community
+Предложения и сообщения об ошибках русификации можно оставлять в [Issues форка](https://github.com/scvarr/ALIEN-RUS-FORK/issues). Указывайте, какое окно открыто, выбранный язык и ожидаемый результат; снимки экрана помогают оценить перевод и размещение текста. Новые термины следует согласовывать со [словарём](docs/localization-terminology.md).
 
-- [Discord](https://discord.gg/7bjyZdXXQ2) for discussions, new developments and feedback around ALIEN and artificial life in general
-- [YouTube](https://youtube.com/channel/UCtotfE3yvG0wwAZ4bDfPGYw)
-- [Reddit](https://www.reddit.com/r/AlienProject)
-- [X (Twitter)](https://twitter.com/chrx_h)
-- [Website](https://alien-project.org)
+Перед изменениями прочитайте [AGENTS.md](AGENTS.md). Для автоматизированной сборки используется только `build-agent`; каталоги `build-ninja` и `build-ninja-hip` принадлежат IDE. Проверки выбираются по объёму изменений, а пользовательские настройки и симуляции не используются как тестовые данные.
 
-## 📖 Citing ALIEN
+## Обновление из оригинального ALIEN
 
-If you use ALIEN in a scientific publication, please cite:
+Основная ветка форка — `main`, исходная ветка оригинального проекта — `develop`. База исходников ALIEN зафиксирована коммитом `d1365091ae51b091ab205407cb4142e61f5644fc`; дальнейшие обновления требуют отдельной интеграции с проверкой сохранности локализации.
 
-> Heinemann, C.: *Artificial Life Environment*. Informatik-Spektrum **31**, 55–61 (2008). https://doi.org/10.1007/s00287-007-0205-1
+Порядок резервирования, объединения истории и проверки описан в [инструкции по синхронизации с оригинальным ALIEN](docs/upstream-sync.md). Для публикации форка используется `origin`; локальный push в `upstream` отключён. Не заменяйте опубликованную историю локализации историей оригинала.
 
-```bibtex
-@article{Heinemann2008,
-  author  = {Heinemann, Christian},
-  title   = {Artificial Life Environment},
-  journal = {Informatik-Spektrum},
-  volume  = {31},
-  number  = {1},
-  pages   = {55--61},
-  year    = {2008},
-  doi     = {10.1007/s00287-007-0205-1}
-}
-```
+## Авторы и лицензии
 
-Note that this paper describes the beginnings of what has become ALIEN. The current simulator differs substantially from the system presented there. You are therefore equally welcome to cite this repository instead of the paper or alongside it: https://github.com/chrxh/alien
+**Оригинальный ALIEN:** создатель и основной разработчик — **Christian Heinemann**, совместно с [участниками оригинального проекта](https://github.com/chrxh/alien/graphs/contributors). Полные благодарности, список зависимостей и сведения о цитировании сохранены в [английском README](README.upstream.md).
 
-If you adopt ideas or concepts from ALIEN without using the software itself, that is fine but please just mention ALIEN and link to this repository.
+**ALIEN-RUS-FORK:** независимый неофициальный форк, сопровождаемый [scvarr](https://github.com/scvarr). Его основное назначение — русская локализация для личного использования и экспериментов. Владение форком не означает авторство оригинального симулятора; Codex также не является автором оригинального ALIEN.
 
-## 🧩 Contributing
+Оригинальный проект распространяется по лицензии **BSD 3-Clause**. Файл [LICENSE](LICENSE) и исходное уведомление об авторских правах сохранены без изменений.
 
-Contributions to the project are very welcome. The most convenient way is to communicate via [GitHub Issues](https://github.com/chrxh/alien/issues), [Pull requests](https://github.com/chrxh/alien/pulls) or the [Discussion forum](https://github.com/chrxh/alien/discussions) depending on the subject. For example, it could be
-- Providing new content (simulation or genome files)
-- Producing or sharing media files
-- Reporting of bugs, wanted features, questions or feedback via GitHub Issues or in the Discussion forum
-- Pull requests for bug fixes, code cleanings, optimizations or minor tweaks. If you want to implement new features, refactorings or other major changes, please use the [Discussion forum](https://github.com/chrxh/alien/discussions) for consultation and coordination in advance.
-- Extensions or corrections of the documentation, which is written in Markdown in [resources/docs](resources/docs)
-## 💎 Credits and dependencies
+Сторонние компоненты сохраняют свои лицензии. Добавленные шрифты Noto Sans и Noto Sans Mono распространяются по **SIL Open Font License 1.1**: [происхождение и перечень файлов](resources/fonts/README.md), [полный текст лицензии и уведомления](resources/fonts/OFL.txt).
 
-ALIEN has been initiated, mainly developed and maintained by [Christian Heinemann](mailto:heinemann.christian@gmail.com). Many thanks to everyone who has contributed to this project in any way. In alphabetical order:
-- [dguerizec](https://github.com/dguerizec)
-- [jeffdaily](https://github.com/jeffdaily)
-- [Enitoni](https://github.com/Enitoni) via Discord
-- [Gardene-el](https://github.com/Gardene-el)
-- [mpersano](https://github.com/mpersano)
-- [TheBarret](https://github.com/TheBarret) via Discord
-- tilsk via Discord
-- [tlemo](https://github.com/tlemo)
-- [Will Allen](https://github.com/willjallen)
+Исходные сведения об иконках и шрифтах также сохранены в английском README: [IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders), Noto Emoji через [Iconduck](https://iconduck.com) (Apache License 2.0), Bogdan Rosu Creative через [Iconfinder](https://www.iconfinder.com) (CC BY 4.0) и иконки Freepik с [Flaticon](https://www.flaticon.com/free-icons/people) (Flaticon license). Существующие ресурсы FontAwesome, AlienIconFont и Reef сохранены.
 
-The following external libraries are used:
-- [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
-- [Dear ImGui](https://github.com/ocornut/imgui)
-- [ImPlot](https://github.com/epezent/implot)
-- [ImFileDialog](https://github.com/dfranx/ImFileDialog)
-- [boost](https://www.boost.org)
-- [GLFW](https://www.glfw.org)
-- [glslang](https://github.com/KhronosGroup/glslang)
-- [volk](https://github.com/zeux/volk)
-- [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers)
-- [stb](https://github.com/nothings/stb)
-- [cereal](https://github.com/USCiLab/cereal)
-- [Zstandard](https://github.com/facebook/zstd)
-- [OpenSSL](https://github.com/openssl/openssl)
-- [cpp-httplib](https://github.com/yhirose/cpp-httplib)
-- [googletest](https://github.com/google/googletest)
-- [vcpkg](https://vcpkg.io/en/index.html)
-- [WinReg](https://github.com/GiovanniDicanio/WinReg)
-- [CLI11](https://github.com/CLIUtils/CLI11)
-- [MD4C](https://github.com/mity/md4c)
+## Оригинальный проект и документация
 
-Free icons and icon font:
-  - [IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders)
-  - [Iconduck](https://iconduck.com) (Noto Emoji by Google, [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt))
-  - [Iconfinder](https://www.iconfinder.com) (Bogdan Rosu Creative, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0))
-  - [People icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/people) ([Flaticon license](https://media.flaticon.com/license/license.pdf))
+- [Репозиторий ALIEN](https://github.com/chrxh/alien) и [сайт проекта](https://alien-project.org).
+- [Сохранённый английский README](README.upstream.md) с описанием платформ, примерами, видео, благодарностями и условиями цитирования.
+- [Начало работы](resources/docs/getting-started.md), [интерфейс](resources/docs/user-interface.md) и [как устроена жизнь](resources/docs/how-life-works.md).
+- [Первый организм](resources/docs/first-creature.md) и [эксперименты с эволюцией](resources/docs/evolution.md).
+- Справочники: [типы клеток](resources/docs/cell-types.md), [геномы](resources/docs/genomes.md), [нейросети](resources/docs/neural-networks.md), [энергия](resources/docs/energy.md), [параметры симуляции](resources/docs/simulation-parameters.md).
+- [Файлы и командная строка](resources/docs/files.md), [ИИ-агенты и MCP](resources/docs/ai-agents.md), [генеративное искусство](resources/docs/generative-art.md).
+- Сообщество оригинального ALIEN: [Discord](https://discord.gg/7bjyZdXXQ2), [YouTube](https://youtube.com/channel/UCtotfE3yvG0wwAZ4bDfPGYw), [Reddit](https://www.reddit.com/r/AlienProject), [X](https://twitter.com/chrx_h).
 
-## 🧾 License
-
-ALIEN is licensed under the [BSD 3-Clause](LICENSE) license.
-
-<a href="https://hellogithub.com/repository/d53e3c352f294f72a1bfd8f48ac0f866" target="_blank"><img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=d53e3c352f294f72a1bfd8f48ac0f866&claim_uid=dKUYgLps8t45BW7&theme=small" alt="Featured｜HelloGitHub" /></a>
-
-</details>
+Встроенные руководства и справочники пока доступны на английском языке.
