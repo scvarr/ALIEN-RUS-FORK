@@ -107,6 +107,57 @@ namespace
         if (references<FloatSpec>(spec, &SimulationParameters::externalEnergyBackflowLimit)) {
             return "parameters.energy.externalenergybackflowlimit";
         }
+        if (references<AlternativeSpec>(spec, &SimulationParameters::layerShape)) {
+            return "parameters.shape.layershape";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerCoreRadius)) {
+            return "parameters.shape.layercoreradius";
+        }
+        if (references<Float2Spec>(spec, &SimulationParameters::layerCoreRect)) {
+            return "parameters.shape.layercorerect";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerFadeoutRadius)) {
+            return "parameters.shape.layerfadeoutradius";
+        }
+        if (references<AlternativeSpec>(spec, &SimulationParameters::sourceShapeType)) {
+            return "parameters.shape.sourceshapetype";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::sourceCircularRadius)) {
+            return "parameters.shape.sourcecircularradius";
+        }
+        if (references<Float2Spec>(spec, &SimulationParameters::sourceRectangularRect)) {
+            return "parameters.shape.sourcerectangularrect";
+        }
+        if (references<AlternativeSpec>(spec, &SimulationParameters::layerForceFieldType)) {
+            return "parameters.forcefield.layerforcefieldtype";
+        }
+        if (references<AlternativeSpec>(spec, &SimulationParameters::layerRadialForceFieldOrientation)) {
+            return "parameters.forcefield.layerradialforcefieldorientation";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerRadialForceFieldStrength)) {
+            return "parameters.forcefield.layerradialforcefieldstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerRadialForceFieldDriftAngle)) {
+            return "parameters.forcefield.layerradialforcefielddriftangle";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerCentralForceFieldStrength)) {
+            return "parameters.forcefield.layercentralforcefieldstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerLinearForceFieldAngle)) {
+            return "parameters.forcefield.layerlinearforcefieldangle";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerLinearForceFieldStrength)) {
+            return "parameters.forcefield.layerlinearforcefieldstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerPerlinNoiseForceFieldStrength)) {
+            return "parameters.forcefield.layerperlinnoiseforcefieldstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerPerlinNoiseForceFieldSpatialSize)) {
+            return "parameters.forcefield.layerperlinnoiseforcefieldspatialsize";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::layerPerlinNoiseForceFieldTemporalSize)) {
+            return "parameters.forcefield.layerperlinnoiseforcefieldtemporalsize";
+        }
         return {};
     }
 
@@ -165,6 +216,12 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     if (spec._name == "Visualization") {
         return translated("parameters.visualization.name", spec._name);
     }
+    if (spec._name == "Shape") {
+        return translated("parameters.shape.name", spec._name);
+    }
+    if (spec._name == "Force field") {
+        return translated("parameters.forcefield.name", spec._name);
+    }
     if (spec._name == "Guided energy supply") {
         return translated("parameters.energy.name", spec._name);
     }
@@ -192,10 +249,11 @@ std::vector<std::string> SimulationParametersPresentation::alternativeLabels(Par
     std::vector<std::string> result;
     for (size_t index = 0; index < alternative._alternatives.size(); ++index) {
         auto const& canonical = alternative._alternatives.at(index).first;
-        result.emplace_back(
-            references<AlternativeSpec>(spec, &SimulationParameters::objectColoring)
-                ? translated("parameters.visualization.objectcoloring.option" + std::to_string(index), canonical)
-                : canonical);
+        auto localized = references<AlternativeSpec>(spec, &SimulationParameters::objectColoring)
+            || references<AlternativeSpec>(spec, &SimulationParameters::layerShape) || references<AlternativeSpec>(spec, &SimulationParameters::sourceShapeType)
+            || references<AlternativeSpec>(spec, &SimulationParameters::layerForceFieldType)
+            || references<AlternativeSpec>(spec, &SimulationParameters::layerRadialForceFieldOrientation);
+        result.emplace_back(localized ? translated(key(spec) + ".option" + std::to_string(index), canonical) : canonical);
     }
     return result;
 }

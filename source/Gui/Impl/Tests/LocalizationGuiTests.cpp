@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ranges>
+#include <set>
 
 #include <imgui_internal.h>
 
@@ -15,6 +16,7 @@
 
 #include <Data/SimulationParameters.h>
 #include <Data/SpecificationEvaluationService.h>
+#include <Engine/Impl/SimulationFacadeImpl.h>
 #include <Persister/Interface/ReadSimulationRequestData.h>
 #include <Persister/Interface/ReadSimulationResultData.h>
 #include <Gui/Impl/AlienDialog.h>
@@ -864,7 +866,7 @@ TEST_F(LocalizationGuiTests, l2b2BindingsUseMembersAndKeepFourContextDescription
     select("ru");
     EXPECT_EQ("Общие", SimulationParametersPresentation::label(general));
     EXPECT_EQ("Расположение", SimulationParametersPresentation::label(location));
-    auto const& other = parameterGroup(original, "Shape");
+    auto const& other = parameterGroup(original, "Physics: Motion");
     EXPECT_EQ(other._name, SimulationParametersPresentation::label(other));
     for (auto const& parameter : other._parameters) {
         EXPECT_EQ(parameter._name, SimulationParametersPresentation::label(parameter));
@@ -1038,7 +1040,7 @@ TEST_F(LocalizationGuiTests, l2b2ProductionTextAndVelocityRetainIdsEditsAndValue
 
 TEST_F(LocalizationGuiTests, l2b2GroupStateSurvivesLanguageAndCanonicalNameStaysEnglish)
 {
-    for (auto const& name : {"General", "Location"}) {
+    for (auto const& name : {"General", "Location", "Shape", "Force field"}) {
         auto const& group = parameterGroup(SimulationParameters::getSpec(), name);
         ImGuiID originalId = 0;
         int iteration = 0;
@@ -1274,7 +1276,7 @@ TEST_F(LocalizationGuiTests, l2b3aAllTwentyBindingsRetainSpecsAndDescriptions)
     EXPECT_EQ(10, numbers);
     EXPECT_EQ(1, alternatives);
     select("ru");
-    for (auto const& name : {"Shape", "Force field", "Physics: Motion", "Physics: Thresholds", "Radiation"}) {
+    for (auto const& name : {"Physics: Motion", "Physics: Thresholds", "Radiation"}) {
         auto const& group = parameterGroup(spec, name);
         EXPECT_EQ(name, SimulationParametersPresentation::label(group));
         for (auto const& parameter : group._parameters) {
@@ -1985,5 +1987,538 @@ TEST_F(LocalizationGuiTests, unicodeSimulationPathsReachTheOverlayAsUtf8)
     auto unsupported = PathHelper::toLegacyString(std::filesystem::path(u8"Каталог 漢"));
     if (unsupported) {
         EXPECT_EQ(std::filesystem::path(u8"Каталог 漢"), std::filesystem::path(*unsupported));
+    }
+}
+
+namespace
+{
+    std::vector<ParameterSpec const*> geometryParameters()
+    {
+        std::vector<ParameterSpec const*> result;
+        std::function<void(ParameterSpec const&)> visit = [&](auto const& parameter) {
+            result.emplace_back(&parameter);
+            if (auto alternative = std::get_if<AlternativeSpec>(&parameter._reference)) {
+                for (auto const& [name, children] : alternative->_alternatives) {
+                    for (auto const& child : children) {
+                        visit(child);
+                    }
+                }
+            }
+        };
+        for (auto const& name : {"Shape", "Force field"}) {
+            for (auto const& parameter : parameterGroup(SimulationParameters::getSpec(), name)._parameters) {
+                visit(parameter);
+            }
+        }
+        return result;
+    }
+
+    class GeometryWorldScope
+    {
+        class World : public _SimulationFacadeImpl
+        {
+            IntVector2D getWorldSize() const override { return {1024, 768}; }
+        };
+
+    public:
+        GeometryWorldScope()
+            : _original(_SimulationFacade::get())
+        {
+            _SimulationFacadeImpl::set(std::make_shared<World>());
+        }
+        ~GeometryWorldScope() { _SimulationFacadeImpl::set(_original); }
+
+    private:
+        SimulationFacade _original;
+    };
+}
+
+TEST_F(LocalizationGuiTests, l2b3bAllSeventeenBindingsDescriptionsOptionsAndFallback)
+{
+    auto all = geometryParameters();
+    ASSERT_EQ(17, all.size());
+    std::set<std::string> shapeDescriptions, strengthDescriptions;
+    std::vector<std::vector<std::string>> russianOptions = {
+        {"Круглая", "Прямоугольная"},
+        {"Круглая", "Прямоугольная"},
+        {"Нет", "Радиальное", "Центральное", "Линейное", "Шум Перлина"},
+        {"По часовой стрелке", "Против часовой стрелки"}};
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        size_t alternativeIndex = 0;
+        for (auto parameter : all) {
+            auto name = SimulationParametersPresentation::label(*parameter);
+            auto description = SimulationParametersPresentation::description(*parameter);
+            ASSERT_TRUE(description);
+            EXPECT_FALSE(description->empty());
+            if (std::string(language) == "ru") {
+                EXPECT_NE(parameter->_name, name);
+                EXPECT_NE(parameter->_description, description);
+                if (parameter->_name == "Shape") {
+                    shapeDescriptions.insert(*description);
+                }
+                if (parameter->_name == "Strength") {
+                    EXPECT_EQ("Сила", name);
+                    strengthDescriptions.insert(*description);
+                }
+            } else {
+                EXPECT_EQ(parameter->_name, name);
+                EXPECT_EQ(parameter->_description, description);
+            }
+            auto renamed = *parameter;
+            renamed._name = "Unrelated caption";
+            EXPECT_EQ(name, SimulationParametersPresentation::label(renamed));
+            EXPECT_EQ(description, SimulationParametersPresentation::description(renamed));
+            if (auto alternative = std::get_if<AlternativeSpec>(&parameter->_reference)) {
+                auto labels = SimulationParametersPresentation::alternativeLabels(*parameter);
+                ASSERT_EQ(alternative->_alternatives.size(), labels.size());
+                EXPECT_EQ(labels, SimulationParametersPresentation::alternativeLabels(renamed));
+                for (size_t i = 0; i < labels.size(); ++i) {
+                    EXPECT_EQ(std::string(language) == "ru" ? russianOptions.at(alternativeIndex).at(i) : alternative->_alternatives.at(i).first, labels.at(i));
+                }
+                auto unbound = ParameterSpec().name(parameter->_name).reference(AlternativeSpec().alternatives(alternative->_alternatives));
+                auto originalLabels = SimulationParametersPresentation::alternativeLabels(unbound);
+                for (size_t i = 0; i < originalLabels.size(); ++i) {
+                    EXPECT_EQ(alternative->_alternatives.at(i).first, originalLabels.at(i));
+                }
+                ++alternativeIndex;
+            }
+        }
+        EXPECT_EQ(4, alternativeIndex);
+    }
+    EXPECT_EQ(2, shapeDescriptions.size());
+    EXPECT_EQ(4, strengthDescriptions.size());
+    LocalizationService::get().load("resources/locales/nonexistent-l2b3b");
+    select("ru");
+    for (auto parameter : all) {
+        EXPECT_EQ(parameter->_name, SimulationParametersPresentation::label(*parameter));
+        EXPECT_EQ(parameter->_description, SimulationParametersPresentation::description(*parameter));
+        if (auto alternative = std::get_if<AlternativeSpec>(&parameter->_reference)) {
+            auto labels = SimulationParametersPresentation::alternativeLabels(*parameter);
+            for (size_t i = 0; i < labels.size(); ++i) {
+                EXPECT_EQ(alternative->_alternatives.at(i).first, labels.at(i));
+            }
+        }
+    }
+    LocalizationService::get().load("resources/locales");
+}
+
+TEST_F(LocalizationGuiTests, l2b3bProductionModesKeepAllValuesAndInactiveSearchDoesNotSelectModes)
+{
+    GeometryWorldScope world;
+    auto values = std::make_unique<SimulationParameters>();
+    values->numLayers = values->numSources = 1;
+    values->layerOrderNumbers[0] = 1;
+    values->sourceOrderNumbers[0] = 2;
+    values->layerForceFieldType.layerValues[0].enabled = true;
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& evaluation = SpecificationEvaluationService::get();
+    for (auto parameter : geometryParameters()) {
+        for (int order : {1, 2}) {
+            if (!evaluation.isVisible(*parameter, order == 1 ? LocationType::Layer : LocationType::Source)) {
+                continue;
+            }
+            if (auto number = std::get_if<FloatSpec>(&parameter->_reference)) {
+                auto ref = evaluation.getRef(number->_member, *values, order);
+                *ref.value = std::get<float>(number->_min) + (std::holds_alternative<float>(number->_max) ? std::get<float>(number->_max) : 768) * 0.13f;
+            }
+            if (auto pair = std::get_if<Float2Spec>(&parameter->_reference)) {
+                auto ref = evaluation.getRef(pair->_member, *values, order);
+                *ref.value = {73.5f, 112.25f};
+            }
+        }
+    }
+    for (int shape = 0; shape < 2; ++shape) {
+        values->layerShape.layerValues[0] = static_cast<LayerShapeType>(shape);
+        values->sourceShapeType.sourceValues[0] = static_cast<SourceShapeType>(shape);
+        for (int mode = 0; mode < 5; ++mode) {
+            values->layerForceFieldType.layerValues[0].value = static_cast<ForceField>(mode);
+            for (int orientation = 0; orientation < 2; ++orientation) {
+                values->layerRadialForceFieldOrientation.layerValues[0] = static_cast<Orientation>(orientation);
+                auto snapshot = std::make_unique<SimulationParameters>(*values);
+                for (auto const& language : {"en", "ru", "en"}) {
+                    select(language);
+                    for (auto const& query : {"", "Shape", "Форма", "Force field", "Силовое поле", "Strength", "Сила", "Temporal structure", "Временной"}) {
+                        auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = query});
+                        for (int order : {1, 2}) {
+                            for (auto const& groupName : {"Shape", "Force field"}) {
+                                frame([&] { parametersGroup(parameterGroup(filtered, groupName)._parameters, *values, *defaults, order); });
+                                EXPECT_EQ(*snapshot, *values) << language << ": " << query << ": " << mode;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    select("ru");
+    values->layerForceFieldType.layerValues[0].value = ForceField_Radial;
+    auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = "Временной"});
+    auto const& field = parameterGroup(filtered, "Force field")._parameters.at(0);
+    EXPECT_TRUE(field._visible);
+    auto const& alternatives = std::get<AlternativeSpec>(field._reference)._alternatives;
+    EXPECT_FALSE(alternatives.at(1).second.at(1)._visible);
+    EXPECT_TRUE(alternatives.at(4).second.at(2)._visible);
+    std::string logged;
+    frame([&] {
+        ImGui::LogToBuffer();
+        parametersGroup(parameterGroup(filtered, "Force field")._parameters, *values, *defaults, 1);
+        logged = GImGui->LogBuffer.c_str();
+        ImGui::LogFinish();
+    });
+    EXPECT_EQ(ForceField_Radial, values->layerForceFieldType.layerValues[0].value);
+    EXPECT_EQ(std::string::npos, logged.find("Временной размер структур"));
+    EXPECT_EQ(std::string::npos, logged.find("Пространственный размер структур"));
+    for (auto const& query : {"Strength", "Сила"}) {
+        auto result = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = query});
+        auto const& modes = std::get<AlternativeSpec>(parameterGroup(result, "Force field")._parameters.at(0)._reference)._alternatives;
+        int count = 0;
+        for (auto const& [name, children] : modes) {
+            for (auto const& child : children) {
+                count += child._name == "Strength" && child._visible;
+            }
+        }
+        EXPECT_EQ(4, count);
+    }
+    auto full = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = ""});
+    EXPECT_EQ(3, visibleParameters(parameterGroup(full, "Shape")));
+    EXPECT_EQ(1, visibleParameters(parameterGroup(full, "Force field")));
+    auto match = Utf8Search::find("Временной размер структур", "РАЗМЕР");
+    ASSERT_TRUE(match);
+    EXPECT_EQ("размер", std::string("Временной размер структур").substr(match->begin, match->end - match->begin));
+}
+
+TEST_F(LocalizationGuiTests, l2b3bAllFourSwitchersCycleOriginalIndicesAndRevert)
+{
+    for (auto parameter : geometryParameters()) {
+        auto alternative = std::get_if<AlternativeSpec>(&parameter->_reference);
+        if (!alternative) {
+            continue;
+        }
+        auto const& spec = *parameter;
+        std::vector<std::string> canonical;
+        for (auto const& [name, children] : alternative->_alternatives) {
+            canonical.emplace_back(name);
+        }
+        auto numModes = static_cast<int>(canonical.size());
+        auto& io = ImGui::GetIO();
+        io.ConfigInputTrickleEventQueue = false;
+        int mode = 1;
+        ImVec2 next, revert;
+        ImGuiID inputId = 0;
+        auto draw = [&] {
+            frame([&] {
+                auto start = ImGui::GetCursorScreenPos();
+                AlienGui::Switcher(
+                    AlienGui::SwitcherParameters()
+                        .name(spec._name)
+                        .label(SimulationParametersPresentation::label(spec))
+                        .textWidth(360)
+                        .values(canonical)
+                        .displayValues(SimulationParametersPresentation::alternativeLabels(spec))
+                        .defaultValue(1),
+                    &mode);
+                auto labelStart = GImGui->LastItemData.Rect.Min;
+                auto spacing = ImGui::GetStyle().ItemSpacing.x;
+                auto revertWidth = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
+                revert = {labelStart.x - spacing - revertWidth / 2, labelStart.y + ImGui::GetFrameHeight() / 2};
+                next = {labelStart.x - 2 * spacing - revertWidth - scale(11), start.y + ImGui::GetFrameHeight() / 2};
+                ImGui::PushID(spec._name.c_str());
+                ImGui::PushID(0);
+                auto current = ImGui::GetID("##switcher");
+                if (!inputId) {
+                    inputId = current;
+                }
+                EXPECT_EQ(inputId, current);
+                ImGui::PopID();
+                ImGui::PopID();
+            });
+        };
+        auto click = [&](ImVec2 target) {
+            io.AddMousePosEvent(target.x, target.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+        };
+        draw();
+        draw();
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            for (int i = 0; i < numModes; ++i) {
+                auto expected = (mode + 1) % numModes;
+                click(next);
+                EXPECT_EQ(expected, mode);
+            }
+            mode = numModes - 1;
+            draw();
+            click(revert);
+            EXPECT_EQ(1, mode);
+        }
+        // An incomplete display vector must fall back without changing mode or canonical values.
+        frame([&] { AlienGui::Switcher(AlienGui::SwitcherParameters().name("Legacy").values(canonical).displayValues({"Incomplete"}), &mode); });
+        EXPECT_EQ(1, mode);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3bRectanglesEditBothAxesKeepFocusAndResetUsingProductionWidgets)
+{
+    GeometryWorldScope world;
+    auto values = std::make_unique<SimulationParameters>();
+    values->numLayers = values->numSources = 1;
+    values->layerOrderNumbers[0] = 1;
+    values->sourceOrderNumbers[0] = 2;
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (auto parameter : geometryParameters()) {
+        auto pair = std::get_if<Float2Spec>(&parameter->_reference);
+        if (!pair) {
+            continue;
+        }
+        auto order = parameter->_name.starts_with("Core") ? 1 : 2;
+        auto ref = SpecificationEvaluationService::get().getRef(pair->_member, *values, order);
+        auto original = SpecificationEvaluationService::get().getRef(pair->_member, *defaults, order);
+        *ref.value = {71, 83};
+        ImVec2 slider, revert;
+        ImGuiID active = 0;
+        for (int axis : {0, 1}) {
+            auto draw = [&] {
+                frame([&] {
+                    auto start = ImGui::GetCursorScreenPos();
+                    slider = {start.x + 100, start.y + ImGui::GetFrameHeight() / 2 + axis * ImGui::GetFrameHeightWithSpacing()};
+                    auto width = ImGui::GetContentRegionAvail().x - scale(360);
+                    revert = {
+                        start.x + width + ImGui::GetStyle().ItemSpacing.x + (ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2) / 2,
+                        start.y + ImGui::GetFrameHeight() / 2};
+                    parametersGroup({*parameter}, *values, *defaults, order);
+                    ImGui::PushID(0);
+                    ImGui::PushID(parameter->_name.c_str());
+                    auto id = ImGui::GetID(axis == 0 ? "##sliderX" : "##sliderY");
+                    if (!active) {
+                        active = id;
+                    }
+                    EXPECT_EQ(active, id);
+                    ImGui::PopID();
+                    ImGui::PopID();
+                });
+            };
+            active = 0;
+            draw();
+            draw();
+            io.AddKeyEvent(ImGuiMod_Ctrl, true);
+            io.AddMousePosEvent(slider.x, slider.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            io.AddKeyEvent(ImGuiMod_Ctrl, false);
+            draw();
+            ASSERT_EQ(active, GImGui->ActiveId);
+            io.AddInputCharactersUTF8(axis == 0 ? "137.25" : "219.5");
+            draw();
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                draw();
+                EXPECT_EQ(active, GImGui->ActiveId);
+                EXPECT_FLOAT_EQ(axis == 0 ? 137.25f : 219.5f, axis == 0 ? ref.value->x : ref.value->y);
+            }
+            io.AddKeyEvent(ImGuiKey_Enter, true);
+            draw();
+            io.AddKeyEvent(ImGuiKey_Enter, false);
+            draw();
+            if (axis == 1) {
+                io.AddMousePosEvent(revert.x, revert.y);
+                draw();
+                io.AddMouseButtonEvent(0, true);
+                draw();
+                io.AddMouseButtonEvent(0, false);
+                draw();
+                EXPECT_EQ(*original.value, *ref.value);
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b3bAllElevenNumbersEditAndResetThroughProductionDispatch)
+{
+    GeometryWorldScope world;
+    auto values = std::make_unique<SimulationParameters>();
+    values->numLayers = values->numSources = 1;
+    values->layerOrderNumbers[0] = 1;
+    values->sourceOrderNumbers[0] = 2;
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    int count = 0;
+    for (auto parameter : geometryParameters()) {
+        auto number = std::get_if<FloatSpec>(&parameter->_reference);
+        if (!number) {
+            continue;
+        }
+        ++count;
+        auto order = parameter->_name == "Radius" ? 2 : 1;
+        auto ref = SpecificationEvaluationService::get().getRef(number->_member, *values, order);
+        auto original = SpecificationEvaluationService::get().getRef(number->_member, *defaults, order);
+        bool isSmallRange = std::holds_alternative<float>(number->_max) && std::get<float>(number->_max) < 1;
+        float edited = isSmallRange ? 0.123f : 17.0f;
+        ImVec2 slider, revert;
+        ImGuiID active = 0;
+        auto draw = [&] {
+            frame([&] {
+                auto start = ImGui::GetCursorScreenPos();
+                slider = {start.x + 100, start.y + ImGui::GetFrameHeight() / 2};
+                auto width = ImGui::GetContentRegionAvail().x - scale(360);
+                revert = {
+                    start.x + width + ImGui::GetStyle().ItemSpacing.x + (ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2) / 2,
+                    start.y + ImGui::GetFrameHeight() / 2};
+                parametersGroup({*parameter}, *values, *defaults, order);
+                ImGui::PushID(0);
+                ImGui::PushID(parameter->_name.c_str());
+                ImGui::PushID("");
+                ImGui::PushID(0);
+                auto id = ImGui::GetID("##slider");
+                if (!active) {
+                    active = id;
+                }
+                EXPECT_EQ(active, id);
+                ImGui::PopID();
+                ImGui::PopID();
+                ImGui::PopID();
+                ImGui::PopID();
+            });
+        };
+        draw();
+        draw();
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddMousePosEvent(slider.x, slider.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        draw();
+        ASSERT_EQ(active, GImGui->ActiveId) << parameter->_name;
+        io.AddInputCharactersUTF8(isSmallRange ? "0.123" : "17");
+        draw();
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_EQ(active, GImGui->ActiveId);
+            EXPECT_FLOAT_EQ(edited, *ref.value);
+        }
+        io.AddKeyEvent(ImGuiKey_Enter, true);
+        draw();
+        io.AddKeyEvent(ImGuiKey_Enter, false);
+        draw();
+        io.AddMousePosEvent(revert.x, revert.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+        EXPECT_FLOAT_EQ(*original.value, *ref.value) << parameter->_name;
+    }
+    EXPECT_EQ(11, count);
+}
+
+TEST_F(LocalizationGuiTests, l2b3bGroupSearchAndCyrillicHighlightRetainWholeCharacters)
+{
+    select("ru");
+    for (auto const& [query, name, count] : std::vector<std::tuple<std::string, std::string, int>>{
+             {"фОРМа", "Shape", 3}, {"SHAPE", "Shape", 3}, {"сИЛОВОЕ ПОЛЕ", "Force field", 1}, {"FORCE FIELD", "Force field", 1}}) {
+        auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = query});
+        EXPECT_EQ(count, visibleParameters(parameterGroup(filtered, name)));
+    }
+    auto const& parameter = *geometryParameters().back();
+    auto label = SimulationParametersPresentation::label(parameter);
+    auto found = Utf8Search::find(label, "РАЗМЕР");
+    ASSERT_TRUE(found);
+    EXPECT_EQ("размер", label.substr(found->begin, found->end - found->begin));
+    int normal = 0, highlighted = 0;
+    frame([&] {
+        auto list = ImGui::GetWindowDrawList();
+        auto before = list->VtxBuffer.Size;
+        AlienGui::Text(AlienGui::TextParameters().text(label));
+        normal = list->VtxBuffer.Size - before;
+    });
+    frame([&] {
+        auto list = ImGui::GetWindowDrawList();
+        auto before = list->VtxBuffer.Size;
+        AlienGui::Text(AlienGui::TextParameters().text(label).highlightedSubString("РАЗМЕР"));
+        highlighted = list->VtxBuffer.Size - before;
+    });
+    EXPECT_GT(normal, 0);
+    EXPECT_GT(highlighted, normal);
+}
+
+TEST_F(LocalizationGuiTests, l2b3bNewModeCaptionsFitOrShowCompleteHoverAtEveryScale)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto parameter : geometryParameters()) {
+            auto alternative = std::get_if<AlternativeSpec>(&parameter->_reference);
+            if (!alternative) {
+                continue;
+            }
+            std::vector<std::string> canonical;
+            for (auto const& [name, children] : alternative->_alternatives) {
+                canonical.emplace_back(name);
+            }
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                auto labels = SimulationParametersPresentation::alternativeLabels(*parameter);
+                for (int mode = 0; mode < static_cast<int>(labels.size()); ++mode) {
+                    for (float width : {150.0f, 1400.0f}) {
+                        std::string logged;
+                        ImVec2 start;
+                        bool tooltip = false;
+                        auto draw = [&] {
+                            switcherFrame(width * factor, [&] {
+                                start = ImGui::GetCursorScreenPos();
+                                ImGui::LogToBuffer();
+                                AlienGui::Switcher(
+                                    AlienGui::SwitcherParameters()
+                                        .name(parameter->_name)
+                                        .label(SimulationParametersPresentation::label(*parameter))
+                                        .textWidth(360)
+                                        .readOnly(true)
+                                        .values(canonical)
+                                        .displayValues(labels),
+                                    &mode);
+                                logged = GImGui->LogBuffer.c_str();
+                                ImGui::LogFinish();
+                                tooltip = false;
+                                for (auto window : GImGui->Windows) {
+                                    tooltip |= (window->Flags & ImGuiWindowFlags_Tooltip) && window->Active && !window->Hidden;
+                                }
+                            });
+                        };
+                        io.AddMousePosEvent(-100, -100);
+                        draw();
+                        draw();
+                        io.AddMousePosEvent(start.x + scale(10), start.y + ImGui::GetFrameHeight() / 2);
+                        draw();
+                        draw();
+                        auto text = labels.at(mode);
+                        auto first = logged.find(text);
+                        ASSERT_NE(std::string::npos, first);
+                        if (width == 1400) {
+                            EXPECT_FALSE(tooltip);
+                        }
+                        if (tooltip) {
+                            EXPECT_NE(std::string::npos, logged.find(text, first + text.size()));
+                        }
+                        if (width == 150 && std::string(language) == "ru" && text == "Против часовой стрелки") {
+                            EXPECT_TRUE(tooltip);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
