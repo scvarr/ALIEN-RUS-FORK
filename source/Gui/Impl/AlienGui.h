@@ -513,6 +513,7 @@ public:
         MEMBER(ToolbarParameters, float, trailingWidth, 0.0f);
         MEMBER(ToolbarParameters, bool, trailingAsButton, false);
         MEMBER(ToolbarParameters, bool, bottomSeparator, true);
+        MEMBER(ToolbarParameters, std::string, overflowTooltip, "Show remaining actions");
     };
     static void Toolbar(ToolbarParameters const& parameters, std::vector<ToolbarItem> const& items);
     static float CalcToolbarWidth(std::vector<ToolbarItem> const& items);
@@ -547,6 +548,7 @@ public:
     struct TreeNodeParameters
     {
         MEMBER(TreeNodeParameters, std::string, name, "");
+        MEMBER(TreeNodeParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(TreeNodeParameters, TreeNodeRank, rank, TreeNodeRank::Default);
         MEMBER(TreeNodeParameters, bool, defaultOpen, true);
         MEMBER(TreeNodeParameters, bool, startBlinking, false);

@@ -222,7 +222,7 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
     auto english = boost::json::parse(read(LOCALES / "en.json")).as_object();
     auto russian = boost::json::parse(read(LOCALES / "ru.json")).as_object();
     ASSERT_EQ(english.size(), russian.size());
-    ASSERT_EQ(89, english.size());
+    ASSERT_EQ(138, english.size());
     _service.load(LOCALES);  // Also validates UTF-8, duplicates, key syntax and types in both shipped files.
     ASSERT_TRUE(_service.getDiagnostics().empty());
     for (auto const& member : english) {
@@ -242,7 +242,10 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
           "NewSimulationDialog.cpp",
           "ExitDialog.cpp",
           "SavePictureDialog.cpp",
-          "FileTransferController.cpp"}) {
+          "FileTransferController.cpp",
+          "SimulationParametersMainWindow.cpp",
+          "SimulationParametersGuiText.h",
+          "SimulationParametersBaseWidget.cpp"}) {
         auto source = read(std::filesystem::path(ALIEN_SOURCE_DIR) / "source/Gui/Impl" / file);
         for (std::sregex_iterator it(source.begin(), source.end(), reference), end; it != end; ++it) {
             EXPECT_TRUE(english.contains((*it)[1].str())) << file << ": " << (*it)[1].str();

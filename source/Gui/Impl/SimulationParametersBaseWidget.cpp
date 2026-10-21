@@ -9,6 +9,7 @@
 #include <Engine/Interface/SimulationParametersUpdateConfig.h>
 
 #include "AlienGui.h"
+#include "SimulationParametersGuiText.h"
 #include "SpecificationGuiService.h"
 
 void _SimulationParametersBaseWidget::init() {}
@@ -29,7 +30,7 @@ void _SimulationParametersBaseWidget::process(ParametersFilter const& filter)
 
 std::string _SimulationParametersBaseWidget::getLocationName()
 {
-    return "Simulation parameters for 'Base'";
+    return tr("parameters.window.base");
 }
 
 int _SimulationParametersBaseWidget::getOrderNumber() const

@@ -8,6 +8,7 @@
 #include "AlienGui.h"
 #include "SimulationInteractionController.h"
 #include "SpecificationGuiService.h"
+#include "SimulationParametersGuiText.h"
 #include <Engine/Interface/SimulationFacade.h>
 
 void _SimulationParameterLayerWidget::init(int orderNumber)
@@ -38,7 +39,7 @@ void _SimulationParameterLayerWidget::process(ParametersFilter const& filter)
 
 std::string _SimulationParameterLayerWidget::getLocationName()
 {
-    return "Simulation parameters for '" + _layerName + "'";
+    return SimulationParametersGuiText::named("parameters.window.layer", _layerName);
 }
 
 int _SimulationParameterLayerWidget::getOrderNumber() const

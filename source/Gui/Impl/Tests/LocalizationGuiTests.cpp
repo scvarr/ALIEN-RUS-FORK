@@ -11,12 +11,16 @@
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
+#include <Gui/Impl/DelayedExecutionController.h>
 #include <Gui/Impl/ExitDialog.h>
 #include <Gui/Impl/GenericMessageDialog.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/NewSimulationDialog.h>
 #include <Gui/Impl/SavePictureDialog.h>
+#include <Gui/Impl/SimulationParametersBaseWidget.h>
+#include <Gui/Impl/SimulationParametersGuiText.h>
+#include <Gui/Impl/SimulationParametersMainWindow.h>
 #include <Gui/Impl/StyleService.h>
 #include <Gui/Impl/TextFontService.h>
 
@@ -62,6 +66,34 @@ protected:
     void closeImmediately(AlienDialog& dialog)
     {
         frame([&] { dialog._modalWindow.process([&] { dialog._modalWindow.close(); }); });
+    }
+
+    ImRect processDialogButton(AlienDialog& dialog)
+    {
+        ImRect button;
+        dialog._modalWindow.process([&] {
+            dialog.processIntern();
+            button = GImGui->LastItemData.Rect;
+        });
+        return button;
+    }
+
+    void prepareParametersTable()
+    {
+        auto& window = SimulationParametersMainWindow::get();
+        window._locations = {{"Base", LocationType::Base, "-", "20.0%"}, {"User layer", LocationType::Layer, "(12, 34)", "50.0%"}};
+        window._selectedOrderNumber = 1;
+    }
+
+    void parametersTable() { SimulationParametersMainWindow::get().processLocationTable(); }
+    void parametersToolbar() { SimulationParametersMainWindow::get().processToolbar(); }
+    void verifyParametersSelection()
+    {
+        auto& window = SimulationParametersMainWindow::get();
+        EXPECT_EQ(1, window._selectedOrderNumber);
+        EXPECT_EQ("User layer", window._locations.at(1).name);
+        EXPECT_EQ("(12, 34)", window._locations.at(1).position);
+        EXPECT_EQ("50.0%", window._locations.at(1).strength);
     }
 
     std::string _language;
@@ -545,5 +577,185 @@ TEST_F(LocalizationGuiTests, l2aLegacyDialogGeometryMigrates)
         ASSERT_NE(nullptr, migrated);
         EXPECT_EQ(123, migrated->Pos.x);
         EXPECT_EQ(710, migrated->Size.x);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b1TreeLabelsPreserveLegacyIdsAndSavedState)
+{
+    for (auto const& name : {"Overview", "Expert settings", "###parameters"}) {
+        ImGuiID original = 0;
+        bool first = true;
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            frame([&] {
+                auto flags = AlienGui::TreeNodeParameters().name(name).defaultOpen(false);
+                if (!first) {
+                    flags.label(tr("parameters.overview"));
+                }
+                bool open = AlienGui::BeginTreeNode(flags);
+                auto id = ImGui::GetItemID();
+                if (first) {
+                    original = id;
+                    // Simulate a user opening the actual tree, then save it in the wrapper.
+                    ImGui::GetCurrentWindow()->DC.StateStorage->SetInt(id, 1);
+                } else {
+                    EXPECT_EQ(original, id);
+                    EXPECT_TRUE(open);
+                }
+                AlienGui::EndTreeNode();
+            });
+            first = false;
+        }
+        // A new parent scope must recover the same saved state by the stable name.
+        frame([&] {
+            ImGui::PushID("new parent");
+            EXPECT_TRUE(AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name(name).label("Another caption").defaultOpen(false)));
+            AlienGui::EndTreeNode();
+            ImGui::PopID();
+        });
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b1ProductionTableRetainsLayoutSelectionAndData)
+{
+    prepareParametersTable();
+    ImGuiTable* original = nullptr;
+    ImGuiID headers[5] = {};
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        for (int pass = 0; pass < 2; ++pass) {
+            frame([&] {
+                auto id = ImGui::GetID("Locations");
+                parametersTable();
+                auto table = GImGui->Tables.GetByKey(id);
+                ASSERT_NE(nullptr, table);
+                if (!original) {
+                    original = table;
+                }
+                EXPECT_EQ(original, table);
+                for (int column = 0; column < 5; ++column) {
+                    auto& c = table->Columns[column];
+                    EXPECT_EQ(0u, c.UserID);
+                    auto label = table->ColumnsNames.Buf.Data + c.NameOffset;
+                    ImGui::PushID(column);
+                    auto headerId = ImGui::GetID(label);
+                    ImGui::PopID();
+                    if (headers[column] == 0) {
+                        headers[column] = headerId;
+                    }
+                    EXPECT_EQ(headers[column], headerId);
+                }
+                if (language == std::string("en") && pass == 0) {
+                    table->Columns[0].WidthRequest = 207;
+                    table->Columns[4].IsUserEnabledNextFrame = false;
+                    table->Columns[0].DisplayOrder = 1;
+                    table->Columns[1].DisplayOrder = 0;
+                    table->DisplayOrderToIndex[0] = 1;
+                    table->DisplayOrderToIndex[1] = 0;
+                    table->IsSettingsDirty = true;
+                }
+                if (language == std::string("ru")) {
+                    EXPECT_EQ(1, table->Columns[0].DisplayOrder);
+                    EXPECT_EQ(0, table->Columns[1].DisplayOrder);
+                    EXPECT_FLOAT_EQ(207, table->Columns[0].WidthRequest);
+                    EXPECT_FALSE(table->Columns[4].IsEnabled);
+                }
+            });
+            verifyParametersSelection();
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b1DynamicTitlesKeepUserTextAndNumericWindowIdentity)
+{
+    _SimulationParametersBaseWidget base;
+    ImGuiWindow* original = nullptr;
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        EXPECT_EQ(tr("parameters.window.base"), base.getLocationName());
+        auto name = std::string("User {name} 100% ### text");
+        for (auto const& key : {"parameters.window.layer", "parameters.window.source"}) {
+            EXPECT_NE(std::string::npos, SimulationParametersGuiText::named(key, name).find(name));
+        }
+        EXPECT_NE(std::string::npos, SimulationParametersGuiText::section(name, false, true).find(name));
+        frame([&] {
+            auto title = SimulationParametersGuiText::named("parameters.window.layer", name) + "###973";
+            ImGui::Begin(title.c_str());
+            auto window = ImGui::GetCurrentWindow();
+            if (!original) {
+                original = window;
+                ImGui::SetWindowPos({123, 234});
+            }
+            EXPECT_EQ(original, window);
+            EXPECT_EQ(123, window->Pos.x);
+            EXPECT_EQ(234, window->Pos.y);
+            ImGui::End();
+        });
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b1ProductionToolbarOverflowSurvivesLanguageSwitch)
+{
+    prepareParametersTable();
+    ImGuiWindow* original = nullptr;
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        frame([&] {
+            ImGui::BeginChild("narrow toolbar", {240, 600});
+            ImGui::PushID("SimulationParameters");
+            ImGui::OpenPopup("##toolbarMenu");
+            ImGui::PopID();
+            parametersToolbar();
+            ImGui::PushID("SimulationParameters");
+            EXPECT_TRUE(ImGui::IsPopupOpen("##toolbarMenu"));
+            ImGui::PopID();
+            ImGui::EndChild();
+        });
+        auto popup = GImGui->OpenPopupStack.back().Window;
+        ASSERT_NE(nullptr, popup);
+        if (!original) {
+            original = popup;
+        }
+        EXPECT_EQ(original, popup);
+        verifyParametersSelection();
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b1LocalizedErrorsRemainOpenAndConfirmable)
+{
+    auto& dialog = GenericMessageDialog::get();
+    for (auto const& key :
+         {"parameters.file.openerror", "parameters.file.saveerror", "parameters.reference.error", "parameters.limit.layers", "parameters.limit.sources"}) {
+        dialog.localizedInformation("L2B1 error", "common.error", key);
+        ImGuiWindow* original = nullptr;
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            frame([&] { static_cast<MainLoopEntity&>(dialog).process(); });
+            auto window = ImGui::FindWindowByName("###L2B1 error");
+            ASSERT_NE(nullptr, window);
+            if (!original) {
+                original = window;
+            }
+            EXPECT_EQ(original, window);
+            EXPECT_TRUE(dialog.isOpen());
+        }
+        ImRect button;
+        auto draw = [&] {
+            frame([&] {
+                button = processDialogButton(dialog);
+                static_cast<MainLoopEntity&>(DelayedExecutionController::get()).process();
+            });
+        };
+        draw();
+        auto center = button.GetCenter();
+        ImGui::GetIO().AddMousePosEvent(center.x, center.y);
+        draw();
+        ImGui::GetIO().AddMouseButtonEvent(0, true);
+        draw();
+        ImGui::GetIO().AddMouseButtonEvent(0, false);
+        draw();
+        draw();
+        draw();
+        EXPECT_FALSE(dialog.isOpen());
     }
 }

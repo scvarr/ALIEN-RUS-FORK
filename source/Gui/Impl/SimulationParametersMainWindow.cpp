@@ -4,6 +4,7 @@
 
 #include <Fonts/IconsFontAwesome5.h>
 
+#include <Base/LocalizationService.h>
 #include <Base/StringHelper.h>
 
 #include <Data/LocationAccessService.h>
@@ -19,6 +20,7 @@
 #include "GenericMessageDialog.h"
 #include "LocationController.h"
 #include "OverlayController.h"
+#include "SimulationParametersGuiText.h"
 #include "SimulationParametersLayerWidget.h"
 #include "SimulationParametersSourceWidget.h"
 #include "SpecificationGuiService.h"
@@ -41,7 +43,9 @@ namespace
 
 SimulationParametersMainWindow::SimulationParametersMainWindow()
     : AlienWindow("Simulation parameters", "windows.simulation parameters", false, true, {386.0f, 68.0f}, {680.0f, 780.0f})
-{}
+{
+    setTitleKey("menu.parameters");
+}
 
 void SimulationParametersMainWindow::initIntern()
 {
@@ -112,30 +116,30 @@ void SimulationParametersMainWindow::shutdownIntern()
 void SimulationParametersMainWindow::processToolbar()
 {
     AlienGui::Toolbar(
-        AlienGui::ToolbarParameters().id("SimulationParameters"),
+        AlienGui::ToolbarParameters().id("SimulationParameters").overflowTooltip(tr("parameters.overflow")),
         {AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_FOLDER_OPEN).name("Open parameters").tooltip("Open simulation parameters from file").action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_FOLDER_OPEN).name(tr("parameters.open")).tooltip(tr("parameters.open.help")).action([&] {
                  onOpenParameters();
              })),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_SAVE).name("Save parameters").tooltip("Save simulation parameters to file").action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_SAVE).name(tr("parameters.save")).tooltip(tr("parameters.save.help")).action([&] {
                  onSaveParameters();
              })),
          AlienGui::ToolbarItem::createSeparator(),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_COPY).name("Copy parameters").tooltip("Copy simulation parameters to clipboard").action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_COPY).name(tr("parameters.copy")).tooltip(tr("parameters.copy.help")).action([&] {
                  _copiedParameters = _SimulationFacade::get()->getSimulationParameters();
-                 printOverlayMessage("Simulation parameters copied");
+                 printOverlayMessage(tr("parameters.copied"));
              })),
          AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                  .icon(ICON_FA_PASTE)
-                                                 .name("Paste parameters")
-                                                 .tooltip("Paste simulation parameters from clipboard")
+                                                 .name(tr("parameters.paste"))
+                                                 .tooltip(tr("parameters.paste.help"))
                                                  .disabled(!_copiedParameters)
                                                  .action([&] {
                                                      _SimulationFacade::get()->setSimulationParameters(*_copiedParameters);
                                                      _SimulationFacade::get()->setOriginalSimulationParameters(*_copiedParameters);
-                                                     printOverlayMessage("Simulation parameters pasted");
+                                                     printOverlayMessage(tr("parameters.pasted"));
                                                  })),
          AlienGui::ToolbarItem::createButton(
              AlienGui::ToolbarItemParameters()
@@ -143,57 +147,52 @@ void SimulationParametersMainWindow::processToolbar()
                  .secondIcon(ICON_FA_UNDO)
                  .secondIconOffset(RealVector2D{32.0f, 28.0f})
                  .secondIconScale(0.3f)
-                 .name("Paste reference parameters")
-                 .tooltip("Replace reference values by values from the clipboard. This is useful to see the diff between the current "
-                          "parameters and those from the clipboard.")
+                 .name(tr("parameters.reference"))
+                 .tooltip(tr("parameters.reference.help"))
                  .disabled(!_copiedParameters)
                  .action([&] {
                      auto parameters = _SimulationFacade::get()->getSimulationParameters();
                      if (_copiedParameters->numLayers == parameters.numLayers && _copiedParameters->numSources == parameters.numSources) {
                          _SimulationFacade::get()->setOriginalSimulationParameters(*_copiedParameters);
-                         printOverlayMessage("Reference simulation parameters replaced");
+                         printOverlayMessage(tr("parameters.replaced"));
                      } else {
-                         GenericMessageDialog::get().information(
-                             "Error",
-                             "The number of layers and radiation sources of the current simulation parameters must match with those from the clipboard.");
+                         GenericMessageDialog::get().localizedInformation("Error", "common.error", "parameters.reference.error");
                      }
                  })),
          AlienGui::ToolbarItem::createSeparator(),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLUS).secondIcon(ICON_FA_LAYER_GROUP).name("Add parameter layer").action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLUS).secondIcon(ICON_FA_LAYER_GROUP).name(tr("parameters.addlayer")).action([&] {
                  onInsertDefaultLayer();
              })),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLUS).secondIcon(ICON_FA_SUN).name("Add radiation source").action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLUS).secondIcon(ICON_FA_SUN).name(tr("parameters.addsource")).action([&] {
                  onInsertDefaultSource();
              })),
          AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                  .icon(ICON_FA_PLUS)
                                                  .secondIcon(ICON_FA_CLONE)
-                                                 .name("Clone selected layer/radiation source")
+                                                 .name(tr("parameters.clone"))
                                                  .disabled(_selectedOrderNumber == 0)
                                                  .action([&] { onCloneLocation(); })),
-         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
-                                                 .icon(ICON_FA_MINUS)
-                                                 .name("Delete selected layer/radiation source")
-                                                 .disabled(_selectedOrderNumber == 0)
-                                                 .action([&] { onDeleteLocation(); })),
+         AlienGui::ToolbarItem::createButton(
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_MINUS).name(tr("parameters.delete")).disabled(_selectedOrderNumber == 0).action([&] {
+                 onDeleteLocation();
+             })),
          AlienGui::ToolbarItem::createSeparator(),
-         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
-                                                 .icon(ICON_FA_CHEVRON_UP)
-                                                 .name("Move selected layer/radiation source upward")
-                                                 .disabled(_selectedOrderNumber <= 1)
-                                                 .action([&] { onDecreaseOrderNumber(); })),
+         AlienGui::ToolbarItem::createButton(
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_CHEVRON_UP).name(tr("parameters.up")).disabled(_selectedOrderNumber <= 1).action([&] {
+                 onDecreaseOrderNumber();
+             })),
          AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                  .icon(ICON_FA_CHEVRON_DOWN)
-                                                 .name("Move selected layer/radiation source downward")
+                                                 .name(tr("parameters.down"))
                                                  .disabled(_selectedOrderNumber >= _locations.size() - 1 || _selectedOrderNumber == 0)
                                                  .action([&] { onIncreaseOrderNumber(); })),
          AlienGui::ToolbarItem::createSeparator(),
          AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                  .icon(ICON_FA_EXTERNAL_LINK_SQUARE_ALT)
-                                                 .name("Open in new window")
-                                                 .tooltip("Open parameters for selected layer/radiation source in a new window")
+                                                 .name(tr("parameters.detach"))
+                                                 .tooltip(tr("parameters.detach.help"))
                                                  .action([&] { onOpenInLocationWindow(); }))});
 }
 
@@ -201,8 +200,11 @@ void SimulationParametersMainWindow::processMasterWidget()
 {
     if (ImGui::BeginChild("##master", {0, getMasterWidgetHeight()})) {
 
-        if (_masterWidgetOpen =
-                AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name("Overview").rank(AlienGui::TreeNodeRank::High).defaultOpen(_masterWidgetOpen))) {
+        if (_masterWidgetOpen = AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters()
+                                                            .name("Overview")
+                                                            .label(tr("parameters.overview"))
+                                                            .rank(AlienGui::TreeNodeRank::High)
+                                                            .defaultOpen(_masterWidgetOpen))) {
             ImGui::Spacing();
             if (ImGui::BeginChild("##master2", {0, -ImGui::GetStyle().FramePadding.y})) {
                 processLocationTable();
@@ -224,9 +226,10 @@ void SimulationParametersMainWindow::processDetailWidget()
 {
     auto height = getDetailWidgetHeight();
     if (ImGui::BeginChild("##detail", {0, height})) {
-        auto title = _locations.at(_selectedOrderNumber).name + (_filter.empty() ? " parameters" : " parameters (filtered)");
+        auto const& location = _locations.at(_selectedOrderNumber);
+        auto title = SimulationParametersGuiText::section(location.name, location.type == LocationType::Base, !_filter.empty());
         if (_detailWidgetOpen = AlienGui::BeginTreeNode(
-                AlienGui::TreeNodeParameters().name((title + "###parameters").c_str()).rank(AlienGui::TreeNodeRank::High).defaultOpen(_detailWidgetOpen))) {
+                AlienGui::TreeNodeParameters().name("###parameters").label(title).rank(AlienGui::TreeNodeRank::High).defaultOpen(_detailWidgetOpen))) {
             ImGui::Spacing();
             //AlienGui::SetFilterText(_filter);
             if (ImGui::BeginChild(
@@ -248,7 +251,7 @@ void SimulationParametersMainWindow::processDetailWidget()
 
             ImGui::Spacing();
             startFilterTypingIfNeeded();
-            AlienGui::InputFilter(AlienGui::InputFilterParameters(), _filter);
+            AlienGui::InputFilter(AlienGui::InputFilterParameters().hint(tr("parameters.filter")), _filter);
         }
         AlienGui::EndTreeNode();
     }
@@ -300,8 +303,11 @@ void SimulationParametersMainWindow::startFilterTypingIfNeeded()
 void SimulationParametersMainWindow::processExpertWidget()
 {
     if (ImGui::BeginChild("##expert", {0, 0})) {
-        if (_expertWidgetOpen = AlienGui::BeginTreeNode(
-                AlienGui::TreeNodeParameters().name("Expert settings").rank(AlienGui::TreeNodeRank::High).defaultOpen(_expertWidgetOpen))) {
+        if (_expertWidgetOpen = AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters()
+                                                            .name("Expert settings")
+                                                            .label(tr("parameters.expert"))
+                                                            .rank(AlienGui::TreeNodeRank::High)
+                                                            .defaultOpen(_expertWidgetOpen))) {
             if (ImGui::BeginChild("##expert2", {0, 0}, ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar)) {
                 processExpertSettings();
             }
@@ -315,7 +321,7 @@ void SimulationParametersMainWindow::processExpertWidget()
 void SimulationParametersMainWindow::processStatusBar()
 {
     std::vector<std::string> statusItems;
-    statusItems.emplace_back("CTRL + click on a slider to type in a precise value");
+    statusItems.emplace_back(tr("parameters.precise"));
 
     AlienGui::StatusBar(AlienGui::StatusBarParameters().infoItems(statusItems));
 }
@@ -327,11 +333,16 @@ void SimulationParametersMainWindow::processLocationTable()
 
     if (ImGui::BeginTable("Locations", 5, flags, ImVec2(-1, -1), 0)) {
 
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
-        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
-        ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(115.0f));
-        ImGui::TableSetupColumn("Strength", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(90.0f));
-        ImGui::TableSetupColumn("Opacity", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(90.0f));
+        ImGui::TableSetupColumn(
+            (tr("parameters.column.name") + "###Name").c_str(), ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
+        ImGui::TableSetupColumn(
+            (tr("parameters.column.type") + "###Type").c_str(), ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
+        ImGui::TableSetupColumn(
+            (tr("parameters.column.position") + "###Position").c_str(), ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(115.0f));
+        ImGui::TableSetupColumn(
+            (tr("parameters.column.strength") + "###Strength").c_str(), ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(90.0f));
+        ImGui::TableSetupColumn(
+            (tr("parameters.column.opacity") + "###Opacity").c_str(), ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(90.0f));
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Const::TableHeaderColor);
@@ -362,18 +373,18 @@ void SimulationParametersMainWindow::processLocationTable()
                 } else if (entry.type == LocationType::Source) {
                     icon = ICON_FA_SUN " ";
                 }
-                AlienGui::Text(icon + entry.name);
+                AlienGui::Text(icon + (entry.type == LocationType::Base ? tr("parameters.base") : entry.name));
 
 
                 // Column: Type
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
                 if (entry.type == LocationType::Base) {
-                    AlienGui::Text("Base parameters");
+                    AlienGui::Text(tr("parameters.type.base"));
                 } else if (entry.type == LocationType::Layer) {
-                    AlienGui::Text("Layer");
+                    AlienGui::Text(tr("parameters.type.layer"));
                 } else if (entry.type == LocationType::Source) {
-                    AlienGui::Text("Radiation");
+                    AlienGui::Text(tr("parameters.type.source"));
                 }
 
                 // Column: Position
@@ -429,8 +440,8 @@ void SimulationParametersMainWindow::processExpertSettings()
 void SimulationParametersMainWindow::onOpenParameters()
 {
     GenericFileDialog::get().showOpenFileDialog(
-        "Open simulation parameters",
-        "Simulation settings (*.settings.json){.settings.json,.json},.*",
+        tr("parameters.file.open"),
+        tr("parameters.file.filter") + " (*.settings.json){.settings.json,.json},.*",
         _fileDialogPath,
         [&](std::filesystem::path const& path) {
             auto firstFilename = ifd::FileDialog::Instance().GetResult();
@@ -439,7 +450,7 @@ void SimulationParametersMainWindow::onOpenParameters()
 
             SimulationParameters parameters;
             if (!SerializerService::get().deserializeSimulationParametersFromFile(parameters, firstFilename.string())) {
-                GenericMessageDialog::get().information("Open simulation parameters", "The selected file could not be opened.");
+                GenericMessageDialog::get().localizedInformation("Open simulation parameters", "parameters.file.open", "parameters.file.openerror");
             } else {
                 _SimulationFacade::get()->setSimulationParameters(parameters);
                 _SimulationFacade::get()->setOriginalSimulationParameters(parameters);
@@ -450,8 +461,8 @@ void SimulationParametersMainWindow::onOpenParameters()
 void SimulationParametersMainWindow::onSaveParameters()
 {
     GenericFileDialog::get().showSaveFileDialog(
-        "Save simulation parameters",
-        "Simulation settings (*.settings.json){.settings.json,.json},.*",
+        tr("parameters.file.save"),
+        tr("parameters.file.filter") + " (*.settings.json){.settings.json,.json},.*",
         _fileDialogPath,
         [&](std::filesystem::path const& path) {
             auto firstFilename = ifd::FileDialog::Instance().GetResult();
@@ -460,7 +471,7 @@ void SimulationParametersMainWindow::onSaveParameters()
 
             auto parameters = _SimulationFacade::get()->getSimulationParameters();
             if (!SerializerService::get().serializeSimulationParametersToFile(firstFilename.string(), parameters)) {
-                GenericMessageDialog::get().information("Save simulation parameters", "The selected file could not be saved.");
+                GenericMessageDialog::get().localizedInformation("Save simulation parameters", "parameters.file.save", "parameters.file.saveerror");
             }
         });
 }
@@ -604,9 +615,9 @@ void SimulationParametersMainWindow::correctLayout(float origMasterHeight, float
 void SimulationParametersMainWindow::showMaxLocationsReachedMessage(LocationType locationType) const
 {
     if (locationType == LocationType::Layer) {
-        showMessage("Error", "The maximum number of layers has been reached.");
+        GenericMessageDialog::get().localizedInformation("Error", "common.error", "parameters.limit.layers");
     } else {
-        showMessage("Error", "The maximum number of radiation sources has been reached.");
+        GenericMessageDialog::get().localizedInformation("Error", "common.error", "parameters.limit.sources");
     }
 }
 

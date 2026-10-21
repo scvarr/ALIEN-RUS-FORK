@@ -2314,7 +2314,7 @@ void AlienGui::Toolbar(ToolbarParameters const& parameters, std::vector<ToolbarI
             {overflowPos + (overflowSize - iconSize.x) / 2, startPos.y + (toolbarHeight - iconSize.y) / 2},
             hovered || opened ? Const::ToolbarOverflowHoveredColor : Const::ToolbarOverflowColor,
             ICON_FA_ELLIPSIS_H);
-        Tooltip(TooltipParameters().text("Show remaining actions"));
+        Tooltip(TooltipParameters().text(parameters._overflowTooltip));
 
         auto menuWidth = 0.0f;
         for (auto const& [index, item] : items | boost::adaptors::indexed(0)) {
@@ -2573,10 +2573,13 @@ bool AlienGui::BeginTreeNode(TreeNodeParameters const& parameters, bool* expandB
     if (expandButtonClicked) {
         ImGui::SetNextItemAllowOverlap();
     }
-    bool result = ImGui::TreeNodeEx(parameters._name.c_str(), parameters._defaultOpen ? treeNodeOpenFlags : treeNodeClosedFlags);
+    auto flags = parameters._defaultOpen ? treeNodeOpenFlags : treeNodeClosedFlags;
+    bool result = parameters._label.has_value()
+        ? ImGui::TreeNodeEx(parameters._name.c_str(), flags, "%s", parameters._label->c_str())
+        : ImGui::TreeNodeEx(parameters._name.c_str(), flags);
 
     if (parameters._highlightedSubString.has_value()) {
-        hightlightSubstring(parameters._name, parameters._highlightedSubString.value(), refPos);
+        hightlightSubstring(parameters._label.value_or(parameters._name), parameters._highlightedSubString.value(), refPos);
     }
 
     ImGui::PopFont();

@@ -8,6 +8,7 @@
 #include <Engine/Interface/SimulationFacade.h>
 
 #include "SimulationInteractionController.h"
+#include "SimulationParametersGuiText.h"
 #include "SpecificationGuiService.h"
 
 void _SimulationParametersSourceWidgets::init(int orderNumber)
@@ -40,7 +41,7 @@ void _SimulationParametersSourceWidgets::process(ParametersFilter const& filter)
 
 std::string _SimulationParametersSourceWidgets::getLocationName()
 {
-    return "Simulation parameters for '" + _sourceName + "'";
+    return SimulationParametersGuiText::named("parameters.window.source", _sourceName);
 }
 
 int _SimulationParametersSourceWidgets::getOrderNumber() const
