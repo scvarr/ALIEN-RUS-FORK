@@ -220,3 +220,22 @@ Parameter specifications, expert parameter names/help, specification groups,
 parameter enum labels and a localized GUI/filter adapter are left entirely to
 L2-B2. English parameter searching remains unchanged. No generalized formatter,
 Unicode search overhaul or localization of unrelated windows is included.
+
+## Language-selector placement correction
+
+Following user review, the language selector was removed from New simulation,
+Save picture and Display settings. Its only production placement is now the
+Settings menu. Unused includes were removed; dialog actions, dimensions, widget
+IDs and localization remain unchanged. Switch language before opening a modal;
+there is no language selector inside a modal. Earlier L1/L2-A descriptions of
+additional selectors are historical and are superseded by this placement rule.
+
+The required agent Release build and all 19 headless GUI tests passed. All ten
+Python contracts passed (six L2-A and four L2-B1), including a new check that
+rejects any production selector placement outside MainLoopController's Settings
+menu. The isolated L2-B1 review runner was relinked against the updated libraries.
+No shared C++ header, engine or CUDA code changed; the earlier CPU regression
+results remain applicable. GitNexus impact returned UNKNOWN for the three virtual
+processIntern methods; their AlienDialog dispatch and actual call sites were
+checked in source. Diff/format checks passed; the already non-clean new-simulation
+file received only narrow removals. No user GUI or simulation was opened.

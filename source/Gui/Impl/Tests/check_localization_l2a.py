@@ -53,15 +53,18 @@ class LocalizationL2aContracts(unittest.TestCase):
         for file in ("NewSimulationDialog.cpp", "ExitDialog.cpp", "SavePictureDialog.cpp"):
             source = read(GUI / file)
             self.assertIn('setTitleKey("', source)
-            if file == "ExitDialog.cpp":
-                self.assertNotIn('LocalizationGui::languageSelector()', source)
-            else:
-                self.assertIn('LocalizationGui::languageSelector()', source)
+            self.assertNotIn('LocalizationGui::languageSelector(', source)
             self.assertNotRegex(source, r'AlienGui::Button\("[A-Za-z]')
             self.assertNotRegex(source, r'ImGui::TextWrapped\("%s", "[A-Za-z]')
             for name in re.findall(r'\.name\("([^"\n]+)"\)', source):
                 self.assertRegex(source, re.escape(f'.name("{name}")') + r'\s*\.label\(tr\("')
         self.assertIn('.generateValueTooltip(tr("new.generate"))', read(GUI / "NewSimulationDialog.cpp"))
+
+    def test_language_selector_exists_only_in_settings_menu(self):
+        callers = [file.name for file in GUI.glob("*.cpp") if 'LocalizationGui::languageSelector(' in read(file)]
+        # The implementation itself is not a control placement.
+        self.assertEqual(["LocalizationGui.cpp", "MainLoopController.cpp"], sorted(callers))
+        self.assertEqual(1, read(GUI / "MainLoopController.cpp").count('LocalizationGui::languageSelector('))
 
     def test_filters_keep_extensions_and_grammar(self):
         source = read(GUI / "FileTransferController.cpp")

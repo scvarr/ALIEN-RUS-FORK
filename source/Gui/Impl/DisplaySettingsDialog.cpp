@@ -10,7 +10,6 @@
 
 #include "AlienGui.h"
 #include "GenericMessageDialog.h"
-#include "LocalizationGui.h"
 #include "MainLoopController.h"
 #include "StyleService.h"
 #include "WindowController.h"
@@ -32,7 +31,6 @@ DisplaySettingsDialog::~DisplaySettingsDialog() = default;
 
 void DisplaySettingsDialog::processIntern()
 {
-    LocalizationGui::languageSelector(RightColumnWidth);
     _videoModeStrings = createVideoModeStrings();
 
     auto isFullscreen = _pendingIsFullscreen;

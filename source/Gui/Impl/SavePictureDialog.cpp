@@ -15,7 +15,6 @@
 #include "DelayedExecutionController.h"
 #include "GenericFileDialog.h"
 #include "GenericMessageDialog.h"
-#include "LocalizationGui.h"
 #include "OverlayController.h"
 #include "PictureGuiService.h"
 #include "SimulationView.h"
@@ -66,8 +65,6 @@ void SavePictureDialog::processIntern()
     }
     _width = std::max(1, _width);
     _height = std::max(1, _height);
-
-    LocalizationGui::languageSelector();
 
     ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
     AlienGui::Separator();

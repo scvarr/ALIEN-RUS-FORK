@@ -10,7 +10,6 @@
 #include <Engine/Interface/SimulationFacade.h>
 
 #include "AlienGui.h"
-#include "LocalizationGui.h"
 #include "NewSimulationService.h"
 #include "StyleService.h"
 #include <Engine/Interface/SimulationFacade.h>
@@ -56,8 +55,6 @@ void NewSimulationDialog::processIntern()
         _externalEnergy);
     AlienGui::Checkbox(
         AlienGui::CheckboxParameters().name("Adopt parameters").label(tr("new.adopt")).textWidth(ContentTextInputWidth), &_adoptSimulationParameters);
-
-    LocalizationGui::languageSelector();
 
     ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
     AlienGui::Separator();
