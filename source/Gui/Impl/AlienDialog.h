@@ -30,6 +30,7 @@ protected:
     virtual void openIntern() {}
 
     void changeTitle(std::string const& title);
+    void setTitleKey(std::string const& key);
     virtual void close();
 
 private:

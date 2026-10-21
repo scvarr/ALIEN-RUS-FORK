@@ -30,6 +30,11 @@ void AlienDialog::changeTitle(std::string const& title)
     _modalWindow.setTitle(title);
 }
 
+void AlienDialog::setTitleKey(std::string const& key)
+{
+    _modalWindow.setTitleKey(key);
+}
+
 void AlienDialog::process()
 {
     _modalWindow.process([this] { processIntern(); });

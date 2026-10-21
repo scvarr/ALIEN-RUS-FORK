@@ -6,9 +6,6 @@
 #include <imgui_freetype.h>
 
 #include <Fonts/AlienIconFont.h>
-#include <Fonts/Cousine-Regular.h>
-#include <Fonts/DroidSans.h>
-#include <Fonts/DroidSansBold.h>
 #include <Fonts/FontAwesomeSolid.h>
 #include <Fonts/IconsFontAwesome5.h>
 #include <Fonts/Reef.h>
@@ -18,7 +15,7 @@
 #include <implot.h>
 
 #include <Base/GlobalSettings.h>
-
+#include "TextFontService.h"
 #include "WindowController.h"
 
 namespace
@@ -249,7 +246,7 @@ void StyleService::setup()
     ImGuiIO& io = ImGui::GetIO();
 
     // Default font (small with icons)
-    io.Fonts->AddFontFromMemoryCompressedTTF(DroidSans_compressed_data, DroidSans_compressed_size, 16.0f * scaleFactor);
+    TextFontService::addFont(*io.Fonts, TextFontRole::Regular, 16.0f * scaleFactor);
     {
         static const ImWchar rangesIcons[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
         io.Fonts->AddFontFromMemoryCompressedTTF(
@@ -257,7 +254,7 @@ void StyleService::setup()
     }
 
     // Tiny font
-    _tinyFont = io.Fonts->AddFontFromMemoryCompressedTTF(DroidSans_compressed_data, DroidSans_compressed_size, 11.0f * scaleFactor);
+    _tinyFont = TextFontService::addFont(*io.Fonts, TextFontRole::Regular, 11.0f * scaleFactor);
     {
         static const ImWchar rangesIcons[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
         io.Fonts->AddFontFromMemoryCompressedTTF(
@@ -265,16 +262,16 @@ void StyleService::setup()
     }
 
     // Small bold font
-    _smallBoldFont = io.Fonts->AddFontFromMemoryCompressedTTF(DroidSansBold_compressed_data, DroidSansBold_compressed_size, 16.0f * scaleFactor);
+    _smallBoldFont = TextFontService::addFont(*io.Fonts, TextFontRole::Bold, 16.0f * scaleFactor);
 
     // Medium bold font
-    _mediumBoldFont = io.Fonts->AddFontFromMemoryCompressedTTF(DroidSansBold_compressed_data, DroidSansBold_compressed_size, 24.0f * scaleFactor);
+    _mediumBoldFont = TextFontService::addFont(*io.Fonts, TextFontRole::Bold, 24.0f * scaleFactor);
 
     // Medium font
-    _mediumFont = io.Fonts->AddFontFromMemoryCompressedTTF(DroidSans_compressed_data, DroidSans_compressed_size, 24.0f * scaleFactor);
+    _mediumFont = TextFontService::addFont(*io.Fonts, TextFontRole::Regular, 24.0f * scaleFactor);
 
     // Large font
-    _largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(DroidSans_compressed_data, DroidSans_compressed_size, 48.0f * scaleFactor);
+    _largeFont = TextFontService::addFont(*io.Fonts, TextFontRole::Regular, 48.0f * scaleFactor);
 
     // Icon font
     _iconFont = io.Fonts->AddFontFromMemoryCompressedTTF(AlienIconFont_compressed_data, AlienIconFont_compressed_size, 24.0f * scaleFactor);
@@ -282,14 +279,13 @@ void StyleService::setup()
         static const ImWchar rangesIcons[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
         io.Fonts->AddFontFromMemoryCompressedTTF(
             FontAwesomeSolid_compressed_data, FontAwesomeSolid_compressed_size, 28.0f * scaleFactor, &configMerge, rangesIcons);
-        io.Fonts->Build();
     }
 
     // Monospace medium font
-    _monospaceMediumFont = io.Fonts->AddFontFromMemoryCompressedTTF(Cousine_Regular_compressed_data, Cousine_Regular_compressed_size, 14.0f * scaleFactor);
+    _monospaceMediumFont = TextFontService::addFont(*io.Fonts, TextFontRole::Monospace, 14.0f * scaleFactor);
 
     // Monospace large font
-    _monospaceLargeFont = io.Fonts->AddFontFromMemoryCompressedTTF(Cousine_Regular_compressed_data, Cousine_Regular_compressed_size, 128.0f * scaleFactor);
+    _monospaceLargeFont = TextFontService::addFont(*io.Fonts, TextFontRole::Monospace, 128.0f * scaleFactor);
 
     _reefMediumFont = io.Fonts->AddFontFromMemoryCompressedTTF(Reef_compressed_data, Reef_compressed_size, 24.0f * scaleFactor);
     _reefLargeFont = io.Fonts->AddFontFromMemoryCompressedTTF(Reef_compressed_data, Reef_compressed_size, 64.0f * scaleFactor);

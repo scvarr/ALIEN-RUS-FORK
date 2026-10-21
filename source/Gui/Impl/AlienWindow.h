@@ -27,6 +27,8 @@ public:
     void setOn(bool value);
 
 protected:
+    void setTitleKey(std::string const& key);
+
     virtual void initIntern() {}
     virtual void shutdownIntern() {}
     virtual void processIntern() = 0;
@@ -45,6 +47,7 @@ private:
     void shutdown() override;
 
     std::string _title;
+    std::string _titleKey;
 
     bool _isMaximizable = false;
     enum class WindowState

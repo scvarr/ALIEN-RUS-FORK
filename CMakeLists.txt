@@ -300,6 +300,7 @@ add_executable(EngineInterfaceTests)
 add_executable(McpToolsTests)
 add_executable(NetworkTests)
 add_executable(PersisterTests)
+add_executable(GuiLocalizationTests)
 
 # find_package(CUDAToolkit REQUIRED) is too slow
 find_package(Boost REQUIRED)
@@ -348,6 +349,7 @@ add_subdirectory(source/Engine/Interface)
 add_subdirectory(source/Engine/Interface/TestData)
 add_subdirectory(source/Engine/Interface/Tests)
 add_subdirectory(source/Gui/Impl)
+add_subdirectory(source/Gui/Impl/Tests)
 add_subdirectory(source/Gui/Interface)
 add_subdirectory(source/McpTools/Impl)
 add_subdirectory(source/McpTools/Impl/Tests)
@@ -367,6 +369,20 @@ alien_link_hip_rdc(alien)
 alien_link_hip_rdc(alien-cli)
 alien_link_hip_rdc(EngineTests)
 alien_link_hip_rdc(PersisterTests)
+alien_link_hip_rdc(GuiLocalizationTests)
+
+# Refresh catalogs and licensed fonts even when no executable needs relinking.
+add_custom_target(LocalizationResources ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/locales $<TARGET_FILE_DIR:alien>/resources/locales
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_FILE_DIR:alien>/resources/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/locales ${CMAKE_CURRENT_BINARY_DIR}/resources/locales
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/fonts ${CMAKE_CURRENT_BINARY_DIR}/resources/fonts)
+add_dependencies(alien LocalizationResources)
+add_dependencies(GuiLocalizationTests LocalizationResources)
 
 # Copy resources next to the build output so that ALIEN finds them
 add_custom_command(

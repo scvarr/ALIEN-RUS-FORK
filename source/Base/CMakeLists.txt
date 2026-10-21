@@ -1,3 +1,7 @@
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/resources/locales/en.json")
+file(READ "${PROJECT_SOURCE_DIR}/resources/locales/en.json" ALIEN_DEFAULT_LOCALE)
+configure_file(DefaultLocale.h.in "${CMAKE_CURRENT_BINARY_DIR}/DefaultLocale.h" @ONLY)
+
 
 add_library(Base
     AlienExceptions.cpp
@@ -23,6 +27,8 @@ add_library(Base
     KernelProfiler.h
     KernelTracer.cpp
     KernelTracer.h
+    LocalizationService.cpp
+    LocalizationService.h
     LoggingService.cpp
     LoggingService.h
     Macros.h
@@ -51,6 +57,8 @@ add_library(Base
     WebLinkHelper.cpp
     WebLinkHelper.h)
 
+target_include_directories(Base PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_link_libraries(Base Boost::json)
 target_link_libraries(Base Boost::boost)
 target_link_libraries(Base imgui::imgui)
 target_link_libraries(Base md4c::md4c)
@@ -83,4 +91,8 @@ target_precompile_headers(Base PRIVATE
 
 if (MSVC)
     target_compile_options(Base PRIVATE "/MP")
+endif()
+
+if (MSVC)
+    target_compile_options(Base PRIVATE /utf-8)
 endif()

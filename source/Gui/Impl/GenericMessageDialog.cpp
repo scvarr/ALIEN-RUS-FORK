@@ -6,6 +6,7 @@
 
 #include <imgui.h>
 
+#include <Base/LocalizationService.h>
 #include <Base/LoggingService.h>
 #include <Base/MarkdownParser.h>
 #include <Base/WebLinkHelper.h>
@@ -27,6 +28,8 @@ void GenericMessageDialog::processIntern()
 
 void GenericMessageDialog::information(std::string const& title, std::string const& message)
 {
+    setTitleKey("");
+    _messageKey.clear();
     _title = title;
     _message = message;
     _markdownMessage.reset();
@@ -54,6 +57,8 @@ void GenericMessageDialog::markdownInformation(std::string const& title, std::st
 
 void GenericMessageDialog::yesNo(std::string const& title, std::string const& message, std::function<void()> const& yesFunction)
 {
+    setTitleKey("");
+    _messageKey.clear();
     _title = title;
     _message = message;
     _markdownMessage.reset();
@@ -62,6 +67,17 @@ void GenericMessageDialog::yesNo(std::string const& title, std::string const& me
 
     AlienDialog::open();
     changeTitle(title);
+}
+
+void GenericMessageDialog::localizedYesNo(
+    std::string const& stableTitle,
+    std::string const& titleKey,
+    std::string const& messageKey,
+    std::function<void()> const& yesFunction)
+{
+    yesNo(stableTitle, tr(messageKey), yesFunction);
+    setTitleKey(titleKey);
+    _messageKey = messageKey;
 }
 
 GenericMessageDialog::GenericMessageDialog()
@@ -83,12 +99,12 @@ void GenericMessageDialog::processYesNo()
     processMessageText();
     AlienGui::Separator();
 
-    if (AlienGui::Button("Yes")) {
+    if (AlienGui::Button(_messageKey.empty() ? "Yes" : tr("common.yes") + "###Yes")) {
         close();
         _execFunction();
     }
     ImGui::SameLine();
-    if (AlienGui::Button("No")) {
+    if (AlienGui::Button(_messageKey.empty() ? "No" : tr("common.no") + "###No")) {
         close();
     }
 }
@@ -102,7 +118,8 @@ void GenericMessageDialog::processMessageText()
             WebLinkHelper::openInBrowser(*clickedLink);
         }
     } else {
-        ImGui::TextWrapped("%s", _message.c_str());
+        auto message = _messageKey.empty() ? _message : tr(_messageKey);
+        ImGui::TextWrapped("%s", message.c_str());
     }
     ImGui::EndChild();
 }

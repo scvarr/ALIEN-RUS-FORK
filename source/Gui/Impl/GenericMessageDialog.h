@@ -24,6 +24,8 @@ public:
     void markdownInformation(std::string const& title, std::string const& markdownMessage);
     void yesNo(std::string const& title, std::string const& message, std::function<void()> const& yesFunction);
 
+    void localizedYesNo(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey, std::function<void()> const& yesFunction);
+
 private:
     GenericMessageDialog();
 
@@ -42,6 +44,7 @@ private:
     DialogType _dialogType = DialogType::Information;
     std::string _title;
     std::string _message;
+    std::string _messageKey;
     std::optional<MarkdownDocument> _markdownMessage;
     MarkdownRenderer _markdownRenderer;
     std::function<void()> _execFunction;

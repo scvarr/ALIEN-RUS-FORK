@@ -22,6 +22,7 @@ public:
 
     bool isOpen() const;
     void setTitle(std::string const& title);
+    void setTitleKey(std::string const& key);
 
     void process(std::function<void()> const& contentFunc);
 
@@ -33,6 +34,7 @@ private:
     void saveSettings();
 
     std::string _title;
+    std::string _titleKey;
     RealVector2D _defaultSize;
     bool _isMaximizable = false;
     std::string _settingsNode;

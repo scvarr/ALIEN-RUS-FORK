@@ -10,6 +10,7 @@
 
 #include <Base/Definitions.h>
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 #include <Base/LoggingService.h>
 #include <Base/Resources.h>
 
@@ -39,6 +40,7 @@
 #include "GenomeEditorWindow.h"
 #include "ImageToPatternDialog.h"
 #include "InspectionController.h"
+#include "LocalizationGui.h"
 #include "LogWindow.h"
 #include "LoginDialog.h"
 #include "MassEditDialog.h"
@@ -83,6 +85,8 @@ void MainLoopController::setup()
 
 void MainLoopController::process()
 {
+    LocalizationService::get().applyPendingLanguage();
+
     glfwPollEvents();
     _SimulationFacade::get()->checkAndThrowException();
 
@@ -620,18 +624,29 @@ void MainLoopController::processMenubar()
     AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Image converter").keyAlt(true).key(ImGuiKey_Y), [&] { ImageToPatternDialog::get().show(); });
     AlienGui::EndMenu();
 
-    AlienGui::BeginMenu(" " ICON_FA_COG "  Settings ", _settingsMenuOpened, false);
+    AlienGui::BeginMenu(" " ICON_FA_COG "  " + tr("settings.menu") + " ###settings.menu", _settingsMenuOpened, false);
     AlienGui::MenuItem(
-        AlienGui::MenuItemParameters().name("Save on exit").selected(_saveOnExit).closeMenuWhenItemClicked(false), [&] { _saveOnExit = !_saveOnExit; });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Dark mode").selected(StyleService::get().isDarkMode()).closeMenuWhenItemClicked(false), [&] {
-        StyleService::get().setDarkMode(!StyleService::get().isDarkMode());
-    });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Display settings"), [&] { DisplaySettingsDialog::get().open(); });
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Network settings"), [&] { NetworkSettingsDialog::get().open(); });
+        AlienGui::MenuItemParameters().name(tr("settings.saveonexit") + "###settings.saveonexit").selected(_saveOnExit).closeMenuWhenItemClicked(false),
+        [&] { _saveOnExit = !_saveOnExit; });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters()
+            .name(tr("settings.darkmode") + "###settings.darkmode")
+            .selected(StyleService::get().isDarkMode())
+            .closeMenuWhenItemClicked(false),
+        [&] { StyleService::get().setDarkMode(!StyleService::get().isDarkMode()); });
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("settings.display") + "###settings.display"), [&] { DisplaySettingsDialog::get().open(); });
+    AlienGui::MenuItem(AlienGui::MenuItemParameters().name(tr("settings.network") + "###settings.network"), [&] { NetworkSettingsDialog::get().open(); });
+    if (_settingsMenuOpened) {
+        ImGui::Dummy({scale(280.0f), 0});
+        LocalizationGui::languageSelector();
+    }
     AlienGui::MenuSeparator();
-    AlienGui::MenuItem(AlienGui::MenuItemParameters().name("Debug mode").selected(GlobalSettings::get().isDebugMode()).closeMenuWhenItemClicked(false), [&] {
-        _SimulationFacade::get()->setDebugMode(!GlobalSettings::get().isDebugMode());
-    });
+    AlienGui::MenuItem(
+        AlienGui::MenuItemParameters()
+            .name(tr("settings.debug") + "###settings.debug")
+            .selected(GlobalSettings::get().isDebugMode())
+            .closeMenuWhenItemClicked(false),
+        [&] { _SimulationFacade::get()->setDebugMode(!GlobalSettings::get().isDebugMode()); });
     AlienGui::EndMenu();
 
     AlienGui::BeginMenu(" " ICON_FA_LIFE_RING "  Help ", _helpMenuOpened);

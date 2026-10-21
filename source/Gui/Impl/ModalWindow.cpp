@@ -1,6 +1,7 @@
 #include "ModalWindow.h"
 
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 
 #include "AlienGui.h"
 #include "StyleService.h"
@@ -35,15 +36,21 @@ void ModalWindow::setTitle(std::string const& title)
     _title = title;
 }
 
+void ModalWindow::setTitleKey(std::string const& key)
+{
+    _titleKey = key;
+}
+
 void ModalWindow::process(std::function<void()> const& contentFunc)
 {
     if (_state == State::Closed) {
         return;
     }
+    auto title = _titleKey.empty() ? _title : tr(_titleKey) + "###" + _title;
     if (_state == State::JustOpened) {
         ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize({_defaultSize.x, _defaultSize.y}, ImGuiCond_FirstUseEver);
-        ImGui::OpenPopup(_title.c_str());
+        ImGui::OpenPopup(title.c_str());
         _state = State::Open;
     }
     auto& style = ImGui::GetStyle();
@@ -59,7 +66,7 @@ void ModalWindow::process(std::function<void()> const& contentFunc)
         flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     }
 
-    if (ImGui::BeginPopupModal(_title.c_str(), NULL, flags)) {
+    if (ImGui::BeginPopupModal(title.c_str(), NULL, flags)) {
         auto contentPos = ImGui::GetCursorScreenPos();
         auto closeClicked = processTitlebarButtons();
         ImGui::SetCursorScreenPos(contentPos);

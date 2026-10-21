@@ -124,6 +124,8 @@ add_library(GuiImpl
     LoginController.h
     LoginDialog.cpp
     LoginDialog.h
+    LocalizationGui.cpp
+    LocalizationGui.h
     LogWindow.cpp
     LogWindow.h
     MainLoopController.cpp
@@ -218,6 +220,8 @@ add_library(GuiImpl
     StartupCheckService.h
     StyleService.cpp
     StyleService.h
+    TextFontService.cpp
+    TextFontService.h
     TemporalControlWindow.cpp
     TemporalControlWindow.h
     UiController.cpp

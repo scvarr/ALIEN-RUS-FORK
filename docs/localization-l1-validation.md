@@ -1,3 +1,5 @@
+> Current implementation and validation are recorded in the 2026-10-21 section below. The original blocked attempt is preserved as historical evidence.
+
 # ALIEN L1 validation: baseline build blocked
 
 Date: 2026-10-19 (Europe/Moscow).
@@ -131,3 +133,139 @@ Existing source code, CUDA, physics, CMake/build scripts, simulation formats, in
 5. Begin L2 only after L1 passes. Broader UI extraction, documentation translation, localized search, the separate cell-label atlas UTF-8 defect, third-party UI text, and cloud/filesystem input compatibility remain later work; none is fixed by this baseline diagnosis.
 
 **Readiness:** L1 is incomplete and L2 is not ready to start. No claim of a working localization foundation or successful RTX 5080 application execution is made.
+
+---
+
+## L1 implementation and validation — 2026-10-21
+
+### Scope and ancestry
+
+Implementation started at `bf123b188ac9d15d4f4616e6e0384aa96ffe9e91` on `fix/communicator-test-direction`. The new local branch is `feat/ru-localization-l1`; all previous branches and ancestry are retained. CUDA runtime discovery commit `6db2b56fbbbf1d8fbd774d653a0481f21efdc47a` and the communicator fixture correction are ancestors. The accepted automatic baseline is recorded separately in `docs/communicator-baseline-validation.md`: 2,689 passed, zero failed, two skipped and three disabled. The original failed baseline above remains historical evidence.
+
+Only the localization foundation and Settings / Display settings slice are implemented. No engine algorithms, CUDA structures or kernels, simulation formats, existing settings names, protocols, dependencies or submodule pins are changed. The main repository has no remote. No Git fetch, push, merge, PR, submodule update or CodeQL operation was performed. L2 is not started.
+
+### Service and catalog contract
+
+`Base/LocalizationService` is a GUI-thread service with no CUDA, engine, rendering or GLFW dependency. It uses the existing Boost.JSON and Boost.PropertyTree libraries. `en` is the initial and fallback language; `ru` is the other supported language. Initialization runs at the start of the main-window constructor, before GLFW, rendering, fonts and main-loop entities. The existing facade lifecycle is unchanged.
+
+Catalogs are flat UTF-8 JSON objects without a BOM, at `resources/locales/en.json` and `ru.json`. Each member maps a semantic key to a nonempty string, for example:
+
+```json
+{
+    "display.title": "Display settings",
+    "display.fps": "Frames per second"
+}
+```
+
+Keys match `[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+`. JSON syntax, object/string types, UTF-8, empty strings, control characters and accidental ImGui `##`/`###` markers are validated. Newlines and tabs are allowed; NUL and other C0 controls are rejected. Boost.JSON validates types and strict UTF-8. PropertyTree retains member counts, allowing duplicate keys, including escaped equivalents, to be rejected instead of silently overwriting text. Invalid catalogs are rejected atomically. Diagnostics use the existing logger and are also available through `getDiagnostics()`.
+
+Unknown requested keys return semantic-key markers and are logged once per load. Unknown Russian entries are diagnosed and ignored; missing Russian entries fall back individually to English. CMake embeds canonical English from the same `en.json`, so two missing or corrupt installed catalogs still leave the shipped interface usable in English. Valid external English entries override or extend that baseline. There is no second hand-maintained fallback dictionary.
+
+To add a message, choose a semantic key, add English and Russian strings, use `tr(key)` for presentation, run completeness tests and rebuild. No service modification is needed. External dictionaries can introduce keys through the English catalog first. The existing full-resource copy remains; a `LocalizationResources` build target additionally refreshes catalogs, fonts and licenses in both build-root and configuration-specific resource directories on every build, even without an executable relink. The Release directory remains the deployment payload used by Windows packaging.
+
+`getText()` and `tr()` return owning strings. Retaining a pointer obtained from a temporary translation is forbidden. Parameters, modal titles, messages and option lists own strings or semantic keys. `.c_str()` is used only during synchronous ImGui calls while its owner is alive. Delayed work captures values, never catalog pointers.
+
+### Persistence and frame boundary
+
+`GlobalSettings::getLanguage()` / `setLanguage()` use the new `settings.language` key. Accepted values are exactly `en` and `ru`; absent, empty, uppercase and unsupported values resolve to `en`. Existing settings names and serialized formats are unchanged. `requestLanguage()` queues a change; `applyPendingLanguage()` persists and applies it before the next `ImGui::NewFrame()`.
+
+Both Settings and Display settings contain the same language selector, with `English` and `Русский` choices. The selector in the dialog permits EN → RU → EN while the modal stays open, since a modal otherwise blocks the main menu. Language changes do not reopen the dialog, reread its pending controls, rebuild fonts or call engine reinitialization. Resolution captions are regenerated from the existing copied mode list without changing selection indices. Interface scaling retains its existing restart requirement; the confirmation is translated. Language changes themselves require no restart.
+
+Two existing Windows settings issues are corrected: registry opening begins with an empty `RegKey`, allowing create-if-missing behavior for a fresh profile; wide-to-UTF-8 conversion uses the same explicit input length for sizing and conversion. Tests cover fresh isolated storage, restoration by a new service instance, and Cyrillic/punctuation round trips. The resolution combo's revert path also checks absent enable/default-enable pointers instead of dereferencing them.
+
+### Dear ImGui identity rules
+
+- In the affected `AlienGui` wrappers, `.name()` retains the original stable identity, while optional `.label()` supplies display text. Existing callers retain their behavior. Display settings keeps legacy widget scopes, including sliders and revert buttons.
+- Native labels use `translated caption + "###stable-id"`. `##suffix` only hides the suffix and still hashes the translated prefix, so it does not isolate identity from language. Settings menu/button identities are constant semantic identifiers.
+- `AlienWindow` retains its original internal `Begin()` name and ID stack. An optional title key affects only its custom titlebar. Existing windows are not migrated or mass-refactored.
+- `AlienDialog` delegates an optional title key to `ModalWindow`. A localized modal uses the same stable suffix for `OpenPopup()` and `BeginPopupModal()`; its content `PushID()` retains the original title.
+- Loading `gui.imgui settings` migrates only the legacy `Display settings` and `Content scaling` window-section headers in memory to stable `###` identities. Position/size values and the settings key are preserved. Unrelated windows and dialogs keep their existing names.
+- The scaling confirmation stores message/title keys in a localized mode of the existing message dialog. Yes/No are translated only for that mode; other messages remain English.
+
+### Fonts and licenses
+
+Three unmodified static fonts are shipped: Noto Sans Regular, Noto Sans Bold and Noto Sans Mono Regular. They come from the [Noto repository at commit ffebf8c1ee449e544955a7e813c54f9b73848eac](https://github.com/notofonts/noto-fonts/tree/ffebf8c1ee449e544955a7e813c54f9b73848eac). Source paths are recorded in `resources/fonts/README.md`. The complete copyright notice and [SIL Open Font License 1.1](https://github.com/notofonts/noto-fonts/blob/ffebf8c1ee449e544955a7e813c54f9b73848eac/LICENSE) are distributed as `resources/fonts/OFL.txt`.
+
+`TextFontService` supplies persistent glyph ranges for Latin, Cyrillic, typographic punctuation and U+2116. All ordinary, tiny, bold and monospace roles use these complete assets at their previous sizes multiplied by the existing content-scale factor. Ё/ё, №, en/em dashes, guillemets and curly quotation marks are covered. FontAwesome merges, AlienIconFont and Reef remain in place. Both languages share the startup atlas; switching language does not replace font pointers or GPU font resources. The separate simulation cell-label atlas and its byte-wise Unicode defect are intentionally unchanged.
+
+### Translated elements
+
+The shipped slice contains 25 semantic entries with identical English/Russian key sets:
+
+| Element | Russian display |
+| --- | --- |
+| Settings | Настройки |
+| Save on exit | Сохранять при выходе |
+| Dark mode | Тёмная тема |
+| Display settings menu item and dialog title | Настройки экрана |
+| Network settings menu item | Настройки сети |
+| Debug mode | Режим отладки |
+| Language, in menu and dialog | Язык |
+| Language choices | English / Русский |
+| Full screen | Полноэкранный режим |
+| Resolution | Разрешение |
+| Desktop option | Как на рабочем столе |
+| Refresh-rate suffix Hz | Гц |
+| Frames per second | Частота кадров |
+| Frame-rate tooltip | Russian explanation of GPU workload and simulation steps per second |
+| Adopt scaling from OS | Использовать масштаб ОС |
+| Automatic-scaling tooltip | Russian explanation of operating-system display scaling |
+| Content scaling and confirmation title | Масштаб интерфейса |
+| Scaling confirmation message | Russian save-and-close confirmation |
+| Adopt / Cancel | Применить / Отмена |
+| Scaling confirmation Yes / No | Да / Нет |
+| Revert changes tooltip in Display settings | Отменить изменения |
+
+Network settings itself, other windows/editors, engine messages, documentation and internal configuration/serialization/protocol keys remain unchanged.
+
+### Automatic validation
+
+The required `build-windows-ninja.bat agent` completed successfully in Release. A fresh agent build compiled all **411 steps**; the IDE-owned trees were not used. MSVC 19.44, CUDA 13.2 and the existing RTX 5080 were retained. No CUDA structure/header changed.
+
+The local CMake/MSVC include-prefix detection is misencoded: Ninja reports zero tracked header dependencies for affected C++ objects. Setting `VSLANG=1033` did not correct this installation's generated prefix. To exclude stale ABI/layout objects, the old `build-agent` was moved into ignored `temp/l1-build-before-clean-20261021`, a new tree was configured, and only the unchanged pinned dependency installation was reused. No compiled ALIEN object/library was reused from the archive. Recursive deletion had been rejected by automatic command review, so the reversible archive was used. This local incremental-build issue predates L1 and still needs separate toolchain maintenance; use a fresh agent tree for header changes until then.
+
+All eight Release suites ran with GoogleTest XML output. The first ordinary GPU regression completed in **275.403 seconds**. A subsequent artifact rebuild also rebuilt CUDA objects, so the affected GUI, persistence and engine suites were rerun; the second full GPU regression passed in **362.225 seconds**. Neither run was cancelled, and no stress test or `gtest_repeat` run was used. The table counts each test once, not the sum of repeated validation runs:
+
+| Suite | Passed | Failed | Skipped | Disabled |
+| --- | ---: | ---: | ---: | ---: |
+| BaseTests | 40 | 0 | 0 | 0 |
+| DataTests | 247 | 0 | 0 | 0 |
+| EngineInterfaceTests | 2 | 0 | 0 | 0 |
+| McpToolsTests | 40 | 0 | 0 | 0 |
+| NetworkTests | 38 | 0 | 0 | 0 |
+| PersisterTests | 141 | 0 | 0 | 1 |
+| EngineTests | 2,196 | 0 | 2 | 2 |
+| GuiLocalizationTests | 7 | 0 | 0 | 0 |
+| **Total** | **2,711** | **0** | **2** | **3** |
+
+This preserves all 2,689 baseline passes and adds **15 service/settings tests plus 7 headless GUI tests**. Existing skips and disabled cases are unchanged. Service tests exercise both shipped catalogs, missing/damaged/duplicate catalogs, invalid structures and UTF-8, unknown keys, English fallback, dictionary extension, deferred switching, owning strings, persistence, invalid language values, settings UTF-8 round trips and complete matching translations. GUI tests exercise actual ImGui widgets and modal/window wrappers, legacy ID scopes, open state/geometry/edit preservation through EN → RU → EN, persisted geometry migration, real glyph coverage in every text role, retained icons/atlas, and scaled font loading at 1x, 1.5x, 2x and 4x. They require no application window or initialized GPU engine.
+
+After a final nonfunctional constant-name cleanup, the required build succeeded again and all seven CPU/headless suites passed again. Engine sources and CUDA objects were unchanged by that cleanup; their full-regression evidence is the second GPU run above. No further source changes followed these checks.
+
+Catalogs, all three font binaries, license and provenance file were compared byte-for-byte with both output resource directories: **7 files matched in each destination**. The same Release layout is archived by the existing packaging workflow. No release upload or package publication was attempted. A fontTools cmap inspection independently found all 66 Russian letters and the required punctuation/symbols in each new font.
+
+clang-format **19.1.5** checks pass for all 23 eligible modified/new C++ files. `GlobalSettings.h` and `AlienGui.cpp` were already non-clean at HEAD and were not whole-file formatted. The complete source/catalog/documentation diff and whitespace checks were reviewed. The original failed report remains a verbatim substring of this document.
+
+Temporary evidence (build logs, XML, format and packaging checks, private profile backups) is stored outside Git at:
+
+```text
+C:\Users\infarh\AppData\Local\Temp\alien-l1-20261021-nt3i7t9o
+```
+
+The initial implementation build/test failures were corrected before final regression and are not counted as passes. Baseline test expectations and fixtures are unchanged.
+
+### Profile protection and GUI status
+
+At the user's explicit request, no GUI application launch, screenshot, visual inspection or real simulation workflow was attempted. An already running installed copy at `E:/Program files/alien-develop/alien.exe` was left untouched. Before executable checks, registry exports, typed snapshots and copies of source/output autosave directories were saved outside the repository.
+
+Localization persistence tests redirect only their own process's `HKEY_CURRENT_USER` to a dedicated temporary test key, then restore the mapping and remove the key. The user's profile is not a test fixture. Linux tests use a process-local temporary XDG directory that outlives GlobalSettings. Headless GUI tests create only an ImGui context and CPU atlas, without initializing GLFW, Vulkan or the simulation facade. No user simulation is loaded by these tests.
+
+The test registry branches were removed; none remained after the runs. The real profile retained the same value names and types. Its only observed content difference was `gui.imgui settings` while the separate installed application remained running; that live state was not rolled back. Localization settings tests were confined to their redirected process-local profile. Source autosaves matched the initial backup; the preexisting output autosave was restored to the fresh build tree and verified by SHA-256. No private settings, credentials or autosaves are committed.
+
+Manual checks remain explicitly unverified: EN → RU → EN in the real renderer, switching with Display settings open, visual text/layout quality, restart persistence, OS/manual scaling, and behavior of a running simulation. The user will perform them. Automatic ID, font and persistence checks do not replace visual validation.
+
+### Limitations and L2 recommendations
+
+The L1 implementation is limited to the selected slice. Visual validation remains pending by user choice. Only the Windows CUDA build and available GPU were exercised; Linux/HIP portability has not been established by execution. There is no runtime file watcher, plural selection, interpolation grammar or generalized Unicode search; add these when later screens need them. English fallback is resilience behavior, not evidence of complete translation.
+
+Expand L2 one reviewed screen at a time, extending completeness and state-preservation tests. Keep specifications, enums, settings names, serialized fields and protocols canonical. Address the cell-label atlas, Unicode search and filesystem/cloud/input compatibility as separately tested changes. Preserve font licenses and package checks. Bulk translation is not started automatically.

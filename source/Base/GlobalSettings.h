@@ -19,6 +19,9 @@ public:
     GlobalSettings(GlobalSettings const&) = delete;
     void operator=(GlobalSettings const&) = delete;
 
+    std::string getLanguage();
+    void setLanguage(std::string const& language);
+
     bool isDebugMode() const;
     void setDebugMode(bool value) const;
 

@@ -29,7 +29,7 @@ namespace
     {
         int count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), NULL, 0, NULL, NULL);
         std::string str(count, 0);
-        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], count, NULL, NULL);
+        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), str.data(), count, NULL, NULL);
         return str;
     }
 
@@ -44,7 +44,7 @@ namespace
     winreg::RegKey getOrCreateAlienRegKey()
     {
         std::wstring const testSubKey = L"SOFTWARE\\alien";
-        winreg::RegKey key{HKEY_CURRENT_USER, testSubKey};
+        winreg::RegKey key;
         if (key.TryOpen(HKEY_CURRENT_USER, testSubKey)) {
             return key;
         } else {
@@ -219,6 +219,17 @@ GlobalSettings& GlobalSettings::get()
     return instance;
 }
 
+std::string GlobalSettings::getLanguage()
+{
+    auto language = getValue("settings.language", std::string("en"));
+    return language == "ru" ? "ru" : "en";
+}
+
+void GlobalSettings::setLanguage(std::string const& language)
+{
+    setValue("settings.language", std::string(language == "ru" ? "ru" : "en"));
+}
+
 bool GlobalSettings::isDebugMode() const
 {
     return _impl->_debugMode;
@@ -345,6 +356,13 @@ void GlobalSettings::loadImGuiSettings()
 {
     ImGui::GetIO().IniFilename = nullptr;  // No imgui.ini file; the state is persisted here instead
     auto settings = getValue(ImGuiSettingsKey, std::string());
+    for (auto const& title : {"Display settings", "Content scaling"}) {
+        auto oldHeader = std::string("[Window][") + title + "]";
+        auto newHeader = std::string("[Window][###") + title + "]";
+        if (auto pos = settings.find(oldHeader); pos != std::string::npos) {
+            settings.replace(pos, oldHeader.size(), newHeader);
+        }
+    }
     if (!settings.empty()) {
         ImGui::LoadIniSettingsFromMemory(settings.c_str(), settings.size());
     }

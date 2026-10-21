@@ -1,5 +1,7 @@
 #include "AlienWindow.h"
 
+#include <Base/LocalizationService.h>
+
 #include "AlienGui.h"
 
 AlienWindow::AlienWindow(
@@ -18,6 +20,11 @@ AlienWindow::AlienWindow(
     , _defaultSize{scale(defaultSize.x), scale(defaultSize.y)}
     , _minSize{scale(minSize.x), scale(minSize.y)}
 {}
+
+void AlienWindow::setTitleKey(std::string const& key)
+{
+    _titleKey = key;
+}
 
 void AlienWindow::init()
 {
@@ -156,7 +163,8 @@ void AlienWindow::drawTitle()
     auto windowPos = ImGui::GetWindowPos();
     auto iconSize = ImGui::GetFontSize();
     ImGui::SetCursorScreenPos(ImVec2(windowPos.x + iconSize + ImGui::GetStyle().FramePadding.x * 3 + 1, windowPos.y + ImGui::GetStyle().FramePadding.y));
-    ImGui::TextUnformatted(_title.c_str());
+    auto title = _titleKey.empty() ? _title : tr(_titleKey);
+    ImGui::TextUnformatted(title.c_str());
 }
 
 void AlienWindow::processCollapseButton()

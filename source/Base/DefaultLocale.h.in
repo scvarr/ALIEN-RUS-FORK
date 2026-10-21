@@ -1,0 +1,6 @@
+#pragma once
+
+namespace Const
+{
+    inline constexpr char DEFAULT_LOCALE[] = R"ALIEN_LOCALE(@ALIEN_DEFAULT_LOCALE@)ALIEN_LOCALE";
+}

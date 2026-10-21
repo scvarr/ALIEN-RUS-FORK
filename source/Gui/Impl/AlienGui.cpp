@@ -14,6 +14,7 @@
 
 #include <Fonts/IconsFontAwesome5.h>
 
+#include <Base/LocalizationService.h>
 #include <Base/Math.h>
 #include <Base/StringHelper.h>
 
@@ -699,18 +700,20 @@ bool AlienGui::Combo(ComboParameters& parameters, int& value, bool* enabled)
 
     ImGui::SameLine();
     if (parameters._defaultValue) {
-        auto equalEnabledValue = !parameters._defaultEnabledValue || *parameters._defaultEnabledValue == *enabled;
+        auto equalEnabledValue = !parameters._defaultEnabledValue || (enabled && *parameters._defaultEnabledValue == *enabled);
         ImGui::BeginDisabled(value == *parameters._defaultValue && equalEnabledValue);
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             value = *parameters._defaultValue;
-            *enabled = *parameters._defaultEnabledValue;
+            if (enabled && parameters._defaultEnabledValue) {
+                *enabled = *parameters._defaultEnabledValue;
+            }
             result = true;
         }
         ImGui::EndDisabled();
     }
 
     ImGui::SameLine();
-    drawTextWithInfoLabel(parameters._name, parameters._infoLabel);
+    drawTextWithInfoLabel(parameters._label.value_or(parameters._name), parameters._infoLabel);
 
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
@@ -1165,7 +1168,7 @@ bool AlienGui::Checkbox(CheckboxParameters const& parameters, bool* value)
             if (parameters._defaultValue) {
                 ImGui::SameLine();
                 ImGui::BeginDisabled(std::equal(value, value + numColors, parameters._defaultValue));
-                if (RevertButton(parameters._name)) {
+                if (RevertButton(parameters._name, parameters._label.has_value())) {
                     std::copy(parameters._defaultValue, parameters._defaultValue + numColors, value);
                     result = true;
                 }
@@ -1174,7 +1177,7 @@ bool AlienGui::Checkbox(CheckboxParameters const& parameters, bool* value)
 
             // Label
             ImGui::SameLine();
-            AlienGui::Text(TextParameters().text(parameters._name).highlightedSubString(parameters._highlightedSubString));
+            AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
 
             // Tooltip
             if (parameters._tooltip) {
@@ -3007,7 +3010,7 @@ bool AlienGui::ToggleButton(ToggleButtonParameters const& parameters, bool& valu
     drawList->AddCircleFilled(knobCenter, radius - 2.5f, Const::ToggleKnobColor);
 
     ImGui::SameLine();
-    AlienGui::Text(AlienGui::TextParameters().text(parameters._name.c_str()));
+    AlienGui::Text(AlienGui::TextParameters().text(parameters._label.value_or(parameters._name)));
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }
@@ -3333,7 +3336,7 @@ bool AlienGui::BasicSlider(Parameter const& parameters, T* value, bool* enabled,
                     }
                 }
                 ImGui::BeginDisabled(equal);
-                if (RevertButton(parameters._name)) {
+                if (RevertButton(parameters._name, parameters._label.has_value())) {
                     for (int row = 0; row < numRows; ++row) {
                         value[row] = parameters._defaultValue[row];
                     }
@@ -3354,7 +3357,7 @@ bool AlienGui::BasicSlider(Parameter const& parameters, T* value, bool* enabled,
                 if (parameters._readOnly) {
                     ImGui::EndDisabled();
                 }
-                AlienGui::Text(TextParameters().text(parameters._name).highlightedSubString(parameters._highlightedSubString));
+                AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
                 if (parameters._readOnly) {
                     ImGui::BeginDisabled();
                 }
@@ -3640,10 +3643,10 @@ ImVec2 AlienGui::RotationCenter(ImDrawList* drawList)
     return ImVec2((l.x + u.x) / 2, (l.y + u.y) / 2);  // Or use _ClipRectStack?
 }
 
-bool AlienGui::RevertButton(std::string const& id)
+bool AlienGui::RevertButton(std::string const& id, bool localized)
 {
     auto result = ImGui::Button((ICON_FA_UNDO "##" + id).c_str());
-    AlienGui::Tooltip(AlienGui::TooltipParameters().text("Revert changes").hoveredFlags(ImGuiHoveredFlags_None));
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(localized ? tr("common.revert") : "Revert changes").hoveredFlags(ImGuiHoveredFlags_None));
     return result;
 }
 

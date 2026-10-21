@@ -5,10 +5,12 @@
 
 #include <imgui.h>
 
+#include <Base/LocalizationService.h>
 #include <Base/LoggingService.h>
 
 #include "AlienGui.h"
 #include "GenericMessageDialog.h"
+#include "LocalizationGui.h"
 #include "MainLoopController.h"
 #include "StyleService.h"
 #include "WindowController.h"
@@ -17,27 +19,37 @@
 
 namespace
 {
-    auto const RightColumnWidth = 270.0f;
+    auto const RightColumnWidth = 310.0f;
 }
 
 DisplaySettingsDialog::DisplaySettingsDialog()
-    : AlienDialog("Display settings", {700.0f, 300.0f})
-{}
+    : AlienDialog("Display settings", {760.0f, 350.0f})
+{
+    setTitleKey("display.title");
+}
 
 DisplaySettingsDialog::~DisplaySettingsDialog() = default;
 
 void DisplaySettingsDialog::processIntern()
 {
+    LocalizationGui::languageSelector(RightColumnWidth);
+    _videoModeStrings = createVideoModeStrings();
+
     auto isFullscreen = _pendingIsFullscreen;
 
-    if (AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Full screen"), isFullscreen)) {
+    if (AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Full screen").label(tr("display.fullscreen")), isFullscreen)) {
         _pendingIsFullscreen = isFullscreen;
     }
 
     ImGui::BeginDisabled(!_pendingIsFullscreen);
 
     AlienGui::Combo(
-        AlienGui::ComboParameters().name("Resolution").textWidth(RightColumnWidth).defaultValue(_origSelectionIndex).values(_videoModeStrings),
+        AlienGui::ComboParameters()
+            .name("Resolution")
+            .label(tr("display.resolution"))
+            .textWidth(RightColumnWidth)
+            .defaultValue(_origSelectionIndex)
+            .values(_videoModeStrings),
         _pendingSelectionIndex);
 
     ImGui::EndDisabled();
@@ -45,25 +57,28 @@ void DisplaySettingsDialog::processIntern()
     AlienGui::SliderInt(
         AlienGui::SliderIntParameters()
             .name("Frames per second")
+            .label(tr("display.fps"))
             .textWidth(RightColumnWidth)
             .defaultValue(&_origFps)
             .min(20)
             .max(100)
-            .tooltip("A high frame rate leads to a greater GPU workload for rendering and thus lowers the simulation speed (time steps per second)."),
+            .tooltip(tr("display.fps.tooltip")),
         &_pendingFps);
 
     AlienGui::Checkbox(
         AlienGui::CheckboxParameters()
             .name("Adopt scaling from OS")
+            .label(tr("display.autoscale"))
             .textWidth(RightColumnWidth)
             .defaultValue(&_origAutoContentScaleFactor)
-            .tooltip("If enabled, the scaling below is taken from the display settings of the operating system."),
+            .tooltip(tr("display.autoscale.tooltip")),
         &_pendingAutoContentScaleFactor);
 
     ImGui::BeginDisabled(_pendingAutoContentScaleFactor);
     AlienGui::SliderFloat(
         AlienGui::SliderFloatParameters()
             .name("Content scaling")
+            .label(tr("display.scale"))
             .textWidth(RightColumnWidth)
             .defaultValue(&_origContentScaleFactor)
             .min(WindowController::MinContentScaleFactor)
@@ -75,7 +90,7 @@ void DisplaySettingsDialog::processIntern()
     ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
     AlienGui::Separator();
 
-    if (AlienGui::Button("Adopt")) {
+    if (AlienGui::Button(tr("common.apply") + "###Adopt")) {
         close();
         if (_pendingIsFullscreen) {
             setFullscreen(_pendingSelectionIndex);
@@ -94,7 +109,7 @@ void DisplaySettingsDialog::processIntern()
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::Button(tr("common.cancel") + "###Cancel")) {
         close();
     }
 }
@@ -131,14 +146,13 @@ bool DisplaySettingsDialog::isContentScalingChanged() const
 
 void DisplaySettingsDialog::onChangeContentScaling(bool automatic, float scaleFactor) const
 {
-    GenericMessageDialog::get().yesNo(
-        "Content scaling", "The content scaling only takes effect at program start. Do you want to save it and terminate ALIEN now?", [automatic, scaleFactor] {
-            WindowController::get().setAutoContentScaleFactor(automatic);
-            if (!automatic) {
-                WindowController::get().setUserDefinedContentScaleFactor(scaleFactor);
-            }
-            MainLoopController::get().scheduleClosing();
-        });
+    GenericMessageDialog::get().localizedYesNo("Content scaling", "display.scale", "display.scale.confirm", [automatic, scaleFactor] {
+        WindowController::get().setAutoContentScaleFactor(automatic);
+        if (!automatic) {
+            WindowController::get().setUserDefinedContentScaleFactor(scaleFactor);
+        }
+        MainLoopController::get().scheduleClosing();
+    });
 }
 
 void DisplaySettingsDialog::setFullscreen(int selectionIndex)
@@ -177,7 +191,7 @@ namespace
     std::string createVideoModeString(GLFWvidmode const& videoMode)
     {
         std::stringstream ss;
-        ss << videoMode.width << " x " << videoMode.height << " @ " << videoMode.refreshRate << "Hz";
+        ss << videoMode.width << " x " << videoMode.height << " @ " << videoMode.refreshRate << tr("display.hertz");
         return ss.str();
     }
 }
@@ -185,7 +199,7 @@ namespace
 std::vector<std::string> DisplaySettingsDialog::createVideoModeStrings() const
 {
     std::vector<std::string> result;
-    result.emplace_back("Desktop");
+    result.emplace_back(tr("display.desktop"));
     for (auto const& videoMode : _videoModes) {
         result.emplace_back(createVideoModeString(videoMode));
     }

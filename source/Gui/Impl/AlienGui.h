@@ -41,6 +41,7 @@ public:
     struct SliderFloatParameters
     {
         MEMBER(SliderFloatParameters, std::string, name, "");
+        MEMBER(SliderFloatParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(SliderFloatParameters, std::string, id, "");
         MEMBER(SliderFloatParameters, float, min, 0);
         MEMBER(SliderFloatParameters, float, max, 0);
@@ -64,6 +65,7 @@ public:
     struct SliderIntParameters
     {
         MEMBER(SliderIntParameters, std::string, name, "");
+        MEMBER(SliderIntParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(SliderIntParameters, std::string, id, "");
         MEMBER(SliderIntParameters, int, min, 0);
         MEMBER(SliderIntParameters, int, max, 0);
@@ -265,6 +267,7 @@ public:
     struct ComboParameters
     {
         MEMBER(ComboParameters, std::string, name, "");
+        MEMBER(ComboParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ComboParameters, float, textWidth, 100);
         MEMBER(ComboParameters, bool, readOnly, false);
         MEMBER(ComboParameters, std::optional<int>, defaultValue, std::nullopt);
@@ -325,6 +328,7 @@ public:
     struct CheckboxParameters
     {
         MEMBER(CheckboxParameters, std::string, name, "");
+        MEMBER(CheckboxParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(CheckboxParameters, float, textWidth, 100);
         MEMBER(CheckboxParameters, bool, colorDependence, false);
         MEMBER(CheckboxParameters, ColorVector<FloatColorRGB>, customizationColors, getDefaultCustomizationColorVector());
@@ -354,6 +358,7 @@ public:
     struct ToggleButtonParameters
     {
         MEMBER(ToggleButtonParameters, std::string, name, "");
+        MEMBER(ToggleButtonParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ToggleButtonParameters, std::optional<std::string>, tooltip, std::nullopt);
     };
     static bool ToggleButton(ToggleButtonParameters const& parameters, bool& value);
@@ -692,7 +697,7 @@ private:
 
     static ImVec2 RotationCenter(ImDrawList* drawList);
 
-    static bool RevertButton(std::string const& id);
+    static bool RevertButton(std::string const& id, bool localized = false);
 
 private:
     static void drawTextWithInfoLabel(

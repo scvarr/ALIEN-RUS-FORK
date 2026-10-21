@@ -14,6 +14,7 @@
 #include <Fonts/IconsFontAwesome5.h>
 
 #include <Base/AlienExceptions.h>
+#include <Base/LocalizationService.h>
 #include <Base/Resources.h>
 
 #include <Network/NetworkService.h>
@@ -98,6 +99,8 @@ namespace
 
 _MainWindow::_MainWindow()
 {
+    LocalizationService::get().initialize(Const::ResourcePath / "locales");
+
     IMGUI_CHECKVERSION();
 
     StartupCheckService::get().check();
