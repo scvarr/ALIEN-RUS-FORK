@@ -168,7 +168,7 @@ and licensed fonts; no user settings, worlds or autosaves were copied.
 parses without errors. Package sources/build log are in `temp/l4a2/` and remain
 ignored local review artifacts.
 
-Manual visual acceptance remains for the user:
+The visual acceptance checklist is retained below:
 
 1. Open `samples/synthetic-a.genome`; select its sensor/constructor node. Inspect
    embedded input/output, memory, telemetry, channel roles and the neural card.
@@ -190,22 +190,22 @@ Manual visual acceptance remains for the user:
 
 ## Limitations and preservation
 
-Human visual acceptance at all three scales is pending; no native-window
-screenshots are claimed. Automated font/layout/state checks and isolated launch
-preparation are complete. General preview titles/counts, preview cell-type
+The user confirms successful visual acceptance at different UI scales; see the
+closure investigation below. No native-window screenshots are claimed. Automated
+font/layout/state checks and isolated launch preparation are complete. General preview titles/counts, preview cell-type
 annotations, SignalsBufferDialog and other A5 work remain outside this stage.
 Node properties/cell modes and mutation panels retain their planned A3/A4 scope.
 The shared channel captions also appear in live inspectors, but this does not
 localize the remaining inspector properties. Third-party file-dialog controls
 retain the previously documented English vendor strings.
 
-`main` remains at the specified baseline. `AGENTS.md` retains skip-worktree and
+`main` remained at the specified baseline during the initial implementation. `AGENTS.md` retains skip-worktree and
 SHA-256 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 The real `HKCU\Software\alien` exports before/after checks are compared under
 `temp/l4a2/` (both SHA-256 `891CF1B4278DAD9DB22B571DC7A7EA897196EA45E717187C99CA9D41B0C1DB37`). User worlds/genomes/autosaves and pinned dependency sources are
 unchanged. No CodeQL, submodule update, IDE-tree build or dependency edit ran.
-The implementation and this report are committed/pushed only on the feature
-branch; no integration into main is performed.
+The initial implementation was committed/pushed only on the feature branch.
+Integration is authorized by the user in the closure follow-up below.
 
 ## Exact change inventory
 
@@ -309,3 +309,149 @@ neural.activation.shortstep
 neural.activation.shortidentity
 neural.activation.shortgaussian
 ```
+
+## User acceptance, scale-change investigation and closure
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user visually accepted implementation
+`fcb292643b6ef55ea3da4b881e8f8f99ff7e98bc`: neural editor translation and rendering
+were correct at different scales. The user also reported one crash while changing
+UI scale with the genome editor open; a subsequent launch/change succeeded.
+This report was investigated before integration, rather than recorded as an
+unexplained or fixed-by-restart event.
+
+### Crash evidence and established cause
+
+Application Error events and local minidumps were available. Events at 17:18:26
+and 17:20:16 on October 22 report `0xc0000005` in the agent `alien.exe`. Their dump
+stacks lead through:
+
+```text
+MainLoopController::process
+  -> MainLoopEntityController::process
+  -> DelayedExecutionController::process
+  -> DisplaySettingsDialog::onChangeContentScaling
+  -> GenericMessageDialog::localizedYesNo
+  -> std::function assignment / invalid virtual call
+```
+
+The intervening 17:18:51 dump faults during destruction of the same generic
+message dialog on exit. Older Application Error records also exist, but their
+individual causes are not inferred from the event summaries alone.
+
+An offline diagnostic relink produced a linker map with an identical `.text`
+SHA-256 to the crashing executable. Minidump exception context, captured memory
+and PE unwind records were used to map the stacks; broad export-name fallback
+was not used as evidence of a Network/cereal fault.
+
+The build contained incompatible object layouts. `MainWindow.cpp.obj` and
+`DisplaySettingsDialog.cpp.obj` dated from October 21, while the updated
+`GenericMessageDialog.cpp.obj` dated from October 22. The old singleton allocator
+in MainWindow allocated **0x238 bytes** for GenericMessageDialog; the current
+layout requires **0x248 bytes** after the earlier addition of message arguments.
+The current callback pointer at offset **0x240** lies outside the old allocation.
+The clean executable allocates 0x248 bytes. This explains corruption during scale
+confirmation and dialog destruction; it is not a neural evaluation or font graph
+algorithm defect.
+
+Ninja reported **zero header dependencies** for the stale display-settings
+object. CMake had decoded the localized MSVC `/showIncludes` output with the
+wrong Windows encoding, writing a garbled prefix to `rules.ninja`. Ninja therefore
+failed to recognize include lines and retained stale consumers when headers
+changed. The same build-cache failure accounts for why a generated locale header
+could previously change without rebuilding its consumer.
+
+Source inspection confirmed that applying content scale opens a deferred
+confirmation, stores the new scale and calls `scheduleClosing()`. It requests an
+application restart; it does not rebuild the font atlas inside the open editor.
+The scale setting, confirmation callback and shutdown paths are otherwise unchanged.
+
+### Reproduction and fix
+
+An isolated full-application diagnostic executable, linked to the original review
+libraries and using SettingsTestScope, opened a synthetic genome and invoked the
+production scale-confirmation path. It crashed before the confirmation callback
+with `0xc0000005` (probe PID 50000, event at 17:34:26). The real user profile was
+not used. Native window capture was attempted twice but failed with
+`FrameArrived timed out` / `window capture timed out`; no mouse/visual automation
+result is claimed. The reproduction instead runs the actual GUI/engine loop and
+production methods through a local diagnostic entry point.
+
+The fix adds `cmake/MsvcShowIncludes.cmake`, included immediately after project
+initialization. For MSVC/Ninja it compiles a small include probe, preserves its raw
+output bytes with `ENCODING NONE`, extracts the actual include prefix and supplies
+it to Ninja. It caches the verified prefix and rejects existing unverified or
+incompatible dependency caches, requiring a clean tree. It supports a localized
+compiler without requiring an English language pack. Other generators/platforms
+skip this probe. Existing pre-fix Ninja caches must be recreated by their owner;
+agents must never clean the IDE-owned trees.
+
+Only the agent tree was archived/recreated; its installed vcpkg dependency tree
+was preserved. The original stale binaries and diagnostic evidence remain under
+`temp/l4a2/closure/`. No IDE build directory, dependency source, application
+algorithm or user asset was changed. After the clean Release build, Ninja records
+**51 dependencies** for DisplaySettingsDialog and **347 dependencies** for
+MainWindow, including GenericMessageDialog.h.
+
+The original review executable was relinked against the corrected fresh
+libraries. Its launch path remains
+`E:\Projects\ALIEN\temp\l4a2\review\Launch-L4A2.ps1`.
+The build fix and regression tests are recorded in commit
+`fce7151a6f3c89d40e610491185e4f515645bd63`.
+
+### Focused validation after the fix
+
+No full test-suite repetition was performed. The affected checks passed:
+
+| Check | Result |
+| --- | --- |
+| Windows Release, root build script with `agent Release 16` | Clean build passed |
+| BaseTests | 41 passed |
+| GuiLocalizationTests | 108 passed |
+| L4-A2 Python contracts | 6 passed |
+| Windows Ninja dependency regression tests | 2 passed, no skips |
+| Incompatible agent cache | Rejected before build as expected |
+
+The new `tests/test_windows_ninja_dependencies.py` configures/builds a small
+MSVC/Ninja project with the production module. It verifies that an included
+header appears in the dependency database, that changing only the header changes
+the rebuilt executable's result from 1 to 2, and that a tampered cache prefix is
+rejected. It also checks the raw-output and guard wiring.
+
+Three independent isolated application runs then opened the synthetic genome,
+selected its neural node, rendered the editor, created the production scale
+confirmation, invoked its callback and shut down normally:
+
+| Initial scale / target | Language | Exit code |
+| --- | --- | ---: |
+| 100% / 150% | RU | 0 |
+| 150% / 200% | RU | 0 |
+| 200% / 100% | EN | 0 |
+
+All runs reached `PROBE shutdown complete`. The selected node exposes the
+embedded neural graph; the real rendering/engine loop is used. These are focused
+scale-path regression probes, not a second human visual acceptance session.
+The CMake dependency regression prevents recurrence of the stale-build mechanism;
+this is not a claim that every historical access violation has been diagnosed.
+
+Additional changed files in this closure: `CMakeLists.txt`,
+`cmake/MsvcShowIncludes.cmake`, `tests/test_windows_ninja_dependencies.py` and this
+report. No L4-A3 work was started. Complete graph change analysis is required
+before both the fix and documentation commits. The fix check returned 9 changed
+indexed symbols, no indexed affected flows, LOW risk, `partial=false` and
+`truncated=false`. CMake entry-point impact was UNKNOWN (no resolved graph
+callers), so the configuration scope was reviewed directly and verified by the
+compile/header-change tests. The subsequent documentation-only check returned
+4 indexed symbols, no affected flows, LOW risk, with neither partial nor
+truncated output. Results are retained in `temp/l4a2/closure/`.
+
+The real HKCU\Software\alien exports before/after the investigation match:
+SHA-256 `BDB897D5FA8D736A8D12E895D3D65F6910F6E3325568D77239BC0B57E075B37E`.
+AGENTS.md retains its previously recorded SHA-256 and skip-worktree flag.
+User worlds, genomes, autosaves and pinned dependencies are preserved.
+
+There are no remaining blocking findings for this stage. The user authorizes
+closing L4-A2, committing this report on the feature branch, fast-forward-only
+integration into main, pushing main and deleting the integrated feature branch.
+L4-A3 remains outside this task.
