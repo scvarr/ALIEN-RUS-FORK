@@ -330,6 +330,7 @@ public:
     struct InputColorTransitionParameters
     {
         MEMBER(InputColorTransitionParameters, std::string, name, "");
+        MEMBER(InputColorTransitionParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(InputColorTransitionParameters, int, color, 0);
         MEMBER(InputColorTransitionParameters, float, textWidth, 100);
         MEMBER(InputColorTransitionParameters, ColorVector<FloatColorRGB>, customizationColors, getDefaultCustomizationColorVector());

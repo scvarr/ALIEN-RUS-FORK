@@ -73,7 +73,7 @@ void SpecificationGuiService::createWidgetsForParameters(
                 }
                 if (AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters()
                                                 .name(name)
-                                                .label(isExpertSettings ? name : SimulationParametersPresentation::label(groupSpec))
+                                                .label(SimulationParametersPresentation::heading(groupSpec))
                                                 .startBlinking(visibilityChanged)
                                                 .enableBlinking(isExpertSettings)
                                                 .highlightedSubString(filter.containedText))) {
@@ -110,9 +110,10 @@ void SpecificationGuiService::createWidgetsForExpertToggles(SimulationParameters
             AlienGui::Checkbox(
                 AlienGui::CheckboxParameters()
                     .name(groupSpec._name)
+                    .label(SimulationParametersPresentation::label(groupSpec))
                     .textWidth(scaleInverse(rightColumnWidth))
                     .defaultValue(origExpertToggleValue)
-                    .tooltip(groupSpec._description),
+                    .tooltip(SimulationParametersPresentation::description(groupSpec)),
                 expertToggleValue);
         }
     }
@@ -563,7 +564,9 @@ void SpecificationGuiService::createWidgetsForColorTransitionRulesSpec(
                                     .infinity(true)
                                     .highlightedSubString(filter.containedText);
         if (0 == color) {
-            widgetParameters.name(parameterSpec._name).tooltip(parameterSpec._description);
+            widgetParameters.name(parameterSpec._name)
+                .label(SimulationParametersPresentation::label(parameterSpec))
+                .tooltip(SimulationParametersPresentation::description(parameterSpec));
         }
         AlienGui::InputColorTransition(widgetParameters, color, value[color].targetColor, value[color].duration);
         ImGui::PopID();

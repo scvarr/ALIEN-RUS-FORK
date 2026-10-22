@@ -1087,7 +1087,7 @@ void AlienGui::InputColorTransition(InputColorTransitionParameters const& parame
         ImGui::EndDisabled();
     }
     ImGui::SameLine();
-    AlienGui::Text(TextParameters().text(parameters._name.c_str()).highlightedSubString(parameters._highlightedSubString));
+    AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).truncate(parameters._label.has_value()).highlightedSubString(parameters._highlightedSubString));
 
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);

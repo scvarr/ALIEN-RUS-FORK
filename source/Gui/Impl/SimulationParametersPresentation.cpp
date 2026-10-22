@@ -341,6 +341,33 @@ namespace
         if (references<FloatSpec>(spec, &SimulationParameters::injectorRadius)) {
             return "parameters.injector.injectorradius";
         }
+        if (references<FloatSpec>(spec, &SimulationParameters::muscleEnergyCost)) {
+            return "parameters.muscle.muscleenergycost";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::muscleMovementAcceleration)) {
+            return "parameters.muscle.musclemovementacceleration";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::muscleCrawlingAcceleration)) {
+            return "parameters.muscle.musclecrawlingacceleration";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::muscleBendingAcceleration)) {
+            return "parameters.muscle.musclebendingacceleration";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::sensorRadius)) {
+            return "parameters.sensor.sensorradius";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::reconnectorRadius)) {
+            return "parameters.reconnector.reconnectorradius";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::detonatorRadius)) {
+            return "parameters.detonator.detonatorradius";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::detonatorChainExplosionProbability)) {
+            return "parameters.detonator.detonatorchainexplosionprobability";
+        }
+        if (references<ColorTransitionRulesSpec>(spec, &SimulationParameters::colorTransitionRules)) {
+            return "parameters.colortransition.colortransitionrules";
+        }
         return {};
     }
 
@@ -450,7 +477,35 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     if (spec._name == "Cell type: Injector") {
         return translated("parameters.injector.name", spec._name);
     }
+    if (spec._name == "Cell type: Muscle") {
+        return translated("parameters.muscle.name", spec._name);
+    }
+    if (spec._name == "Cell type: Sensor") {
+        return translated("parameters.sensor.name", spec._name);
+    }
+    if (spec._name == "Cell type: Reconnector") {
+        return translated("parameters.reconnector.name", spec._name);
+    }
+    if (spec._name == "Cell type: Detonator") {
+        return translated("parameters.detonator.name", spec._name);
+    }
+    if (spec._name == "Object color transition rules") {
+        return translated("parameters.colortransition.name", spec._name);
+    }
     return spec._name;
+}
+
+std::optional<std::string> SimulationParametersPresentation::description(ParameterGroupSpec const& spec)
+{
+    if (spec._expertToggle && *spec._expertToggle == &SimulationParameters::colorTransitionRulesToggle) {
+        return translated("parameters.colortransition.description", spec._description.value_or(""));
+    }
+    return spec._description;
+}
+
+std::string SimulationParametersPresentation::heading(ParameterGroupSpec const& spec)
+{
+    return (spec._expertToggle ? translated("parameters.expert.prefix", "Expert settings: ") : "") + label(spec);
 }
 
 ParametersSpec SimulationParametersPresentation::filter(ParametersSpec const& spec, ParametersFilter const& filter)
@@ -458,7 +513,8 @@ ParametersSpec SimulationParametersPresentation::filter(ParametersSpec const& sp
     auto result = spec;
     if (filter.containedText && !filter.containedText->empty()) {
         for (auto& group : result._groups) {
-            if (!matches(group._name, label(group), *filter.containedText)) {
+            if (!matches(group._name, label(group), *filter.containedText)
+                && !matches(group._expertToggle ? "Expert settings: " + group._name : group._name, heading(group), *filter.containedText)) {
                 for (auto& parameter : group._parameters) {
                     filterParameter(parameter, *filter.containedText);
                 }

@@ -20,6 +20,8 @@ def original(file):
 
 def legacy_float_matrix_text(file, text):
     """Remove exactly the optional float presentation extension for older byte contracts."""
+    from check_localization_l2b4e import legacy_transition_text
+    text = legacy_transition_text(file, text)
     if file.endswith('AlienGui.cpp'):
         start, end = 'void AlienGui::InputFloatColorMatrix(', '\nbool AlienGui::InputText('
         removals = ['    matrixParameters._' + name + ' = parameters._' + name + ';\n'
@@ -56,6 +58,8 @@ class L2b4dContracts(unittest.TestCase):
         expected = {f'parameters.{g}.{f.lower()}.{suffix}' for f, g in zip(FIELDS, GROUPS) for suffix in ('name', 'description')}
         expected |= {f'parameters.{g}.name' for g in GROUPS}
         expected |= {'parameters.matrix.attackerrow', 'parameters.matrix.targetcolumn'}
+        from check_localization_l2b4e import NEW_KEYS
+        expected |= NEW_KEYS
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         for lang in ('en', 'ru'):
             old = json.loads(original(f'resources/locales/{lang}.json'))
