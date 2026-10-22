@@ -261,7 +261,7 @@ bool AlienGui::InputInt(InputIntParameters const& parameters, int& value, bool* 
         value = toInt(valueAsFloat);
 
     } else {
-        std::string text = "Infinity";
+        std::string text = parameters._label ? tr("common.infinity") : "Infinity";
         result |= InputText(
             InputTextParameters().readOnly(true).width(inputWidth - 2 * ImGui::GetStyle().FramePadding.x - 2 * plusMinusButtonWidth).textWidth(0), text);
     }
@@ -694,7 +694,31 @@ bool AlienGui::Combo(ComboParameters& parameters, int& value, bool* enabled)
     }
 
     ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - textWidth);
-    result |= ImGui::Combo(("##" + parameters._name).c_str(), &value, vectorGetter, static_cast<void*>(&parameters._values), parameters._values.size());
+    if (parameters._displayValues.size() == parameters._values.size() && !parameters._displayValues.empty()) {
+        auto id = ImGui::GetCurrentWindow()->GetID(("##" + parameters._name).c_str());
+        auto preview = value >= 0 && value < parameters._displayValues.size() ? parameters._displayValues.at(value).c_str() : "";
+        if (ImGui::BeginCombo(("##" + parameters._name).c_str(), preview)) {
+            for (int index = 0; index < parameters._values.size(); ++index) {
+                ImGui::PushID(index);
+                auto selected = value == index;
+                auto label = parameters._displayValues.at(index) + "###" + parameters._values.at(index);
+                if (ImGui::Selectable(label.c_str(), selected)) {
+                    result |= value != index;
+                    value = index;
+                }
+                if (selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
+        if (result) {
+            ImGui::MarkItemEdited(id);
+        }
+    } else {
+        result |= ImGui::Combo(("##" + parameters._name).c_str(), &value, vectorGetter, static_cast<void*>(&parameters._values), parameters._values.size());
+    }
     ImGui::PopItemWidth();
 
     if (enabled) {
@@ -1027,7 +1051,7 @@ bool AlienGui::ComboColor(ComboColorParameters const& parameters, int& value, bo
     if (enabled) {
         ImGui::EndDisabled();
     }
-    AlienGui::Text(AlienGui::TextParameters().text(parameters._name));
+    AlienGui::Text(AlienGui::TextParameters().text(parameters._label.value_or(parameters._name)));
 
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
@@ -1262,7 +1286,7 @@ bool AlienGui::MultiCheckboxes(MultiCheckboxesParameters const& parameters, bool
     }
 
     ImGui::SameLine();
-    AlienGui::Text(TextParameters().text(parameters._name.c_str()));
+    AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)));
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }
@@ -1309,7 +1333,7 @@ bool AlienGui::ColorCheckboxes(ColorCheckboxesParameters const& parameters, int&
     }
 
     ImGui::SameLine();
-    AlienGui::Text(TextParameters().text(parameters._name.c_str()));
+    AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)));
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }
@@ -2899,7 +2923,8 @@ void AlienGui::TabBar(TabBarParameters const& parameters, std::vector<TabItemPar
 bool AlienGui::Button(ButtonParameters const& parameters)
 {
     auto width = ImGui::GetContentRegionAvail().x - StyleService::get().scale(parameters._textWidth);
-    auto result = ImGui::Button(parameters._buttonText.c_str(), {width, 0});
+    auto result = parameters._buttonLabel ? DisplayButton(parameters._buttonText, *parameters._buttonLabel, {width, 0})
+                                          : ImGui::Button(parameters._buttonText.c_str(), {width, 0});
     ImGui::SameLine();
 
     if (parameters._showDisabledRevertButton) {
@@ -2908,7 +2933,7 @@ bool AlienGui::Button(ButtonParameters const& parameters)
         ImGui::EndDisabled();
         ImGui::SameLine();
     }
-    AlienGui::Text(AlienGui::TextParameters().text(parameters._name.c_str()));
+    AlienGui::Text(AlienGui::TextParameters().text(parameters._label.value_or(parameters._name)));
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }

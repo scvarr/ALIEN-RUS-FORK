@@ -35,6 +35,7 @@
 #include <Gui/Impl/GenomeEditorWidget.h>
 #include <Gui/Impl/GenomeEditorWindow.h>
 #include <Gui/Impl/GenomeTabEditData.h>
+#include <Gui/Impl/GenomeTabLayoutData.h>
 #include <Gui/Impl/GenomeTabWidget.h>
 #include <Gui/Impl/GenomeWindowEditData.h>
 #include <Gui/Impl/LocalizationGui.h>
@@ -42,6 +43,7 @@
 #include <Gui/Impl/NeuralNetEditorPresentation.h>
 #include <Gui/Impl/NeuralNetEditorWidget.h>
 #include <Gui/Impl/NewSimulationDialog.h>
+#include <Gui/Impl/NodeEditorWidget.h>
 #include <Gui/Impl/OverlayController.h>
 #include <Gui/Impl/SavePictureDialog.h>
 #include <Gui/Impl/SimulationParametersBaseWidget.h>
@@ -6211,7 +6213,7 @@ TEST_F(LocalizationGuiTests, l4a1PresentationRetainsCanonicalOrderAndAttributeFa
             EXPECT_FALSE(displayed.empty());
             EXPECT_EQ(std::string(language) == "en", canonical == displayed);
         }
-        EXPECT_EQ(EntityAttributeHelp::get(EntityAttribute::CellType), GenomeEditorPresentation::attributeDescription(EntityAttribute::CellType));
+        EXPECT_EQ(EntityAttributeHelp::get(EntityAttribute::ObjectType), GenomeEditorPresentation::attributeDescription(EntityAttribute::ObjectType));
     }
     LocalizationService::get().load("missing-l4a1-test-catalogs");
     select("ru");
@@ -6818,4 +6820,353 @@ TEST_F(LocalizationGuiTests, l4a2WeightAndBiasResetsAndActivationChooserEditOnly
     click(activation);
     EXPECT_EQ(ActivationFunction_Tanh, net._activationFunctions.at(2));
     EXPECT_EQ(ActivationFunction_Identity, net._activationFunctions.at(1));
+}
+
+TEST_F(LocalizationGuiTests, l4a3ModeAdaptersKeepCanonicalOrderAndReloadAtRenderTime)
+{
+    using namespace GenomeEditorPresentation;
+    std::vector<std::pair<std::vector<std::string> const*, std::vector<std::string> (*)()>> adapters = {
+        {&Const::ProvideEnergyGenomeStrings, provideEnergyGenomes},
+        {&Const::SensorModeStrings, sensorModes},
+        {&Const::GeneratorModeStrings, generatorModes},
+        {&Const::AttackerModeStrings, attackerModes},
+        {&Const::MuscleModeStrings, muscleModes},
+        {&Const::DefenderModeStrings, defenderModes},
+        {&Const::ReconnectorModeStrings, reconnectorModes},
+        {&Const::MemoryModeStrings, memoryModes},
+        {&Const::CommunicatorModeStrings, communicatorModes}};
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto const& [canonical, adapter] : adapters) {
+            auto display = adapter();
+            ASSERT_EQ(canonical->size(), display.size());
+            for (size_t index = 0; index < display.size(); ++index) {
+                EXPECT_FALSE(display.at(index).empty());
+                EXPECT_EQ(std::string(language) == "en", display.at(index) == canonical->at(index));
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a3AttributeAdapterMatchesCanonicalEnglishAndEmbeddedFallback)
+{
+    std::vector<EntityAttribute> attributes = {
+        EntityAttribute::NodeAngle,
+        EntityAttribute::NodeCustomization,
+        EntityAttribute::CellType,
+        EntityAttribute::NodeConstructionGene,
+        EntityAttribute::ConstructorAutoTriggerInterval,
+        EntityAttribute::ConstructorConstructionAngle,
+        EntityAttribute::ConstructorProvideEnergy,
+        EntityAttribute::ConstructorSeparation,
+        EntityAttribute::ConstructorNumBranches,
+        EntityAttribute::ConstructorNumConcatenations,
+        EntityAttribute::DepotStorageLimit,
+        EntityAttribute::SensorAutoTrigger,
+        EntityAttribute::SensorTagForAttackers,
+        EntityAttribute::SensorMode,
+        EntityAttribute::SensorEnergyMinDensity,
+        EntityAttribute::SensorFreeCellMinDensity,
+        EntityAttribute::SensorRestrictToColors,
+        EntityAttribute::SensorMinNumCells,
+        EntityAttribute::SensorMaxNumCells,
+        EntityAttribute::SensorRestrictToLineage,
+        EntityAttribute::SensorMinRange,
+        EntityAttribute::SensorMaxRange,
+        EntityAttribute::GeneratorAdditive,
+        EntityAttribute::GeneratorMinValue,
+        EntityAttribute::GeneratorMaxValue,
+        EntityAttribute::GeneratorTimeOffset,
+        EntityAttribute::GeneratorMode,
+        EntityAttribute::GeneratorPeriod,
+        EntityAttribute::AttackerMode,
+        EntityAttribute::AttackerRestrictToColors,
+        EntityAttribute::InjectorGeneIndex,
+        EntityAttribute::MuscleMode,
+        EntityAttribute::MuscleMaxAngleDeviation,
+        EntityAttribute::MuscleForwardBackwardRatio,
+        EntityAttribute::MuscleAttractionRepulsionRatio,
+        EntityAttribute::MuscleMaxDistanceDeviation,
+        EntityAttribute::DefenderMode,
+        EntityAttribute::ReconnectorMode,
+        EntityAttribute::ReconnectorRestrictToColors,
+        EntityAttribute::ReconnectorMinNumCells,
+        EntityAttribute::ReconnectorMaxNumCells,
+        EntityAttribute::ReconnectorRestrictToLineage,
+        EntityAttribute::DetonatorCountdown,
+        EntityAttribute::DigestorEnergyConductivity,
+        EntityAttribute::DigestorEnergyConversion,
+        EntityAttribute::MemoryMode,
+        EntityAttribute::MemoryDelay,
+        EntityAttribute::MemoryReadOnly,
+        EntityAttribute::MemorySignalBuffer,
+        EntityAttribute::MemoryNewSignalWeight,
+        EntityAttribute::MemoryChannelMask,
+        EntityAttribute::CommunicatorMode,
+        EntityAttribute::CommunicatorRange,
+        EntityAttribute::CommunicatorOneway,
+        EntityAttribute::CommunicatorRestrictToColors,
+        EntityAttribute::CommunicatorRestrictToLineage};
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto attribute : attributes) {
+            auto display = GenomeEditorPresentation::attributeDescription(attribute);
+            EXPECT_FALSE(display.empty());
+            EXPECT_EQ(std::string(language) == "en", display == EntityAttributeHelp::get(attribute));
+        }
+    }
+    LocalizationService::get().load("missing-l4a3-catalogs");
+    select("ru");
+    for (auto attribute : attributes) {
+        EXPECT_EQ(EntityAttributeHelp::get(attribute), GenomeEditorPresentation::attributeDescription(attribute));
+    }
+    EXPECT_EQ(Const::SensorModeStrings, GenomeEditorPresentation::sensorModes());
+}
+
+TEST_F(LocalizationGuiTests, l4a3AllNodePanelsModesAndConstructorsRetainGenomeAtAllScales)
+{
+    GenomeShellWorldScope world;
+    std::vector<CellTypeGenomeDesc> types = {
+        BaseGenomeDesc(),
+        DepotGenomeDesc(),
+        InjectorGenomeDesc(),
+        DefenderGenomeDesc(),
+        DefenderGenomeDesc().mode(DefenderMode_DefendAgainstInjector),
+        DetonatorGenomeDesc(),
+        DigestorGenomeDesc(),
+        VoidGenomeDesc()};
+    for (auto mode :
+         {SensorModeGenomeDesc(DetectEnergyGenomeDesc()),
+          SensorModeGenomeDesc(DetectSolidGenomeDesc()),
+          SensorModeGenomeDesc(DetectFreeCellGenomeDesc()),
+          SensorModeGenomeDesc(DetectCreatureGenomeDesc())}) {
+        types.emplace_back(SensorGenomeDesc().mode(mode));
+    }
+    for (auto mode : {GeneratorModeGenomeDesc(SquareSignalGenomeDesc()), GeneratorModeGenomeDesc(SawtoothSignalGenomeDesc())}) {
+        types.emplace_back(GeneratorGenomeDesc().mode(mode));
+    }
+    for (auto mode : {AttackerModeGenomeDesc(AttackFreeCellGenomeDesc()), AttackerModeGenomeDesc(AttackCreatureGenomeDesc())}) {
+        types.emplace_back(AttackerGenomeDesc().mode(mode));
+    }
+    for (auto mode :
+         {MuscleModeGenomeDesc(AutoBendingGenomeDesc()),
+          MuscleModeGenomeDesc(ManualBendingGenomeDesc()),
+          MuscleModeGenomeDesc(AngleBendingGenomeDesc()),
+          MuscleModeGenomeDesc(AutoCrawlingGenomeDesc()),
+          MuscleModeGenomeDesc(ManualCrawlingGenomeDesc()),
+          MuscleModeGenomeDesc(DirectMovementGenomeDesc())}) {
+        types.emplace_back(MuscleGenomeDesc().mode(mode));
+    }
+    for (auto mode :
+         {ReconnectorModeGenomeDesc(ReconnectSolidGenomeDesc()),
+          ReconnectorModeGenomeDesc(ReconnectFreeCellGenomeDesc()),
+          ReconnectorModeGenomeDesc(ReconnectCreatureGenomeDesc())}) {
+        types.emplace_back(ReconnectorGenomeDesc().mode(mode));
+    }
+    for (auto mode :
+         {MemoryModeGenomeDesc(SignalDelayGenomeDesc()),
+          MemoryModeGenomeDesc(SignalRecorderGenomeDesc()),
+          MemoryModeGenomeDesc(SignalStorageGenomeDesc()),
+          MemoryModeGenomeDesc(SignalIntegratorGenomeDesc())}) {
+        types.emplace_back(MemoryGenomeDesc().mode(mode).channelBitMask(85).signalEntries({SignalEntryGenomeDesc()}));
+    }
+    for (auto mode : {CommunicatorModeGenomeDesc(SenderGenomeDesc()), CommunicatorModeGenomeDesc(ReceiverGenomeDesc())}) {
+        types.emplace_back(CommunicatorGenomeDesc().mode(mode));
+    }
+    auto data = std::make_shared<_GenomeTabEditData>();
+    auto layout = std::make_shared<_GenomeTabLayoutData>();
+    auto editor = _NodeEditorWidget::create(data, layout);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto const& type : types) {
+            data->genome = syntheticEditorGenome();
+            data->selectGene(0);
+            data->setSelectedNodeIndex(1);
+            data->genome._genes.at(0)._nodes.emplace_back(NodeDesc());
+            auto& node = data->getSelectedNodeRef();
+            node._cellType = type;
+            node._constructor = node.getCellType() == CellType_Void
+                ? std::nullopt
+                : std::make_optional(ConstructorGenomeDesc().geneIndex(1).provideEnergy(ProvideEnergyGenome_TransitiveCells).separation(false).numBranches(3));
+            auto original = data->genome;
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                for (float width : {380.0f, 1400.0f}) {
+                    switcherFrame(width * factor, [&] { editor->process(); });
+                    EXPECT_EQ(original, data->genome);
+                    EXPECT_EQ(1, data->getSelectedNodeIndex());
+                    for (auto window : GImGui->Windows) {
+                        for (auto const& vertex : window->DrawList->VtxBuffer) {
+                            EXPECT_TRUE(std::isfinite(vertex.pos.x));
+                            EXPECT_TRUE(std::isfinite(vertex.pos.y));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a3ActiveNodeAngleSurvivesLanguageSwitch)
+{
+    GenomeShellWorldScope world;
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->genome = syntheticEditorGenome();
+    data->selectGene(0);
+    data->setSelectedNodeIndex(0);
+    auto editor = _NodeEditorWidget::create(data, std::make_shared<_GenomeTabLayoutData>());
+    ImGuiID angleId = 0;
+    ImGuiWindow* nodeWindow = nullptr;
+    auto draw = [&](bool activate) {
+        frame([&] {
+            if (activate) {
+                GImGui->NavActivateId = angleId;
+                GImGui->NavActivateFlags = ImGuiActivateFlags_PreferInput;
+            }
+            editor->process();
+        });
+        for (auto window : GImGui->Windows) {
+            if (std::string(window->Name).find("/NodeData_") != std::string::npos) {
+                nodeWindow = window;
+                auto tableSeed = ImHashStr("##", 0, window->ID);
+                angleId = ImHashStr("##Angle", 0, ImHashStr("", 0, tableSeed));
+            }
+        }
+    };
+    draw(false);
+    ASSERT_NE(nullptr, nodeWindow);
+    ImGui::FocusWindow(nodeWindow);
+    draw(true);
+    draw(false);
+    ASSERT_EQ(angleId, GImGui->ActiveId);
+    ImGui::GetIO().AddInputCharactersUTF8("37.5");
+    draw(false);
+    EXPECT_FLOAT_EQ(37.5f, data->getSelectedNodeRef()._referenceAngle);
+    auto original = data->genome;
+    for (auto language : {"ru", "en"}) {
+        select(language);
+        draw(false);
+        EXPECT_EQ(angleId, GImGui->ActiveId);
+        EXPECT_EQ(original, data->genome);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a3SharedDisplayExtensionsKeepCanonicalIdsAndFallback)
+{
+    int mode = 2;
+    ImGuiID comboId = 0;
+    auto draw = [&](bool localized, bool open) {
+        frame([&] {
+            auto parameters = AlienGui::ComboParameters().name("Type").values(Const::CellTypeStrings);
+            if (localized) {
+                parameters.label(tr("node.label.type")).displayValues(GenomeEditorPresentation::cellTypes());
+            }
+            comboId = ImGui::GetID("##Type");
+            if (open) {
+                ImGui::OpenPopupEx(ImHashStr("##ComboPopup", 0, comboId));
+            }
+            AlienGui::Combo(parameters, mode);
+        });
+    };
+    draw(false, true);
+    ASSERT_FALSE(GImGui->OpenPopupStack.empty());
+    auto popupId = GImGui->OpenPopupStack.back().PopupId;
+    for (auto language : {"ru", "en"}) {
+        select(language);
+        draw(true, false);
+        EXPECT_EQ(popupId, GImGui->OpenPopupStack.back().PopupId);
+        EXPECT_EQ(2, mode);
+    }
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    auto popup = GImGui->OpenPopupStack.back().Window;
+    ASSERT_NE(nullptr, popup);
+    ImVec2 target(popup->DC.CursorStartPos.x + 20, popup->DC.CursorStartPos.y + ImGui::GetTextLineHeightWithSpacing() * 1.5f);
+    io.AddMousePosEvent(target.x, target.y);
+    draw(true, false);
+    io.AddMouseButtonEvent(0, true);
+    draw(true, false);
+    select("ru");
+    io.AddMouseButtonEvent(0, false);
+    draw(true, false);
+    EXPECT_EQ(CellType_Depot, mode);
+    EXPECT_TRUE(GImGui->OpenPopupStack.empty());
+
+    ImGuiID canonicalButton = 0;
+    ImVec2 buttonPosition;
+    bool pressed = false;
+    auto buttonFrame = [&] {
+        frame([&] {
+            canonicalButton = ImGui::GetID("Edit");
+            buttonPosition = ImGui::GetCursorScreenPos();
+            buttonPosition.x += 20;
+            buttonPosition.y += ImGui::GetFrameHeight() / 2;
+            pressed = AlienGui::Button(
+                AlienGui::ButtonParameters().name("Signal buffer").buttonText("Edit").label(tr("node.label.signalbuffer")).buttonLabel(tr("node.edit")));
+        });
+    };
+    buttonFrame();
+    io.AddMousePosEvent(buttonPosition.x, buttonPosition.y);
+    buttonFrame();
+    io.AddMouseButtonEvent(0, true);
+    buttonFrame();
+    ASSERT_EQ(canonicalButton, GImGui->ActiveId);
+    select("en");
+    buttonFrame();
+    EXPECT_EQ(canonicalButton, GImGui->ActiveId);
+    io.AddMouseButtonEvent(0, false);
+    buttonFrame();
+    EXPECT_TRUE(pressed);
+}
+
+TEST_F(LocalizationGuiTests, l4a3ColorAndChannelMasksKeepLegacyIdsAndBitOrder)
+{
+    int colorMask = 85;
+    bool bits[] = {false, true, false, true};
+    ImGuiID colorId = 0;
+    ImGuiID bitId = 0;
+    ImVec2 colorPosition;
+    ImVec2 bitPosition;
+    auto draw = [&](bool localized) {
+        frame([&] {
+            auto colors = AlienGui::ColorCheckboxesParameters().name("Restrict to colors").textWidth(300);
+            auto channels = AlienGui::MultiCheckboxesParameters().name("Channel mask bit 0-3").textWidth(300);
+            if (localized) {
+                colors.label(tr("node.label.restricttocolors"));
+                channels.label(tr("node.label.channelmaskbit03"));
+            }
+            colorId = ImHashStr("###0", 0, ImGui::GetID("Restrict to colors"));
+            bitId = ImHashStr("###1", 0, ImGui::GetID("Channel mask bit 0-3"));
+            auto start = ImGui::GetCursorScreenPos();
+            auto width = ImGui::GetContentRegionAvail().x;
+            colorPosition = {start.x + width - scale(300) - scale(26.0f * MAX_COLORS / 2) + 5, start.y + ImGui::GetFrameHeight() / 2};
+            AlienGui::ColorCheckboxes(colors, colorMask);
+            start = ImGui::GetCursorScreenPos();
+            bitPosition = {start.x + width - scale(300) - scale(104) + 5, start.y + ImGui::GetFrameHeight() / 2};
+            AlienGui::MultiCheckboxes(channels, bits[0], bits[1], bits[2], bits[3]);
+        });
+    };
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (bool color : {true, false}) {
+        select("en");
+        draw(false);
+        auto position = color ? colorPosition : bitPosition;
+        auto expectedId = color ? colorId : bitId;
+        io.AddMousePosEvent(position.x, position.y);
+        draw(false);
+        io.AddMouseButtonEvent(0, true);
+        draw(false);
+        ASSERT_EQ(expectedId, GImGui->ActiveId);
+        select("ru");
+        draw(true);
+        EXPECT_EQ(expectedId, GImGui->ActiveId);
+        io.AddMouseButtonEvent(0, false);
+        draw(true);
+    }
+    EXPECT_EQ(84, colorMask);
+    EXPECT_TRUE(bits[0]);
+    EXPECT_TRUE(bits[1]);
+    EXPECT_FALSE(bits[2]);
+    EXPECT_TRUE(bits[3]);
 }

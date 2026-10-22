@@ -290,6 +290,7 @@ public:
         MEMBER(ComboParameters, std::optional<int>, defaultValue, std::nullopt);
         MEMBER(ComboParameters, bool const*, defaultEnabledValue, nullptr);
         MEMBER(ComboParameters, std::vector<std::string>, values, std::vector<std::string>());
+        MEMBER(ComboParameters, std::vector<std::string>, displayValues, std::vector<std::string>());
         MEMBER(ComboParameters, std::optional<std::string>, tooltip, std::nullopt);
         MEMBER(ComboParameters, std::optional<std::string>, infoLabel, std::nullopt);
     };
@@ -318,6 +319,7 @@ public:
     struct ComboColorParameters
     {
         MEMBER(ComboColorParameters, std::string, name, "");
+        MEMBER(ComboColorParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ComboColorParameters, float, width, 0);
         MEMBER(ComboColorParameters, float, textWidth, 100);
         MEMBER(ComboColorParameters, ColorVector<FloatColorRGB>, customizationColors, getDefaultCustomizationColorVector());
@@ -361,6 +363,7 @@ public:
     struct MultiCheckboxesParameters
     {
         MEMBER(MultiCheckboxesParameters, std::string, name, "");
+        MEMBER(MultiCheckboxesParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(MultiCheckboxesParameters, float, textWidth, 100);
         MEMBER(MultiCheckboxesParameters, std::optional<std::string>, tooltip, std::nullopt);
     };
@@ -369,6 +372,7 @@ public:
     struct ColorCheckboxesParameters
     {
         MEMBER(ColorCheckboxesParameters, std::string, name, "");
+        MEMBER(ColorCheckboxesParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ColorCheckboxesParameters, float, textWidth, 100);
         MEMBER(ColorCheckboxesParameters, ColorVector<FloatColorRGB>, customizationColors, getDefaultCustomizationColorVector());
         MEMBER(ColorCheckboxesParameters, std::optional<std::string>, tooltip, std::nullopt);
@@ -621,7 +625,9 @@ public:
     struct ButtonParameters
     {
         MEMBER(ButtonParameters, std::string, buttonText, "");
+        MEMBER(ButtonParameters, std::optional<std::string>, buttonLabel, std::nullopt);
         MEMBER(ButtonParameters, std::string, name, "");
+        MEMBER(ButtonParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(ButtonParameters, float, textWidth, 100);
         MEMBER(ButtonParameters, bool, showDisabledRevertButton, false);
         MEMBER(ButtonParameters, std::optional<std::string>, tooltip, std::nullopt);

@@ -19,6 +19,8 @@ def original(file):
 
 def legacy_widget_text(file, text):
     """Exclude only B4b presentation extension sites from earlier whole-file contracts."""
+    from localization_node_legacy import legacy_node_widget_text
+    text = legacy_node_widget_text(file, text)
     from check_localization_l2b4d import legacy_float_matrix_text
     text = legacy_float_matrix_text(file, text)
     old = original(file)
@@ -45,7 +47,7 @@ class L2b4bContracts(unittest.TestCase):
     def test_ten_typed_bindings_complete_catalogs_and_exact_english(self):
         en, ru = catalog('en'), catalog('ru')
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.")) for key in en))
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         blocks = declarations()
         for i, member in enumerate(MEMBERS + ['customizationTransitionMatrix']):

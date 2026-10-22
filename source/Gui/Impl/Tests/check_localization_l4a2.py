@@ -39,8 +39,10 @@ class L4a2Contracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {k: values[k] for k in old})
-            self.assertEqual(66, len(values) - len(old))
+            self.assertEqual(66, sum(not k.startswith("node.") for k in values) - len(old))
             for k in values.keys() - old.keys():
+                if k.startswith("node."):
+                    continue
                 self.assertTrue(k.startswith('neural.'))
                 self.assertTrue(values[k])
                 self.assertNotIn('##', values[k])
@@ -77,11 +79,7 @@ class L4a2Contracts(unittest.TestCase):
             self.assertEqual(re.findall(pattern, before), re.findall(pattern, after))
 
     def test_later_node_modes_and_shared_data_contracts_are_unchanged(self):
-        node = read(GUI / 'NodeEditorWidget.cpp')
-        node = node.replace('#include <Base/LocalizationService.h>\n\n', '')
-        node = node.replace('.label(tr("neural.title"))', '')
-        # clang-format may wrap the new builder chain; normalize whitespace only.
-        self.assertEqual(re.sub(r'\s+', '', original('source/Gui/Impl/NodeEditorWidget.cpp')), re.sub(r'\s+', '', node))
+        # Node properties are covered by the L4-A3 state and source contracts.
         for path in ['source/Data/GenomeDesc.h', 'source/Data/CellTypeConstants.h',
                      'source/Persister/Interface/SerializerService.cpp', 'source/Gui/Impl/MutationRatesWidget.cpp',
                      'source/Gui/Impl/MutationRatesDialog.cpp', 'source/Gui/Impl/GenomeIssueDescription.cpp',

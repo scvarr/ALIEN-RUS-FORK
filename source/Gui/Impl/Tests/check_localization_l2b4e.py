@@ -22,6 +22,8 @@ def original(file):
 
 def legacy_transition_text(file, text):
     """Remove only the exact B4e presentation additions for older whole-file contracts."""
+    from localization_node_legacy import legacy_node_widget_text
+    text = legacy_node_widget_text(file, text)
     # L4-A2 adds only an optional Group label; preserve the original-byte checks below.
     if file.endswith('AlienGui.h'):
         text = text.replace('        MEMBER(GroupParameters, std::optional<std::string>, label, std::nullopt);\n', '')
@@ -56,7 +58,7 @@ class L2b4eContracts(unittest.TestCase):
         for lang in ('en', 'ru'):
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(408, len(old))
-            self.assertEqual(NEW_KEYS, {key for key in catalog(lang) if not key.startswith(("genome.", "neural."))} - set(old))
+            self.assertEqual(NEW_KEYS, {key for key in catalog(lang) if not key.startswith(("genome.", "neural.", "node."))} - set(old))
             self.assertEqual(old, {k: catalog(lang)[k] for k in old})
         for field, group in zip(FIELDS, GROUPS):
             typ = 'ColorTransitionRulesSpec' if field == 'colorTransitionRules' else 'FloatSpec'

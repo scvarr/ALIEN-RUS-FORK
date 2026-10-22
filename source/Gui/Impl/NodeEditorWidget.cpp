@@ -11,6 +11,7 @@
 #include "AlienGui.h"
 #include "EntityAttributeHelp.h"
 #include "GenericMessageDialog.h"
+#include "GenomeEditorPresentation.h"
 #include "GenomeTabEditData.h"
 #include "GenomeTabLayoutData.h"
 #include "LoginDialog.h"
@@ -208,10 +209,79 @@ bool _NodeEditorWidget::isVoidNodeSelected() const
 
 void _NodeEditorWidget::processNodeAttributes()
 {
-    AlienGui::Group(AlienGui::GroupParameters().text("Selected: Node " + std::to_string(_editData->getSelectedNodeIndex().value())).highlighted(true));
+    AlienGui::Group(AlienGui::GroupParameters()
+                        .text("Selected: Node " + std::to_string(_editData->getSelectedNodeIndex().value()))
+                        .label(GenomeEditorPresentation::format("node.selected", {{"index", std::to_string(_editData->getSelectedNodeIndex().value())}}))
+                        .highlighted(true));
 
+    float labelWidth = MinTextWidth;
+    for (auto key :
+         {"node.label.angle",
+          "node.label.customization",
+          "node.label.type",
+          "node.label.construction",
+          "node.label.autotriggerinterval",
+          "node.label.constructionangle",
+          "node.label.provideenergy",
+          "node.label.separation",
+          "node.label.numberofbranches",
+          "node.label.concatenations",
+          "node.label.maxenergyforstorage",
+          "node.label.autotrigger",
+          "node.label.tagforattackers",
+          "node.label.mode",
+          "node.label.mindensity",
+          "node.label.restricttocolors",
+          "node.label.mincreaturecells",
+          "node.label.maxcreaturecells",
+          "node.label.restricttolineage",
+          "node.label.minrange",
+          "node.label.maxrange",
+          "node.label.additive",
+          "node.label.minvalue",
+          "node.label.maxvalue",
+          "node.label.timeoffset",
+          "node.label.period",
+          "node.label.geneindex",
+          "node.label.maxangledeviation",
+          "node.label.forwardbackwardratio",
+          "node.label.attractionrepulsionratio",
+          "node.label.maxdistancedeviation",
+          "node.label.countdown",
+          "node.label.energyconductivity",
+          "node.label.energyconversion",
+          "node.label.delay",
+          "node.label.readonly",
+          "node.label.signalbuffer",
+          "node.label.newsignalweight",
+          "node.label.channelmaskbit03",
+          "node.label.channelmaskbit47",
+          "node.label.range",
+          "node.label.oneway"}) {
+        labelWidth = std::max(labelWidth, scaleInverse(ImGui::CalcTextSize(tr(key).c_str()).x) + 45.0f);
+    }
+    float widgetWidth = MaxWidgetWidth;
+    for (auto const& values :
+         {GenomeEditorPresentation::cellTypes(),
+          GenomeEditorPresentation::provideEnergyGenomes(),
+          GenomeEditorPresentation::sensorModes(),
+          GenomeEditorPresentation::generatorModes(),
+          GenomeEditorPresentation::attackerModes(),
+          GenomeEditorPresentation::muscleModes(),
+          GenomeEditorPresentation::defenderModes(),
+          GenomeEditorPresentation::reconnectorModes(),
+          GenomeEditorPresentation::memoryModes(),
+          GenomeEditorPresentation::communicatorModes()}) {
+        for (auto const& value : values) {
+            widgetWidth = std::max(widgetWidth, scaleInverse(ImGui::CalcTextSize(value.c_str()).x) + 45.0f);
+        }
+    }
+    auto columnWidth = std::max(MinColumnWidth, labelWidth + widgetWidth);
+    if (ImGui::GetContentRegionAvail().x < scale(columnWidth)) {
+        ImGui::SetNextWindowContentSize({scale(columnWidth), 0});
+    }
     auto height = isVoidNodeSelected() ? 0.0f : -_layoutData->neuralNetEditorHeight;
-    if (ImGui::BeginChild("NodeData", ImVec2(0, height), 0, 0)) {
+    if (ImGui::BeginChild("NodeData", ImVec2(0, height), 0, ImGuiWindowFlags_HorizontalScrollbar)) {
         auto& gene = _editData->getSelectedGeneRef();
         auto& node = _editData->getSelectedNodeRef();
 
@@ -221,12 +291,12 @@ void _NodeEditorWidget::processNodeAttributes()
         auto const simulationParameters = _SimulationFacade::get()->getSimulationParameters();
         auto const& customizationColors = simulationParameters.customizationColors.value;
 
-        AlienGui::DynamicTableLayout table(MinColumnWidth);
+        AlienGui::DynamicTableLayout table(columnWidth);
         if (table.begin()) {
-            auto rightColumnWidth = std::max(MinTextWidth, scaleInverse(ImGui::GetContentRegionAvail().x - scale(MaxWidgetWidth)));
+            auto rightColumnWidth = std::max(labelWidth, scaleInverse(ImGui::GetContentRegionAvail().x - scale(widgetWidth)));
 
             // Angle
-            AlienGui::Group(AlienGui::GroupParameters().text("Base properties"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Base properties").label(tr("node.group.base")));
 
             auto nodeIndex = _editData->getSelectedNodeIndex();
             auto isInnerNode = nodeIndex.value() != 0 && nodeIndex != gene._nodes.size() - 1;
@@ -234,11 +304,12 @@ void _NodeEditorWidget::processNodeAttributes()
             AlienGui::InputFloat(
                 AlienGui::InputFloatParameters()
                     .name("Angle")
+                    .label(tr("node.label.angle"))
                     .textWidth(rightColumnWidth)
                     .readOnly(isInnerNode)
-                    .infoLabel(isInnerNode ? std::make_optional(std::string("Deduced")) : std::nullopt)
+                    .infoLabel(isInnerNode ? std::make_optional(std::string(tr("node.deduced"))) : std::nullopt)
                     .format("%.1f")
-                    .tooltip(EntityAttributeHelp::get(EntityAttribute::NodeAngle)),
+                    .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::NodeAngle)),
                 node._referenceAngle);
             //}
 
@@ -246,8 +317,9 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::ComboColorParameters()
                     .customizationColors(customizationColors)
                     .name("Customization")
+                    .label(tr("node.label.customization"))
                     .textWidth(rightColumnWidth)
-                    .tooltip(EntityAttributeHelp::get(EntityAttribute::NodeCustomization)),
+                    .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::NodeCustomization)),
                 node._color);
 
             // Type
@@ -255,14 +327,16 @@ void _NodeEditorWidget::processNodeAttributes()
             if (AlienGui::Combo(
                     AlienGui::ComboParameters()
                         .name("Type")
+                        .label(tr("node.label.type"))
                         .values(Const::CellTypeStrings)
+                        .displayValues(GenomeEditorPresentation::cellTypes())
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::CellType)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::CellType)),
                     nodeType)) {
                 if (nodeType == CellType_Void && (gene._homogeneousCellType || nodeIndex.value() == 0)) {
-                    showMessage("Error", "The first node cannot be void.");
+                    GenericMessageDialog::get().localizedInformation("Error", "common.error", "genome.error.firstvoid");
                 } else if (nodeType == CellType_Void && nodeIndex.value() == gene._nodes.size() - 1) {
-                    showMessage("Error", "The last node cannot be void.");
+                    GenericMessageDialog::get().localizedInformation("Error", "common.error", "genome.error.lastvoid");
                 } else {
                     cellTypeNode._cellType = createCellTypeGenomeDesc(nodeType);
                     if (nodeType == CellType_Void) {
@@ -276,21 +350,26 @@ void _NodeEditorWidget::processNodeAttributes()
 
                 // Construction gene combo
                 std::vector<std::string> genes;
-                genes.emplace_back("None");
+                std::vector<std::string> geneIds;
+                geneIds.emplace_back("None");
+                genes.emplace_back(tr("node.none"));
                 for (auto const& [index, gene] : _editData->genome._genes | boost::adaptors::indexed(0)) {
                     auto text = std::to_string(index) + ": " + gene._name;
                     if (index == 0) {
-                        text += " (root)";
+                        text += tr("node.root");
                     }
+                    geneIds.emplace_back(std::to_string(index) + ": " + gene._name + (index == 0 ? " (root)" : ""));
                     genes.emplace_back(text);
                 }
                 int constructionGeneIndex = node._constructor.has_value() ? node._constructor.value()._geneIndex + 1 : 0;
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Construction")
-                            .values(genes)
+                            .label(tr("node.label.construction"))
+                            .values(geneIds)
+                            .displayValues(genes)
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::NodeConstructionGene)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::NodeConstructionGene)),
                         constructionGeneIndex)) {
                     if (constructionGeneIndex == 0) {
                         node._constructor = std::nullopt;
@@ -302,7 +381,7 @@ void _NodeEditorWidget::processNodeAttributes()
                     }
                 }
 
-                AlienGui::Group(AlienGui::GroupParameters().text("Construction properties"));
+                AlienGui::Group(AlienGui::GroupParameters().text("Construction properties").label(tr("node.group.construction")));
 
                 if (node._constructor.has_value()) {
                     ImGui::PushID("Constructor");
@@ -313,17 +392,19 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputOptionalInt(
                         AlienGui::InputIntParameters()
                             .name("Auto trigger interval")
+                            .label(tr("node.label.autotriggerinterval"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ConstructorAutoTriggerInterval)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ConstructorAutoTriggerInterval)),
                         constructor._autoTriggerInterval);
 
                     // Construction angle
                     AlienGui::InputFloat(
                         AlienGui::InputFloatParameters()
                             .name("Construction angle")
+                            .label(tr("node.label.constructionangle"))
                             .textWidth(rightColumnWidth)
                             .format("%.1f")
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ConstructorConstructionAngle)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ConstructorConstructionAngle)),
                         constructor._constructionAngle);
 
                     // Provide energy
@@ -331,9 +412,11 @@ void _NodeEditorWidget::processNodeAttributes()
                     if (AlienGui::Combo(
                             AlienGui::ComboParameters()
                                 .name("Provide energy")
+                                .label(tr("node.label.provideenergy"))
                                 .textWidth(rightColumnWidth)
                                 .values(Const::ProvideEnergyGenomeStrings)
-                                .tooltip(EntityAttributeHelp::get(EntityAttribute::ConstructorProvideEnergy)),
+                                .displayValues(GenomeEditorPresentation::provideEnergyGenomes())
+                                .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ConstructorProvideEnergy)),
                             provideEnergy)) {
                         constructor._provideEnergy = static_cast<ProvideEnergyGenome>(provideEnergy);
                     }
@@ -342,8 +425,9 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::Checkbox(
                         AlienGui::CheckboxParameters()
                             .name("Separation")
+                            .label(tr("node.label.separation"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ConstructorSeparation)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ConstructorSeparation)),
                         &constructor._separation);
 
                     // Number of branches
@@ -353,9 +437,10 @@ void _NodeEditorWidget::processNodeAttributes()
                         AlienGui::Switcher(
                             AlienGui::SwitcherParameters()
                                 .name("Number of branches")
+                                .label(tr("node.label.numberofbranches"))
                                 .values({"1", "2", "3", "4", "5", "6"})
                                 .textWidth(rightColumnWidth)
-                                .tooltip(EntityAttributeHelp::get(EntityAttribute::ConstructorNumBranches)),
+                                .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ConstructorNumBranches)),
                             &numBranches);
                         constructor._numBranches = numBranches + 1;
                     }
@@ -365,9 +450,10 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputInt(
                         AlienGui::InputIntParameters()
                             .name("Concatenations")
+                            .label(tr("node.label.concatenations"))
                             .infinity(true)
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ConstructorNumConcatenations)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ConstructorNumConcatenations)),
                         constructor._numConcatenations);
 
                     AlienGui::EndIndent();
@@ -377,7 +463,7 @@ void _NodeEditorWidget::processNodeAttributes()
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Type-specific properties"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Type-specific properties").label(tr("node.group.typespecific")));
 
             if (nodeType == CellType_Base) {
             } else if (nodeType == CellType_Depot) {
@@ -385,9 +471,10 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::InputFloat(
                     AlienGui::InputFloatParameters()
                         .name("Max energy for storage")
+                        .label(tr("node.label.maxenergyforstorage"))
                         .format("%.1f")
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::DepotStorageLimit)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::DepotStorageLimit)),
                     depot._storageLimit);
             } else if (nodeType == CellType_Sensor) {
 
@@ -398,14 +485,16 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::Checkbox(
                     AlienGui::CheckboxParameters()
                         .name("Auto trigger")
+                        .label(tr("node.label.autotrigger"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorAutoTrigger)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorAutoTrigger)),
                     &sensor._autoTrigger);
                 AlienGui::Checkbox(
                     AlienGui::CheckboxParameters()
                         .name("Tag for attackers")
+                        .label(tr("node.label.tagforattackers"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorTagForAttackers)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorTagForAttackers)),
                     &sensor._tagForAttackers);
 
                 // Mode selection
@@ -413,9 +502,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::SensorModeStrings)
+                            .displayValues(GenomeEditorPresentation::sensorModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorMode)),
                         mode)) {
                     sensor._mode = createSensorModeGenomeDesc(mode);
                 }
@@ -429,10 +520,11 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputFloat(
                         AlienGui::InputFloatParameters()
                             .name("Min density")
+                            .label(tr("node.label.mindensity"))
                             .step(0.05f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorEnergyMinDensity)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorEnergyMinDensity)),
                         detectEnergy._minDensity);
                     AlienGui::EndIndent();
                 } else if (mode == SensorMode_DetectFreeCell) {
@@ -441,17 +533,19 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputFloat(
                         AlienGui::InputFloatParameters()
                             .name("Min density")
+                            .label(tr("node.label.mindensity"))
                             .step(0.05f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorFreeCellMinDensity)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorFreeCellMinDensity)),
                         detectFreeCell._minDensity);
                     AlienGui::ColorCheckboxes(
                         AlienGui::ColorCheckboxesParameters()
                             .customizationColors(customizationColors)
                             .name("Restrict to colors")
+                            .label(tr("node.label.restricttocolors"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorRestrictToColors)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorRestrictToColors)),
                         detectFreeCell._restrictToColors);
                     AlienGui::EndIndent();
                 } else if (mode == SensorMode_DetectCreature) {
@@ -460,28 +554,33 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputOptionalInt(
                         AlienGui::InputIntParameters()
                             .name("Min creature cells")
+                            .label(tr("node.label.mincreaturecells"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorMinNumCells)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorMinNumCells)),
                         detectCreature._minNumCells);
                     AlienGui::InputOptionalInt(
                         AlienGui::InputIntParameters()
                             .name("Max creature cells")
+                            .label(tr("node.label.maxcreaturecells"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorMaxNumCells)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorMaxNumCells)),
                         detectCreature._maxNumCells);
                     AlienGui::ColorCheckboxes(
                         AlienGui::ColorCheckboxesParameters()
                             .customizationColors(customizationColors)
                             .name("Restrict to colors")
+                            .label(tr("node.label.restricttocolors"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorRestrictToColors)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorRestrictToColors)),
                         detectCreature._restrictToColors);
                     AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Restrict to lineage")
+                            .label(tr("node.label.restricttolineage"))
                             .values({"No", "Same lineage", "Other lineage"})
+                            .displayValues({tr("node.option.lineage.any"), tr("node.option.lineage.related"), tr("node.option.lineage.unrelated")})
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorRestrictToLineage)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorRestrictToLineage)),
                         detectCreature._restrictToLineage);
                     AlienGui::EndIndent();
                 }
@@ -490,20 +589,22 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::SliderInt(
                     AlienGui::SliderIntParameters()
                         .name("Min range")
+                        .label(tr("node.label.minrange"))
                         .min(Const::SensorRange_Min)
                         .max(Const::SensorRange_Max)
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorMinRange)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorMinRange)),
                     &sensor._minRange);
 
                 // Maximum range
                 AlienGui::SliderInt(
                     AlienGui::SliderIntParameters()
                         .name("Max range")
+                        .label(tr("node.label.maxrange"))
                         .min(Const::SensorRange_Min)
                         .max(Const::SensorRange_Max)
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::SensorMaxRange)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::SensorMaxRange)),
                     &sensor._maxRange);
 
                 ImGui::PopID();
@@ -516,34 +617,38 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::Checkbox(
                     AlienGui::CheckboxParameters()
                         .name("Additive")
+                        .label(tr("node.label.additive"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorAdditive)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorAdditive)),
                     &generator._additive);
 
                 // Value range
                 AlienGui::InputFloat(
                     AlienGui::InputFloatParameters()
                         .name("Min value")
+                        .label(tr("node.label.minvalue"))
                         .format("%.2f")
                         .step(0.05f)
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorMinValue)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorMinValue)),
                     generator._minValue);
                 AlienGui::InputFloat(
                     AlienGui::InputFloatParameters()
                         .name("Max value")
+                        .label(tr("node.label.maxvalue"))
                         .format("%.2f")
                         .step(0.05f)
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorMaxValue)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorMaxValue)),
                     generator._maxValue);
 
                 // Time offset
                 AlienGui::InputInt(
                     AlienGui::InputIntParameters()
                         .name("Time offset")
+                        .label(tr("node.label.timeoffset"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorTimeOffset)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorTimeOffset)),
                     generator._timeOffset);
 
                 // Mode
@@ -551,9 +656,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::GeneratorModeStrings)
+                            .displayValues(GenomeEditorPresentation::generatorModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorMode)),
                         mode)) {
                     generator._mode = createGeneratorModeGenomeDesc(mode);
                 }
@@ -565,8 +672,9 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputInt(
                         AlienGui::InputIntParameters()
                             .name("Period")
+                            .label(tr("node.label.period"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorPeriod)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorPeriod)),
                         squareSignal._period);
 
                     AlienGui::EndIndent();
@@ -577,8 +685,9 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputInt(
                         AlienGui::InputIntParameters()
                             .name("Period")
+                            .label(tr("node.label.period"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::GeneratorPeriod)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneratorPeriod)),
                         sawtoothSignal._period);
 
                     AlienGui::EndIndent();
@@ -591,9 +700,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::AttackerModeStrings)
+                            .displayValues(GenomeEditorPresentation::attackerModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::AttackerMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::AttackerMode)),
                         mode)) {
                     attacker._mode = createAttackerModeGenomeDesc(mode);
                 }
@@ -606,8 +717,9 @@ void _NodeEditorWidget::processNodeAttributes()
                         AlienGui::ColorCheckboxesParameters()
                             .customizationColors(customizationColors)
                             .name("Restrict to colors")
+                            .label(tr("node.label.restricttocolors"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::AttackerRestrictToColors)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::AttackerRestrictToColors)),
                         attackFreeCell._restrictToColors);
 
                     AlienGui::EndIndent();
@@ -619,8 +731,9 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::InputInt(
                     AlienGui::InputIntParameters()
                         .name("Gene index")
+                        .label(tr("node.label.geneindex"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::InjectorGeneIndex)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::InjectorGeneIndex)),
                     injector._geneIndex);
 
             } else if (nodeType == CellType_Muscle) {
@@ -631,9 +744,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::MuscleModeStrings)
+                            .displayValues(GenomeEditorPresentation::muscleModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleMode)),
                         mode)) {
                     muscle._mode = createMuscleModeGenomeDesc(mode);
                 }
@@ -646,22 +761,24 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Max angle deviation")
+                            .label(tr("node.label.maxangledeviation"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleMaxAngleDeviation)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleMaxAngleDeviation)),
                         &autoBending._maxAngleDeviation);
 
                     // Front back ratio
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Forward backward ratio")
+                            .label(tr("node.label.forwardbackwardratio"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleForwardBackwardRatio)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleForwardBackwardRatio)),
                         &autoBending._forwardBackwardRatio);
 
                     AlienGui::EndIndent();
@@ -674,22 +791,24 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Max angle deviation")
+                            .label(tr("node.label.maxangledeviation"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleMaxAngleDeviation)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleMaxAngleDeviation)),
                         &manualBending._maxAngleDeviation);
 
                     // Front back ratio
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Forward backward ratio")
+                            .label(tr("node.label.forwardbackwardratio"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleForwardBackwardRatio)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleForwardBackwardRatio)),
                         &manualBending._forwardBackwardRatio);
 
                     AlienGui::EndIndent();
@@ -702,21 +821,23 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Max angle deviation")
+                            .label(tr("node.label.maxangledeviation"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleMaxAngleDeviation)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleMaxAngleDeviation)),
                         &angleBending._maxAngleDeviation);
 
                     // Front back ratio
                     AlienGui::InputFloat(
                         AlienGui::InputFloatParameters()
                             .name("Attraction repulsion ratio")
+                            .label(tr("node.label.attractionrepulsionratio"))
                             .format("%.2f")
                             .step(0.05f)
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleAttractionRepulsionRatio)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleAttractionRepulsionRatio)),
                         angleBending._attractionRepulsionRatio);
 
                     AlienGui::EndIndent();
@@ -729,22 +850,24 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Max distance deviation")
+                            .label(tr("node.label.maxdistancedeviation"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleMaxDistanceDeviation)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleMaxDistanceDeviation)),
                         &autoCrawling._maxDistanceDeviation);
 
                     // Front back ratio
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Forward backward ratio")
+                            .label(tr("node.label.forwardbackwardratio"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleForwardBackwardRatio)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleForwardBackwardRatio)),
                         &autoCrawling._forwardBackwardRatio);
 
                     AlienGui::EndIndent();
@@ -757,22 +880,24 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Max distance deviation")
+                            .label(tr("node.label.maxdistancedeviation"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleMaxDistanceDeviation)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleMaxDistanceDeviation)),
                         &manualCrawling._maxDistanceDeviation);
 
                     // Front back ratio
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("Forward backward ratio")
+                            .label(tr("node.label.forwardbackwardratio"))
                             .min(0.0f)
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MuscleForwardBackwardRatio)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MuscleForwardBackwardRatio)),
                         &manualCrawling._forwardBackwardRatio);
 
                     AlienGui::EndIndent();
@@ -787,9 +912,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::Combo(
                     AlienGui::ComboParameters()
                         .name("Mode")
+                        .label(tr("node.label.mode"))
                         .values(Const::DefenderModeStrings)
+                        .displayValues(GenomeEditorPresentation::defenderModes())
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::DefenderMode)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::DefenderMode)),
                     defender._mode);
 
             } else if (nodeType == CellType_Reconnector) {
@@ -800,9 +927,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::ReconnectorModeStrings)
+                            .displayValues(GenomeEditorPresentation::reconnectorModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ReconnectorMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ReconnectorMode)),
                         mode)) {
                     reconnector._mode = createReconnectorModeGenomeDesc(mode);
                 }
@@ -817,8 +946,9 @@ void _NodeEditorWidget::processNodeAttributes()
                         AlienGui::ColorCheckboxesParameters()
                             .customizationColors(customizationColors)
                             .name("Restrict to colors")
+                            .label(tr("node.label.restricttocolors"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ReconnectorRestrictToColors)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ReconnectorRestrictToColors)),
                         freeCell._restrictToColors);
                     AlienGui::EndIndent();
                 } else if (mode == ReconnectorMode_Creature) {
@@ -827,28 +957,33 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::InputOptionalInt(
                         AlienGui::InputIntParameters()
                             .name("Min creature cells")
+                            .label(tr("node.label.mincreaturecells"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ReconnectorMinNumCells)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ReconnectorMinNumCells)),
                         creature._minNumCells);
                     AlienGui::InputOptionalInt(
                         AlienGui::InputIntParameters()
                             .name("Max creature cells")
+                            .label(tr("node.label.maxcreaturecells"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ReconnectorMaxNumCells)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ReconnectorMaxNumCells)),
                         creature._maxNumCells);
                     AlienGui::ColorCheckboxes(
                         AlienGui::ColorCheckboxesParameters()
                             .customizationColors(customizationColors)
                             .name("Restrict to colors")
+                            .label(tr("node.label.restricttocolors"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ReconnectorRestrictToColors)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ReconnectorRestrictToColors)),
                         creature._restrictToColors);
                     AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Restrict to lineage")
+                            .label(tr("node.label.restricttolineage"))
                             .values({"No", "Same lineage", "Other lineage"})
+                            .displayValues({tr("node.option.lineage.any"), tr("node.option.lineage.related"), tr("node.option.lineage.unrelated")})
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::ReconnectorRestrictToLineage)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::ReconnectorRestrictToLineage)),
                         creature._restrictToLineage);
                     AlienGui::EndIndent();
                 }
@@ -860,8 +995,9 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::InputInt(
                     AlienGui::InputIntParameters()
                         .name("Countdown")
+                        .label(tr("node.label.countdown"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::DetonatorCountdown)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::DetonatorCountdown)),
                     detonator._countdown);
             } else if (nodeType == CellType_Digestor) {
 
@@ -869,19 +1005,21 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::SliderFloat(
                     AlienGui::SliderFloatParameters()
                         .name("Energy conductivity")
+                        .label(tr("node.label.energyconductivity"))
                         .max(1.0f)
                         .format("%.2f")
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::DigestorEnergyConductivity)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::DigestorEnergyConductivity)),
                     &digestor._rawEnergyConductivity);
                 auto rawEnergyConversionRate = digestor.getRawEnergyConversionRate();
                 AlienGui::SliderFloat(
                     AlienGui::SliderFloatParameters()
                         .name("Energy conversion")
+                        .label(tr("node.label.energyconversion"))
                         .max(1.0f)
                         .format("%.2f")
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::DigestorEnergyConversion)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::DigestorEnergyConversion)),
                     &rawEnergyConversionRate);
                 digestor.setRawEnergyConversionRate(rawEnergyConversionRate);
             } else if (nodeType == CellType_Memory) {
@@ -892,9 +1030,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::MemoryModeStrings)
+                            .displayValues(GenomeEditorPresentation::memoryModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryMode)),
                         mode)) {
                     memory._mode = createMemoryModeGenomeDesc(mode);
                     if (mode == MemoryMode_SignalRecorder || mode == MemoryMode_SignalStorage) {
@@ -907,7 +1047,11 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::BeginIndent();
                     auto& signalDelay = std::get<SignalDelayGenomeDesc>(memory._mode);
                     AlienGui::InputInt(
-                        AlienGui::InputIntParameters().name("Delay").textWidth(rightColumnWidth).tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryDelay)),
+                        AlienGui::InputIntParameters()
+                            .name("Delay")
+                            .label(tr("node.label.delay"))
+                            .textWidth(rightColumnWidth)
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryDelay)),
                         signalDelay._delay);
                     AlienGui::EndIndent();
                 } else if (mode == MemoryMode_SignalRecorder) {
@@ -916,14 +1060,17 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::Checkbox(
                         AlienGui::CheckboxParameters()
                             .name("Read only")
+                            .label(tr("node.label.readonly"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryReadOnly)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryReadOnly)),
                         &signalRecorder._readOnly);
                     if (AlienGui::Button(AlienGui::ButtonParameters()
                                              .buttonText("Edit")
+                                             .buttonLabel(tr("node.edit"))
                                              .name("Signal buffer")
+                                             .label(tr("node.label.signalbuffer"))
                                              .textWidth(rightColumnWidth)
-                                             .tooltip(EntityAttributeHelp::get(EntityAttribute::MemorySignalBuffer)))) {
+                                             .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemorySignalBuffer)))) {
                         SignalsBufferDialog::get().open(
                             memory._signalEntries, [&memory](std::vector<SignalEntryGenomeDesc> const& entries) { memory._signalEntries = entries; });
                     }
@@ -934,14 +1081,17 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::Checkbox(
                         AlienGui::CheckboxParameters()
                             .name("Read only")
+                            .label(tr("node.label.readonly"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryReadOnly)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryReadOnly)),
                         &signalStorage._readOnly);
                     if (AlienGui::Button(AlienGui::ButtonParameters()
                                              .buttonText("Edit")
+                                             .buttonLabel(tr("node.edit"))
                                              .name("Signal buffer")
+                                             .label(tr("node.label.signalbuffer"))
                                              .textWidth(rightColumnWidth)
-                                             .tooltip(EntityAttributeHelp::get(EntityAttribute::MemorySignalBuffer)))) {
+                                             .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemorySignalBuffer)))) {
                         SignalsBufferDialog::get().open(
                             memory._signalEntries, [&memory](std::vector<SignalEntryGenomeDesc> const& entries) { memory._signalEntries = entries; });
                     }
@@ -952,10 +1102,11 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderFloat(
                         AlienGui::SliderFloatParameters()
                             .name("New signal weight")
+                            .label(tr("node.label.newsignalweight"))
                             .max(1.0f)
                             .format("%.2f")
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryNewSignalWeight)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryNewSignalWeight)),
                         &signalIntegrator._newSignalWeight);
                     AlienGui::EndIndent();
                 }
@@ -967,8 +1118,9 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::MultiCheckboxes(
                     AlienGui::MultiCheckboxesParameters()
                         .name("Channel mask bit 0-3")
+                        .label(tr("node.label.channelmaskbit03"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryChannelMask)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryChannelMask)),
                     bit[0],
                     bit[1],
                     bit[2],
@@ -976,8 +1128,9 @@ void _NodeEditorWidget::processNodeAttributes()
                 AlienGui::MultiCheckboxes(
                     AlienGui::MultiCheckboxesParameters()
                         .name("Channel mask bit 4-7")
+                        .label(tr("node.label.channelmaskbit47"))
                         .textWidth(rightColumnWidth)
-                        .tooltip(EntityAttributeHelp::get(EntityAttribute::MemoryChannelMask)),
+                        .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::MemoryChannelMask)),
                     bit[4],
                     bit[5],
                     bit[6],
@@ -997,9 +1150,11 @@ void _NodeEditorWidget::processNodeAttributes()
                 if (AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Mode")
+                            .label(tr("node.label.mode"))
                             .values(Const::CommunicatorModeStrings)
+                            .displayValues(GenomeEditorPresentation::communicatorModes())
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::CommunicatorMode)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::CommunicatorMode)),
                         mode)) {
                     communicator._mode = createCommunicatorModeGenomeDesc(mode);
                 }
@@ -1011,16 +1166,18 @@ void _NodeEditorWidget::processNodeAttributes()
                     AlienGui::SliderInt(
                         AlienGui::SliderIntParameters()
                             .name("Range")
+                            .label(tr("node.label.range"))
                             .min(0)
                             .max(20)
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::CommunicatorRange)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::CommunicatorRange)),
                         &sender._range);
                     AlienGui::Checkbox(
                         AlienGui::CheckboxParameters()
                             .name("One-way")
+                            .label(tr("node.label.oneway"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::CommunicatorOneway)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::CommunicatorOneway)),
                         &sender._oneway);
                     AlienGui::EndIndent();
                 } else if (mode == CommunicatorMode_Receiver) {
@@ -1030,15 +1187,18 @@ void _NodeEditorWidget::processNodeAttributes()
                         AlienGui::ColorCheckboxesParameters()
                             .customizationColors(customizationColors)
                             .name("Restrict to colors")
+                            .label(tr("node.label.restricttocolors"))
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::CommunicatorRestrictToColors)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::CommunicatorRestrictToColors)),
                         receiver._restrictToColors);
                     AlienGui::Combo(
                         AlienGui::ComboParameters()
                             .name("Restrict to lineage")
+                            .label(tr("node.label.restricttolineage"))
                             .values({"No", "Same lineage", "Other lineage"})
+                            .displayValues({tr("node.option.lineage.any"), tr("node.option.lineage.related"), tr("node.option.lineage.unrelated")})
                             .textWidth(rightColumnWidth)
-                            .tooltip(EntityAttributeHelp::get(EntityAttribute::CommunicatorRestrictToLineage)),
+                            .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::CommunicatorRestrictToLineage)),
                         receiver._restrictToLineage);
 
                     AlienGui::EndIndent();
@@ -1054,15 +1214,15 @@ void _NodeEditorWidget::processNodeAttributes()
 
 void _NodeEditorWidget::processNoSelection()
 {
-    AlienGui::Group(AlienGui::GroupParameters().text("Nothing selected"));
+    AlienGui::Group(AlienGui::GroupParameters().text("Nothing selected").label(tr("node.group.nothing")));
     if (ImGui::BeginChild("overlay", ImVec2(0, 0), 0)) {
         auto startPos = ImGui::GetCursorScreenPos();
         auto size = ImGui::GetContentRegionAvail();
         AlienGui::DisabledField();
-        auto text = "No node is selected";
-        auto textSize = ImGui::CalcTextSize(text);
+        auto text = tr("node.noselection");
+        auto textSize = ImGui::CalcTextSize(text.c_str());
         ImVec2 textPos(startPos.x + size.x / 2 - textSize.x / 2, startPos.y + size.y / 2 - textSize.y / 2);
-        ImGui::GetWindowDrawList()->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), text);
+        ImGui::GetWindowDrawList()->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), text.c_str());
     }
     ImGui::EndChild();
 }
