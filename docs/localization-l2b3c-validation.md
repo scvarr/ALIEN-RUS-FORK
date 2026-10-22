@@ -6,8 +6,9 @@ Date: 2026-10-22 (Europe/Moscow).
 
 Base SHA: `1605ded80f85ea2b3496f1cf2e0d6e65bf7a8306`.
 An origin fetch confirmed HEAD, main and origin/main at that exact commit before
-creating `feat/ru-localization-l2b3c`. Only this feature branch is published.
-No main integration or L2-B4 work is included. The customized AGENTS.md and its
+creating `feat/ru-localization-l2b3c`. The implementation was initially published
+only on that feature branch; its authorized integration is recorded below.
+No L2-B4 work is included. The customized AGENTS.md and its
 skip-worktree flag are preserved. README, dependencies and submodules are unchanged.
 
 The L2-B2/B3a/B3b presentation architecture is extended by 21 typed member bindings,
@@ -205,7 +206,7 @@ copied. Its profile-only self-check passes without starting a GPU simulation.
 
 Default scale is 1.5. Automated headless text checks exercise all 21 Russian
 captions and full descriptions at 1.0/1.5/2.0 using the existing clipped-text hover
-path. Actual GPU-backed window appearance remains for user visual acceptance.
+path. The subsequent user visual acceptance is recorded below.
 The isolated runner is prepared, not automatically opened on a user simulation.
 
 ## User acceptance checklist
@@ -227,14 +228,17 @@ The isolated runner is prepared, not automatically opened on a user simulation.
    highlighting, unchanged query, group/color expansion state, order after clearing
    and the absence of Inner friction even when searching its exact name.
 8. Resize narrow/wide, repeat at 1.0 and 2.0, and hover any clipped caption to read
-   the complete term. Recheck the previously localized groups. Close the isolated
-   runner without opening or saving real user files.
+   the complete term.
+9. Recheck the previously localized groups. Close the isolated runner without
+   opening or saving real user files.
 
 ## Limitations and graph analysis
 
-Human visual acceptance is pending. Headless ImGui and synthetic persistence tests
+Human visual acceptance is complete, as reported by the user below.
+Headless ImGui and synthetic persistence tests
 do not claim physical/GPU execution or a new physical model validation.
-Terminology remains proposed pending user review. No normative glossary changes.
+The user reports no remarks on the reviewed terminology or interface. This does
+not add terms to the normative glossary, which remains unchanged.
 
 GitNexus upstream analysis reported LOW for the adapter key (three direct consumers:
 label, description and alternativeLabels), IntSpec dispatch (parameter-group
@@ -257,3 +261,57 @@ are listed, with `partial: false` and `truncated: false`. The complete response 
 saved in `temp/l2b3c/graph-final.json`; the summary is in graph-final.log.
 These graph findings are supplemented by the production widget tests and baseline
 source contracts described above.
+
+## Integration review and user acceptance
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user explicitly confirmed that all nine manual acceptance scenarios were
+completed without remarks for implementation commit
+`1b71848d54871c5dcc13ea97d79d26ff53e9804c`. The user authorized integration into
+main and deletion of the completed feature branch after successful publication.
+Repeated visual acceptance is not required. This records the user's reported
+manual acceptance separately from the automated evidence; it does not claim a
+new validation of the physical model or GPU stress behavior.
+
+A fresh origin fetch confirmed main and origin/main at the requested baseline
+`1605ded80f85ea2b3496f1cf2e0d6e65bf7a8306`, and both feature refs at the reviewed
+implementation SHA. The Git index and working tree were clean.
+
+The complete branch diff was reviewed against main. No blocking issue was found.
+All 21 declarations retain distinct typed member bindings and separate complete
+name/description keys. English fallback and canonical ImGui names/ID scopes remain
+intact. Original specification ranges, values, hidden Inner friction visibility,
+color vectors, pin/getter/setter distribution and the independent Radiation angle
+enable flag remain in unchanged production specifications and evaluation code.
+Only presentation text is selected through localization. The two caption options
+reuse existing UTF-8 truncation/full-text hover behavior. IntSpec matrix dispatch
+is unchanged. Physics, CUDA, serialization, MCP, CLI, README, normative glossary,
+dependencies, upstream and the pinned submodule have no branch changes.
+
+The integration rerun passes all seven CPU/headless GUI suites: **566 C++ tests
+passed, zero failures/errors, one existing disabled test**. All **29 Python checks
+pass**. Logs/XML are retained under `temp/l2b3c/integration`. The previously successful
+forced Release build applies to the reviewed implementation. This integration
+changes documentation only, so no recompilation or GPU/stress run is required.
+Tests use SettingsTestScope and synthetic data. Real HKCU/Software/alien exports
+before and after the rerun are byte-identical, SHA-256:
+`9F7B9EC376DEB1E415ACF8F07F4D0BC8CA77DDE067B4AF171EE22A41C306F247`.
+No real worlds or autosaves are opened; real settings are not restored or modified.
+The customized AGENTS.md and its skip-worktree flag are preserved.
+
+The index-only GitNexus refresh completed successfully (729630 nodes, 947448
+edges, 435 flows). Comparison with main reports 14 changed files, 45 changed
+symbols and LOW risk; the documentation-only all-scope check reports one file,
+five symbols and LOW risk. Both responses list every reported symbol without
+partial/truncated results and are saved as graph-compare.json and graph-all.json
+under the integration log directory. Indexed affected processes are empty, subject
+to the previously documented receiver-resolution and process-enumeration limits;
+source review and runtime checks provide the complementary evidence. No code
+change is needed for integration. The final documentation commit is prepared on
+the feature branch for fast-forward publication to main, followed by safe deletion
+of the completed local and remote feature refs.
+
+L2-B3a, L2-B3b and L2-B3c form a completed localization block covering physics,
+visualization, geometry, force fields and radiation. This does not mean that the
+entire parameter editor is translated. L2-B4 remains outside scope.
