@@ -4104,3 +4104,343 @@ TEST_F(LocalizationGuiTests, l2b4bMatrixCaptionsAxesAndButtonsRenderAtAllScales)
         }
     }
 }
+
+namespace
+{
+    std::vector<ParameterSpec const*> structureMetaParameters()
+    {
+        std::vector<ParameterSpec const*> result;
+        for (auto name : {"Meta-mutations: Gene structure", "Meta-mutations: Genome structure"}) {
+            for (auto const& parameter : parameterGroup(SimulationParameters::getSpec(), name)._parameters) {
+                result.push_back(&parameter);
+            }
+        }
+        return result;
+    }
+}
+TEST_F(LocalizationGuiTests, l2b4cSigmaFloatsEditAndResetThroughProductionDispatch)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    int count = 0;
+    for (auto parameter : structureMetaParameters()) {
+        auto number = std::get_if<FloatSpec>(&parameter->_reference);
+        if (!number || number->_getterSetter || !parameter->_visible) {
+            continue;
+        }
+        ++count;
+        auto constexpr order = 0;
+        auto ref = SpecificationEvaluationService::get().getRef(number->_member, *values, order);
+        auto original = SpecificationEvaluationService::get().getRef(number->_member, *defaults, order);
+        EXPECT_EQ(0.0f, std::get<float>(number->_min));
+        EXPECT_EQ(1.0f, std::get<float>(number->_max));
+        EXPECT_TRUE(number->_logarithmic);
+        EXPECT_EQ("%.5f", number->_format);
+        EXPECT_EQ(0.0f, *original.value);
+        for (float edited : {0.0f, 0.00001f, 0.99999f}) {
+            ImVec2 slider, revert;
+            ImGuiID active = 0;
+            auto draw = [&] {
+                frame([&] {
+                    auto start = ImGui::GetCursorScreenPos();
+                    slider = {start.x + 100, start.y + ImGui::GetFrameHeight() / 2};
+                    auto width = ImGui::GetContentRegionAvail().x - scale(360);
+                    revert = {
+                        start.x + width + ImGui::GetStyle().ItemSpacing.x + (ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2) / 2,
+                        start.y + ImGui::GetFrameHeight() / 2};
+                    parametersGroup({*parameter}, *values, *defaults, order);
+                    ImGui::PushID(0);
+                    ImGui::PushID(parameter->_name.c_str());
+                    ImGui::PushID("");
+                    ImGui::PushID(0);
+                    auto id = ImGui::GetID("##slider");
+                    if (!active) {
+                        active = id;
+                    }
+                    EXPECT_EQ(active, id);
+                    ImGui::PopID();
+                    ImGui::PopID();
+                    ImGui::PopID();
+                    ImGui::PopID();
+                });
+            };
+            draw();
+            draw();
+            io.AddKeyEvent(ImGuiMod_Ctrl, true);
+            io.AddMousePosEvent(slider.x, slider.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            io.AddKeyEvent(ImGuiMod_Ctrl, false);
+            draw();
+            ASSERT_EQ(active, GImGui->ActiveId) << parameter->_name;
+            io.AddInputCharactersUTF8(std::to_string(edited).c_str());
+            draw();
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                draw();
+                EXPECT_EQ(active, GImGui->ActiveId);
+                EXPECT_FLOAT_EQ(edited, *ref.value);
+            }
+            io.AddKeyEvent(ImGuiKey_Enter, true);
+            draw();
+            io.AddKeyEvent(ImGuiKey_Enter, false);
+            draw();
+            io.AddMousePosEvent(revert.x, revert.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+            EXPECT_FLOAT_EQ(*original.value, *ref.value) << parameter->_name;
+        }
+    }
+    EXPECT_EQ(10, count);
+}
+
+
+TEST_F(LocalizationGuiTests, l2b4cProductionStructureCaptionsKeepControlsClearAndFullTextOnHover)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    select("ru");
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto spec : structureMetaParameters()) {
+            auto const& parameter = *spec;
+            auto text = SimulationParametersPresentation::label(parameter);
+            ImVec2 labelPosition;
+            float available = 0;
+            bool tooltip = false;
+            std::string logged;
+            auto draw = [&] {
+                switcherFrame(650 * factor, [&] {
+                    auto start = ImGui::GetCursorScreenPos();
+                    auto sliderRight = start.x + ImGui::GetContentRegionAvail().x - scale(360);
+                    auto undoWidth = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
+                    labelPosition = {sliderRight + ImGui::GetStyle().ItemSpacing.x * 2 + undoWidth, start.y};
+                    available = start.x + ImGui::GetContentRegionAvail().x - labelPosition.x;
+                    EXPECT_GT(labelPosition.x, sliderRight + undoWidth);
+                    ImGui::LogToBuffer();
+                    parametersGroup({parameter}, *values, *defaults, 0);
+                    logged = GImGui->LogBuffer.c_str();
+                    ImGui::LogFinish();
+                    tooltip = false;
+                    for (auto window : GImGui->Windows) {
+                        tooltip |= (window->Flags & ImGuiWindowFlags_Tooltip) && window->Active && !window->Hidden;
+                    }
+                });
+            };
+            io.AddMousePosEvent(-100, -100);
+            draw();
+            draw();
+            io.AddMousePosEvent(labelPosition.x + 4, labelPosition.y + ImGui::GetFontSize() / 2);
+            draw();
+            draw();
+            if (ImGui::CalcTextSize(text.c_str()).x > available) {
+                EXPECT_TRUE(tooltip) << text << ": " << factor;
+                EXPECT_NE(std::string::npos, logged.find(text));
+            }
+            EXPECT_EQ(*defaults, *values);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b4cTypedBindingsDescriptionsSearchFallbackAndPersistence)
+{
+    std::vector<_FloatMember> members = {
+        &SimulationParameters::addNodeMetaMutationsSigma,
+        &SimulationParameters::deleteNodeMetaMutationsSigma,
+        &SimulationParameters::extendGeneMetaMutationsSigma,
+        &SimulationParameters::trimGeneMetaMutationsSigma,
+        &SimulationParameters::copyNodeSectionMetaMutationsSigma,
+        &SimulationParameters::moveNodeSectionMetaMutationsSigma,
+        &SimulationParameters::addGeneMetaMutationsSigma,
+        &SimulationParameters::duplicateGeneMetaMutationsSigma,
+        &SimulationParameters::deleteGeneMetaMutationsSigma,
+        &SimulationParameters::swapGeneMetaMutationsSigma};
+    auto all = structureMetaParameters();
+    ASSERT_EQ(members.size(), all.size());
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    for (size_t i = 0; i < all.size(); ++i) {
+        auto const& number = std::get<FloatSpec>(all.at(i)->_reference);
+        EXPECT_EQ(members.at(i), *std::get<FloatMember>(number._member));
+        (values.get()->*members.at(i)).value = 0.03125f * (i + 1);
+    }
+    auto snapshot = std::make_unique<SimulationParameters>(*values);
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto parameter : all) {
+            auto label = SimulationParametersPresentation::label(*parameter);
+            auto description = SimulationParametersPresentation::description(*parameter);
+            ASSERT_TRUE(description);
+            EXPECT_FALSE(description->empty());
+            if (std::string(language) == "en") {
+                EXPECT_EQ(parameter->_name, label);
+                EXPECT_EQ(parameter->_description, description);
+            } else {
+                EXPECT_NE(parameter->_name, label);
+                for (auto phrase :
+                     {"Стандартное отклонение", "гауссова изменения", "сохранённой в геноме вероятности", "Apply meta-mutations", "один раз на потомка"}) {
+                    EXPECT_NE(std::string::npos, description->find(phrase));
+                }
+            }
+            auto renamed = *parameter;
+            renamed._name = "Not an identity";
+            EXPECT_EQ(label, SimulationParametersPresentation::label(renamed));
+            EXPECT_EQ(description, SimulationParametersPresentation::description(renamed));
+            frame([&] { parametersGroup({*parameter}, *values, *defaults, 0); });
+            EXPECT_EQ(*snapshot, *values);
+            for (auto query : {parameter->_name, label}) {
+                auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = query});
+                bool found = false;
+                for (auto const& group : filtered._groups) {
+                    for (auto const& candidate : group._parameters) {
+                        found |= candidate._visible && candidate._name == parameter->_name;
+                    }
+                }
+                EXPECT_TRUE(found) << query;
+            }
+        }
+    }
+    auto file = std::filesystem::temp_directory_path()
+        / ("alien-l2b4c-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".settings.json");
+    ASSERT_TRUE(SerializerService::get().serializeSimulationParametersToFile(file, *values));
+    auto restored = std::make_unique<SimulationParameters>();
+    ASSERT_TRUE(SerializerService::get().deserializeSimulationParametersFromFile(*restored, file));
+    std::filesystem::remove(file);
+    for (auto member : members) {
+        EXPECT_EQ(values.get()->*member, restored.get()->*member);
+    }
+    LocalizationService::get().load("resources/locales/missing-l2b4c");
+    select("ru");
+    for (auto parameter : all) {
+        EXPECT_EQ(parameter->_name, SimulationParametersPresentation::label(*parameter));
+        EXPECT_EQ(parameter->_description, SimulationParametersPresentation::description(*parameter));
+    }
+    for (auto name : {"Meta-mutations: Gene structure", "Meta-mutations: Genome structure"}) {
+        EXPECT_EQ(name, SimulationParametersPresentation::label(parameterGroup(SimulationParameters::getSpec(), name)));
+    }
+    LocalizationService::get().load("resources/locales");
+}
+
+TEST_F(LocalizationGuiTests, l2b4cGroupSearchOrderAndUtf8Highlight)
+{
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto const& [query, groupName, count] : std::vector<std::tuple<std::string, std::string, int>>{
+                 {"Meta-mutations: Gene structure", "Meta-mutations: Gene structure", 6},
+                 {"мЕТАМУТАЦИИ: сТРУКТУРА гЕНА", "Meta-mutations: Gene structure", 6},
+                 {"Meta-mutations: Genome structure", "Meta-mutations: Genome structure", 4},
+                 {"мЕТАМУТАЦИИ: сТРУКТУРА гЕНОМА", "Meta-mutations: Genome structure", 4},
+                 {"ADD NODE", "Meta-mutations: Gene structure", 1},
+                 {"дОБАВЛЕНИЕ уЗЛА", "Meta-mutations: Gene structure", 1},
+                 {"EXTEND GENE", "Meta-mutations: Gene structure", 1},
+                 {"рАСШИРЕНИЕ гЕНА", "Meta-mutations: Gene structure", 1},
+                 {"DELETE NODE", "Meta-mutations: Gene structure", 1},
+                 {"уДАЛЕНИЕ уЗЛА", "Meta-mutations: Gene structure", 1},
+                 {"TRIM GENE", "Meta-mutations: Gene structure", 1},
+                 {"уКОРОЧЕНИЕ гЕНА", "Meta-mutations: Gene structure", 1},
+                 {"COPY NODE SECTION", "Meta-mutations: Gene structure", 1},
+                 {"кОПИРОВАНИЕ уЧАСТКА", "Meta-mutations: Gene structure", 1},
+                 {"MOVE NODE SECTION", "Meta-mutations: Gene structure", 1},
+                 {"пЕРЕМЕЩЕНИЕ уЧАСТКА", "Meta-mutations: Gene structure", 1},
+                 {"SWAP GENE", "Meta-mutations: Genome structure", 1},
+                 {"пЕРЕСТАНОВКА гЕНОВ", "Meta-mutations: Genome structure", 1}}) {
+            auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = query});
+            bool russian = std::ranges::any_of(query, [](unsigned char c) { return c >= 128; });
+            EXPECT_EQ(russian && std::string(language) == "en" ? 0 : count, visibleParameters(parameterGroup(filtered, groupName))) << query;
+            auto cleared = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = ""});
+            auto const& original = parameterGroup(SimulationParameters::getSpec(), groupName);
+            auto const& actual = parameterGroup(cleared, groupName);
+            EXPECT_EQ(original._parameters.size(), visibleParameters(actual));
+            for (size_t i = 0; i < original._parameters.size(); ++i) {
+                EXPECT_EQ(original._parameters.at(i)._name, actual._parameters.at(i)._name);
+                EXPECT_EQ(original._parameters.at(i)._name, parameterGroup(filtered, groupName)._parameters.at(i)._name);
+            }
+        }
+    }
+    select("ru");
+    auto all = structureMetaParameters();
+    EXPECT_NE(SimulationParametersPresentation::label(*all.at(0)), SimulationParametersPresentation::label(*all.at(2)));
+    EXPECT_NE(SimulationParametersPresentation::label(*all.at(1)), SimulationParametersPresentation::label(*all.at(3)));
+    auto label = SimulationParametersPresentation::label(*all.at(4));
+    auto match = Utf8Search::find(label, "УЧАСТКА");
+    ASSERT_TRUE(match);
+    EXPECT_EQ("участка", label.substr(match->begin, match->end - match->begin));
+    int normal = 0, highlighted = 0;
+    frame([&] {
+        auto list = ImGui::GetWindowDrawList();
+        auto before = list->VtxBuffer.Size;
+        AlienGui::Text(AlienGui::TextParameters().text(label));
+        normal = list->VtxBuffer.Size - before;
+        before = list->VtxBuffer.Size;
+        AlienGui::Text(AlienGui::TextParameters().text(label).highlightedSubString("УЧАСТКА"));
+        highlighted = list->VtxBuffer.Size - before;
+    });
+    EXPECT_GT(highlighted, normal);
+}
+
+TEST_F(LocalizationGuiTests, l2b4cGroupExpansionAndCanonicalIdsSurviveLanguageChanges)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (auto name : {"Meta-mutations: Gene structure", "Meta-mutations: Genome structure"}) {
+        auto const& group = parameterGroup(SimulationParameters::getSpec(), name);
+        ImGuiID originalId = 0;
+        ImVec2 header;
+        bool open = false;
+        auto draw = [&] {
+            frame([&] {
+                ImGui::PushID(name);
+                open = AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name(name).label(SimulationParametersPresentation::label(group)));
+                auto id = ImGui::GetItemID();
+                if (!originalId) {
+                    originalId = id;
+                }
+                EXPECT_EQ(originalId, id);
+                header = GImGui->LastItemData.Rect.GetCenter();
+                if (open) {
+                    parametersGroup(group._parameters, *values, *defaults, 0);
+                }
+                AlienGui::EndTreeNode();
+                ImGui::PopID();
+            });
+        };
+        auto click = [&] {
+            io.AddMousePosEvent(header.x, header.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+        };
+        select("en");
+        draw();
+        draw();
+        ASSERT_TRUE(open);
+        click();
+        ASSERT_FALSE(open);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_FALSE(open);
+            EXPECT_EQ(*defaults, *values);
+        }
+        click();
+        ASSERT_TRUE(open);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_TRUE(open);
+            EXPECT_EQ(*defaults, *values);
+        }
+    }
+}

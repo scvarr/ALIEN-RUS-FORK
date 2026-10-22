@@ -275,6 +275,36 @@ namespace
         if (references<BoolSpec>(spec, &SimulationParameters::customizationTransitionMatrix)) {
             return "parameters.metamidentity.customizationtransitionmatrix";
         }
+        if (references<FloatSpec>(spec, &SimulationParameters::addNodeMetaMutationsSigma)) {
+            return "parameters.metamgene.addnodemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::deleteNodeMetaMutationsSigma)) {
+            return "parameters.metamgene.deletenodemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::extendGeneMetaMutationsSigma)) {
+            return "parameters.metamgene.extendgenemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::trimGeneMetaMutationsSigma)) {
+            return "parameters.metamgene.trimgenemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::copyNodeSectionMetaMutationsSigma)) {
+            return "parameters.metamgene.copynodesectionmetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::moveNodeSectionMetaMutationsSigma)) {
+            return "parameters.metamgene.movenodesectionmetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::addGeneMetaMutationsSigma)) {
+            return "parameters.metamgenome.addgenemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::duplicateGeneMetaMutationsSigma)) {
+            return "parameters.metamgenome.duplicategenemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::deleteGeneMetaMutationsSigma)) {
+            return "parameters.metamgenome.deletegenemetamutationssigma";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::swapGeneMetaMutationsSigma)) {
+            return "parameters.metamgenome.swapgenemetamutationssigma";
+        }
         return {};
     }
 
@@ -365,6 +395,12 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     }
     if (spec._name == "Meta-mutations: Cell identity") {
         return translated("parameters.metamidentity.name", spec._name);
+    }
+    if (spec._name == "Meta-mutations: Gene structure") {
+        return translated("parameters.metamgene.name", spec._name);
+    }
+    if (spec._name == "Meta-mutations: Genome structure") {
+        return translated("parameters.metamgenome.name", spec._name);
     }
     return spec._name;
 }
