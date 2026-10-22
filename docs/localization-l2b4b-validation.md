@@ -7,11 +7,12 @@ Date: 2026-10-22 (Europe/Moscow).
 Base SHA: `a3d2ae563c4be86b2c307a3ec1d69ec07e1ed78d`.
 Local main and origin/main matched this commit before and after fetching origin.
 The working tree and index were clean. Work is isolated on
-`feat/ru-localization-l2b4b`. No merge into main and no L2-B4c work is included.
+`feat/ru-localization-l2b4b`. The initial delivery did not merge into main.
+The accepted integration review is recorded below; no L2-B4c work is included.
 AGENTS.md, the terminology document, the L2-B3a/B3b/B3c/B4a reports, specifications,
 presentation/dispatch code, matrix widgets/dialog and relevant mutation operations
-were consulted. The normative glossary is unchanged. New interface wording remains
-provisional until user acceptance.
+were consulted. The normative glossary is unchanged. Initial interface wording was provisional;
+user acceptance is now recorded in the integration review below.
 
 This slice adds two group captions and ten complete names/descriptions through the
 existing presentation adapter. Both catalogs contain 356 matching keys: the previous
@@ -210,8 +211,8 @@ are packaged locally; only synthetic samples may be used.
    captions through their full-text hover where applicable.
 7. Save/read only the disposable synthetic settings. Close the review instance.
 
-No user acceptance is inferred from headless tests. Working terminology can be
-adjusted after review without changing the normative glossary.
+The headless tests above do not establish user acceptance. The subsequent explicit
+user acceptance is recorded separately below; the normative glossary is unchanged.
 
 ## Graph review
 
@@ -239,3 +240,77 @@ and embeddings build completes; bounded entry-point/process sampling and some
 receiver/callable-resolution warnings remain. These are graph coverage limitations,
 not an assertion that unlisted GUI consumers are unaffected. Direct model-byte
 comparisons and native GUI tests supplement the graph. No CodeQL is run.
+
+
+## User acceptance and final integration review
+
+On 2026-10-22 the user explicitly reported completion of all six L2-B4b manual
+acceptance scenarios with no remarks, and authorized integration into main.
+The two localized meta-mutation groups and the customization transition matrix
+are visually accepted at reviewed SHA
+`d917886dc059bfedd3400d74e45723460f920518`.
+The original model investigation confirms Void → Донор: the Void mutation
+switches eligible nodes between CellType_Void and a non-Void type. The accepted
+caption remains Донор: сигма. The normative terminology document was not changed.
+This acceptance covers the requested interface scenarios; it is not a claim that
+the user tested evolution algorithms under load. No GPU/stress run is attributed
+to the user or performed during this integration review.
+
+An origin fetch confirms feature HEAD and origin/feat/ru-localization-l2b4b at the
+reviewed SHA, with main and origin/main at base
+`a3d2ae563c4be86b2c307a3ec1d69ec07e1ed78d`: one commit ahead, zero behind.
+The working tree and index were clean before this documentation follow-up.
+The entire 19-file feature diff was reviewed, including all six shared GUI files,
+the catalogs and test changes. No blocking issue was found.
+
+The review confirms all ten typed member bindings, nine unchanged zero-default
+FloatSpecs with range 0…1, logarithmic sliders and %.5f, full descriptions and
+English fallback. Matrix layout/rendering still uses the same row/column indices,
+ten-color order, defaults, diagonal guard and native checkbox IDs. The native
+popup title/ID, button IDs, edit callback, draft, cancel and reset paths remain
+canonical. Language refresh copies presentation fields only.
+
+All three BasicInputColorMatrix callers were examined: CheckboxColorMatrix,
+InputIntColorMatrix and InputFloatColorMatrix. Numeric wrappers and numeric spec
+dispatch remain byte-identical to the base and use empty localizationKey/nullopt
+label defaults. Their axes, numeric range/format, default/disabled matrices,
+callback and footer branch retain legacy behavior. The display-button helper
+preserves each original GetID result and native button sizing when labels are
+unchanged. Existing regression checks compare all code outside the explicitly
+authorized presentation extension regions; the full 69-test headless suite also
+passes, including directed bool-cell editing, diagonal exclusion, apply/cancel,
+reset, expansion, EN/RU/EN IDs/focus, layouts and synthetic persistence. This is
+source review plus the actual available test coverage, not an assertion that the
+suite exhaustively automates every legacy numeric-matrix interaction.
+
+The integration Release build succeeds again with build-windows-ninja.bat agent.
+The already-correct embedded English catalog passes its missing-catalog tests;
+no further forced recompilation is needed. All seven lightweight test executables
+pass again: 579 successful C++ tests, zero failures and one pre-existing disabled
+Persister test. All 37 Python checks pass. EN and RU each contain 356 keys, with
+identical key sets and unchanged earlier entries. Production code is unchanged
+from the user-reviewed SHA; this follow-up changes this report only.
+Logs/XML and the graph review are retained under temp/l2b4b/integration.
+
+Tests use only synthetic parameters and process-local SettingsTestScope profiles.
+The real HKCU/Software/alien exports immediately before and after this integration
+check are byte-identical, SHA-256
+`AADA608579A48DC36E1751395D18395A7CFE37C044743A46E563FE64981893CA`.
+No user world, genome or autosave is opened, copied or modified; no registry
+restoration is performed. The earlier independent application's geometry changes
+remain documented above without attribution to tests. AGENTS.md retains its
+original bytes, SHA-256
+`090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`,
+and S skip-worktree flag. README, dependencies, upstream, submodule, source
+specifications, mutations, physics, CUDA, serialization, MCP and CLI are unchanged.
+
+The refreshed integration graph comparison against main reports MEDIUM risk:
+19 changed files, 63 listed symbols and the same ProcessToolButtons → Get flow,
+with neither partial nor truncated results. The documentation-only pre-commit
+all-scope check reports one file, three listed Markdown symbols and LOW risk,
+also without partial/truncated flags. The three matrix-wrapper callers were
+resolved again; the adapter key's receiver-resolution gap and bounded process
+coverage remain explicitly documented limitations. The known full-text/BM25
+index-build warning persists; graph construction completes successfully. The
+review therefore uses call-site/source comparisons and native regression results
+alongside the graph rather than treating absent processes as a safety guarantee.
