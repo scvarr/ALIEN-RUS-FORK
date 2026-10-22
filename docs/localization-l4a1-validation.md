@@ -200,3 +200,29 @@ SHA-256 `CD0E9506A95CFB0E4C5989BCBCAB994EEDA36E2F4DC01480E391FB56FE1720E1`.
 No registry restoration was needed. User worlds/genomes/autosaves and dependency
 sources were not edited; `external/vcpkg` is unchanged. No CodeQL or submodule
 update ran. The feature branch is committed and pushed without merging main.
+
+## User acceptance and integration review
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user confirms successful visual acceptance of implementation commit
+`06fe4e95f2d69a11b99988e5663da99cc1a2ab14`. Genome editor behavior, gene
+operations, saving/loading synthetic genomes, EN/RU switching and interface
+scaling were checked successfully. This records the user's visual verification;
+the automated validation results above remain unchanged.
+
+The English elements of the third-party file dialog remain the documented known
+limitation and do not block integration. The user authorizes closing L4-A1,
+fast-forward integration into main, pushing main to origin and deleting the
+integrated feature branch locally and remotely. L4-A2 is outside this task.
+
+After fetching origin, local main and origin/main both match
+`729ea59746f35c53ca9f48e7181d56e4a447933d`; the feature branch and its origin
+tracking ref both match the accepted implementation SHA. The working tree and
+index are clean, and main is an ancestor of the feature, allowing fast-forward.
+
+This follow-up changes only this report. No build or test is rerun, as explicitly
+requested by the user. No application is launched and no user data, settings,
+dependencies or submodules are modified. AGENTS.md retains its recorded bytes
+and skip-worktree flag. This documentation commit is published on the feature
+branch before the authorized fast-forward integration.
