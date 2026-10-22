@@ -58,6 +58,7 @@ else()
 endif()
 
 project(alien-project LANGUAGES C CXX)
+include(cmake/MsvcShowIncludes.cmake)
 if(WIN32)
     enable_language(RC)
 endif()
