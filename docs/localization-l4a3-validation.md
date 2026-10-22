@@ -159,7 +159,7 @@ Disposable `samples/synthetic-a.genome` and `synthetic-b.genome` contain all cel
 types/modes and constructors referring to a second gene. Profile isolation and
 sample generation probes both return 0. No existing user world or genome is copied.
 
-Manual acceptance checklist (not yet claimed as visually accepted):
+Manual acceptance checklist retained for reference (user acceptance recorded below):
 
 1. Open `samples/synthetic-a.genome`. Inspect base/empty states, first/inner/last
    node angles, cell-type choices and constructor gene choices. User gene names
@@ -179,10 +179,33 @@ Manual acceptance checklist (not yet claimed as visually accepted):
 
 ## Preservation
 
-`main` remains at the specified baseline. `AGENTS.md` retains skip-worktree and
+During implementation, `main` remained at the specified baseline. `AGENTS.md` retains skip-worktree and
 SHA-256 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 The real HKCU profile exports before/after checks match:
 SHA-256 `BDB897D5FA8D736A8D12E895D3D65F6910F6E3325568D77239BC0B57E075B37E`.
 User worlds, genomes, autosaves and dependency sources are preserved. No CodeQL,
-submodule update, IDE-tree build or dependency edit ran. Commit and push target
-only the requested feature branch.
+submodule update, IDE-tree build or dependency edit ran. Implementation commit and
+push targeted only the requested feature branch.
+
+## User acceptance and closure
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user confirmed successful visual acceptance of L4-A3 implementation
+`7a71aed7027102211dbda85af765f99c5d8c4535` on 2026-10-22. Visual acceptance is
+complete; the checklist above is retained as the review record. This records
+the user's confirmation and does not claim an additional agent visual session.
+
+The user authorizes a documentation-only acceptance commit and push, followed by
+fast-forward-only integration into `main`, pushing `main`, verifying its
+synchronization with `origin/main`, and deleting the integrated feature branch.
+Builds and tests are not repeated: the passing results above remain the validation
+for the accepted implementation. No L4-A4 work is started.
+
+Before closure, the working tree was clean, local and remote feature refs matched
+the accepted implementation, and local and remote `main` both matched the recorded
+baseline. The closure changes only this report. `AGENTS.md`, its skip-worktree flag,
+user data and dependencies are preserved. Documentation-only graph change analysis
+reports one changed file, no changed indexed symbols or affected flows, and LOW
+risk, with neither partial nor truncated output. Its local evidence is retained
+separately under `temp/l4a3/closure/`.
