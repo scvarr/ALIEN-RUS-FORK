@@ -145,7 +145,7 @@ neither partial nor truncated output is reported. The index contains 730217
 nodes, 950039 edges and 432 reported flows. These bounded graph results are
 supplemented by the source-call inspection and complete test results above.
 
-## Isolated visual acceptance build
+## Isolated acceptance build
 
 The final Release libraries are separately linked into:
 
@@ -170,10 +170,11 @@ Default: Russian, 150%. Each run uses a disposable profile. Save review edits
 only inside the package's `samples/` directory. The package recreates its
 synthetic inputs on launch.
 
-Pixel-level visual acceptance remains for the user. Automated production-widget,
-font and layout measurements above are not a claim of completed visual acceptance.
+The user accepted L4-A5 without an additional manual launch, based on the
+automated checks and localization review. No visual acceptance was performed or
+is claimed. The isolated build remains available for optional future inspection.
 
-Manual checklist:
+Optional manual checklist retained for future inspection; not executed for closure:
 
 1. Open `samples/diagnostics.genome`, `cut-off.genome` and `separation.genome`.
    Inspect warning icons in the editor and graph, root and edge tooltips, all
@@ -194,10 +195,47 @@ Manual checklist:
 
 ## Preservation
 
-`main` remains at the requested baseline. Only the feature branch is committed
-and pushed. `AGENTS.md` retains skip-worktree and SHA-256
+At implementation delivery, `main` remained at the requested baseline and only
+the feature branch was committed and pushed. `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 User worlds, genomes, autosaves and dependency sources are preserved. Profile
 exports before/after validation are retained under `temp/l4a5/`.
 Both real-profile exports have SHA-256
 `09F9632B91EF06A375D98A1C5F9F0BE67602D145861E10A4E79B515BC4830758`.
+
+## Acceptance and L4 closure
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user accepted L4-A5 implementation
+`231a9195b9819a10aa939ec7ff7ab270e89bb446` on the basis of the recorded automated
+validation and localization review, without an additional manual launch.
+This is acceptance of the implementation, not completed visual acceptance.
+L4-A1–A5 are complete and L4 is closed. L5 is not started or authorized by this
+closure.
+
+The user authorizes a documentation-only acceptance commit and push,
+fast-forward-only integration into `main`, pushing `main`, synchronization
+verification and deletion of the integrated feature branch. This closure changes
+only this report and the roadmap. Builds and tests are not rerun; the existing
+passing results above remain the validation evidence. Catalogs, implementation,
+`AGENTS.md`, skip-worktree flags, user data and dependencies are preserved.
+
+### Deferred editorial review
+
+The following wording candidates are recorded for later review and do not block
+the accepted implementation. No catalog changes or replacement translations are
+approved by this documentation update:
+
+- `genomeissues.cut.void.one` and `genomeissues.cut.become.one`: consider a
+  singular index caption when the counted sentence describes one node, while
+  retaining plural captions and range formatting for larger lists.
+- `preview.primary.trimmed.*` and `preview.secondary.trimmed.*`: review whether
+  the shortened header makes the grammatical referent of the trimmed qualifier
+  sufficiently clear, especially next to the cell count.
+- `preview.front`: review the clarity of the short front-direction caption in
+  context, balancing readability with the measured marker width.
+
+Any later wording changes should preserve the agreed terminology, whole-sentence
+count variants, argument signatures, canonical IDs and data contracts. They are
+separate follow-up work and do not reopen L4 or start L5.

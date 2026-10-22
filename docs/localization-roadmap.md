@@ -2,11 +2,28 @@
 
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
-Planning only; L3 does not start L4.
+Original L3 planning baseline; completion status updated on 2026-10-22.
+L4-A1–A5 are complete and L4 is closed. L5 has not started.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
 New terms require separate agreement; this document approves no new translations.
+
+## L4 completion record
+
+L4-A1–A5 are complete. Stage evidence is retained in
+[L4-A1](localization-l4a1-validation.md),
+[L4-A2](localization-l4a2-validation.md),
+[L4-A3](localization-l4a3-validation.md),
+[L4-A4](localization-l4a4-validation.md) and
+[L4-A5](localization-l4a5-validation.md).
+
+The user accepted L4-A5 implementation
+`231a9195b9819a10aa939ec7ff7ab270e89bb446` based on automated checks and
+localization review, without an additional manual launch. No completed visual
+acceptance is claimed for A5. Its validation report records the acceptance
+basis and deferred editorial wording candidates; catalogs are unchanged by
+closure. L5 and later stages remain pending and require separate authorization.
 
 ## Scope and sequencing
 
@@ -30,11 +47,11 @@ days; translation review effort can exceed code effort.
 
 | Order / proposed stage | Deliverable and bounded files | Complexity | Dependencies / exit evidence |
 | --- | --- | --- | --- |
-| 1 / L4-A1 Genome shell and gene editor | `GenomeEditorWindow`, `GenomeEditorWidget`, `GeneEditorWidget`, `GenomeTabWidget`; title, toolbar, tabs, properties, shape display adapter and directly used attribute help | Medium | Use existing title/label APIs; preserve names and gene/node IDs. Both languages: multiple open/renamed tabs, tree selection, clone/copy/paste, file captions, open dialog during switch; no genome data changes |
-| 2 / L4-A2 Neural network editor | `NeuralNetEditorWidget`, `CellFunctionChannels`, relevant `CreaturePreviewWidget`/`PreviewWidget` labels | High | Follows shell; translate telemetry/rails/channel prose, modal actions and activation descriptions. Update all paired measurements. Verify graph/connection selection, reset, Clear/Identity/Randomize, copy/paste and Adopt/Cancel in embedded and modal modes with memory/telemetry visible |
-| 3 / L4-A3 Node properties and modes | `NodeEditorWidget`, shared display adapters for `CellTypeConstants`, relevant `EntityAttributeHelp`; constructor and per-cell panels | High | Reuse A1/A2 adapters; review approved modes and object names. All actual cell panels/modes and nested constructors work; enum order, channel masks, hidden controls and values unchanged. Do not add inactive injector controls; resolve `Free` separately where exposed |
-| 4 / L4-A4 Mutation editor | `MutationRatesWidget`, `MutationRatesDialog`, remaining mutation attribute descriptions | Medium–high | A3 terminology and stable repeated-field scopes. Every mutation group, active summary, sigma/probability, reset and dialog action localized; values/limits/number formats unchanged |
-| 5 / L4-A5 Genome diagnostics and preview completion | `GenomeIssueDescription`, `GeneGraphWidget`, preview/settings, `SignalsBufferDialog`, shared signal editor | High | A1–A4; full-sentence variants and agreed count/list formatting. Exercise each warning family and 0/1/2/5/21 counts, issue locations/follow-ups; ensure correction algorithm unaffected; preview switches retain state |
+| 1 / **Completed: L4-A1** Genome shell and gene editor | `GenomeEditorWindow`, `GenomeEditorWidget`, `GeneEditorWidget`, `GenomeTabWidget`; title, toolbar, tabs, properties, shape display adapter and directly used attribute help | Medium | Use existing title/label APIs; preserve names and gene/node IDs. Both languages: multiple open/renamed tabs, tree selection, clone/copy/paste, file captions, open dialog during switch; no genome data changes |
+| 2 / **Completed: L4-A2** Neural network editor | `NeuralNetEditorWidget`, `CellFunctionChannels`, relevant `CreaturePreviewWidget`/`PreviewWidget` labels | High | Follows shell; translate telemetry/rails/channel prose, modal actions and activation descriptions. Update all paired measurements. Verify graph/connection selection, reset, Clear/Identity/Randomize, copy/paste and Adopt/Cancel in embedded and modal modes with memory/telemetry visible |
+| 3 / **Completed: L4-A3** Node properties and modes | `NodeEditorWidget`, shared display adapters for `CellTypeConstants`, relevant `EntityAttributeHelp`; constructor and per-cell panels | High | Reuse A1/A2 adapters; review approved modes and object names. All actual cell panels/modes and nested constructors work; enum order, channel masks, hidden controls and values unchanged. Do not add inactive injector controls; resolve `Free` separately where exposed |
+| 4 / **Completed: L4-A4** Mutation editor | `MutationRatesWidget`, `MutationRatesDialog`, remaining mutation attribute descriptions | Medium–high | A3 terminology and stable repeated-field scopes. Every mutation group, active summary, sigma/probability, reset and dialog action localized; values/limits/number formats unchanged |
+| 5 / **Completed: L4-A5** Genome diagnostics and preview completion | `GenomeIssueDescription`, `GeneGraphWidget`, preview/settings, `SignalsBufferDialog`, shared signal editor | High | A1–A4; full-sentence variants and agreed count/list formatting. Exercise each warning family and 0/1/2/5/21 counts, issue locations/follow-ups; ensure correction algorithm unaffected; preview switches retain state |
 | 6 / L5-A Object inspector | `InspectionWindow`, remaining object/cell `EntityAttributeHelp` | High | Shared modes/help from L4. Particle, solid, fluid, free cell and organism-cell inspectors, lifecycle/connections and neural panels; dynamic IDs and live data retained on switch |
 | 7 / L5-B World/selection tools | `EditorWidget`, `SelectionWidget`, `CreatorWidget`, `MultiplierWidget`, `ResizeWorldDialog`, `MassEditDialog`, `ChangeColorDialog`, image conversion and interaction hints | Medium–high | L4 display adapters and L5-A names. HUD focus and repeated controls stable; create/copy/undo/filter/world resize semantics unchanged; no translation of user names or file filters' syntax |
 | 8 / L5-C Controls and statistics | Temporal/spatial/location windows; `EvolutionDashboardWindow` metric labels, table and plots | High | Stable ImPlot series/card IDs and L5 terminology. Preserve selected lineage, plot visibility/ranges and history mode; long captions at multiple DPI levels; computation/CSV contracts stay canonical |
