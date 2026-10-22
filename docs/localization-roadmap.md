@@ -1,0 +1,123 @@
+# Roadmap: completing Russian localization after L2
+
+Date: 2026-10-22 (Europe/Moscow).
+Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
+Planning only; L3 does not start L4.
+
+Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
+Translation authority: [localization-terminology.md](localization-terminology.md).
+New terms require separate agreement; this document approves no new translations.
+
+## Scope and sequencing
+
+**The first implementation stages are the genome editors and neural network
+editor.** Shared label/identity changes needed for those screens belong inside
+those small stages; they should not turn into a prerequisite rewrite of all UI.
+Complete and review each stage in EN and RU before starting its dependents.
+
+The existing 433-key catalogs, font roles, deferred language switch, stable-title
+APIs, optional widget labels and L2 parameter presentation are the foundation.
+Do not repeat L1/L2 or translate canonical Data definitions to bypass adapters.
+
+Planning scale: approximately 800–1,200 additional desktop message keys,
+19 English Markdown files (~25,600 whitespace words) and 28 images to review.
+This key range is an estimate pending extraction/deduplication, not a coverage
+measurement. CLI, vendor UI and protocol-facing MCP prose are separate work
+packages. Complexity below describes change/validation difficulty, not elapsed
+days; translation review effort can exceed code effort.
+
+## Ordered implementation stages
+
+| Order / proposed stage | Deliverable and bounded files | Complexity | Dependencies / exit evidence |
+| --- | --- | --- | --- |
+| 1 / L4-A1 Genome shell and gene editor | `GenomeEditorWindow`, `GenomeEditorWidget`, `GeneEditorWidget`, `GenomeTabWidget`; title, toolbar, tabs, properties, shape display adapter and directly used attribute help | Medium | Use existing title/label APIs; preserve names and gene/node IDs. Both languages: multiple open/renamed tabs, tree selection, clone/copy/paste, file captions, open dialog during switch; no genome data changes |
+| 2 / L4-A2 Neural network editor | `NeuralNetEditorWidget`, `CellFunctionChannels`, relevant `CreaturePreviewWidget`/`PreviewWidget` labels | High | Follows shell; translate telemetry/rails/channel prose, modal actions and activation descriptions. Update all paired measurements. Verify graph/connection selection, reset, Clear/Identity/Randomize, copy/paste and Adopt/Cancel in embedded and modal modes with memory/telemetry visible |
+| 3 / L4-A3 Node properties and modes | `NodeEditorWidget`, shared display adapters for `CellTypeConstants`, relevant `EntityAttributeHelp`; constructor and per-cell panels | High | Reuse A1/A2 adapters; review approved modes and object names. All actual cell panels/modes and nested constructors work; enum order, channel masks, hidden controls and values unchanged. Do not add inactive injector controls; resolve `Free` separately where exposed |
+| 4 / L4-A4 Mutation editor | `MutationRatesWidget`, `MutationRatesDialog`, remaining mutation attribute descriptions | Medium–high | A3 terminology and stable repeated-field scopes. Every mutation group, active summary, sigma/probability, reset and dialog action localized; values/limits/number formats unchanged |
+| 5 / L4-A5 Genome diagnostics and preview completion | `GenomeIssueDescription`, `GeneGraphWidget`, preview/settings, `SignalsBufferDialog`, shared signal editor | High | A1–A4; full-sentence variants and agreed count/list formatting. Exercise each warning family and 0/1/2/5/21 counts, issue locations/follow-ups; ensure correction algorithm unaffected; preview switches retain state |
+| 6 / L5-A Object inspector | `InspectionWindow`, remaining object/cell `EntityAttributeHelp` | High | Shared modes/help from L4. Particle, solid, fluid, free cell and organism-cell inspectors, lifecycle/connections and neural panels; dynamic IDs and live data retained on switch |
+| 7 / L5-B World/selection tools | `EditorWidget`, `SelectionWidget`, `CreatorWidget`, `MultiplierWidget`, `ResizeWorldDialog`, `MassEditDialog`, `ChangeColorDialog`, image conversion and interaction hints | Medium–high | L4 display adapters and L5-A names. HUD focus and repeated controls stable; create/copy/undo/filter/world resize semantics unchanged; no translation of user names or file filters' syntax |
+| 8 / L5-C Controls and statistics | Temporal/spatial/location windows; `EvolutionDashboardWindow` metric labels, table and plots | High | Stable ImPlot series/card IDs and L5 terminology. Preserve selected lineage, plot visibility/ranges and history mode; long captions at multiple DPI levels; computation/CSV contracts stay canonical |
+| 9 / L6-A Remaining local dialogs and messages | About/network settings, autosave/log, file/preview errors and startup/application notices; remaining HelpStrings | Medium | L4–L5 shared controls. Trace callback producers to generic messages; open/queued message language policy documented; test autosave status without changing directory/peak identifiers |
+| 10 / L6-B Browser presentation | BrowserWindow/gallery/table/user list/login invitation, edit/upload/replace dialogs and related hints | High | L6-A message conventions. Use full simulation/genome sentence variants; preserve workspace/resource/folder IDs, sorting/reactions and user text. Test private/public/featured views, ownership, empty states and pagination |
+| 11 / L6-C Account flows and browser Unicode search | Login/create/activate/reset/new-password/delete dialogs, LoginController, NetworkTransferController; NetworkResourceRawTO filtering | High | L6-A/B; explicit UTF-8 search adapter, no global parser changes. Test mixed-case Cyrillic metadata and Yo, rejected input, resend/error callbacks and switch while forms open; credentials unchanged |
+| 12 / L6-D MCP desktop UI | McpWindow, McpSettingsDialog, GUI connection instructions/status | Medium | L6-A errors. Commands/endpoint/schema keys remain literal; GUI translation does not change network tool contracts or command log payloads |
+| 13 / L7-A F1 locale resolution and Unicode navigation | Explicit reader locale/root, GUI reload/cache lifecycle, reader/renderer path pairing, search/snippet and anchor policy, format-reference reachability | High | L4 accepted vocabulary; inspect shared GUI/MCP callers before edits. EN default retained for MCP, canonical filenames stable. Validate missing chapter/tree fallback, active chapter across switch, links/anchors/images, mixed-case Russian, long UTF-8 tokens and duplicate headings |
+| 14 / L7-B First translated help batch | contents/entry/UI/keyboard chapters; genomes/neural/first-creature chapters and associated images | High editorial, medium code | L7-A plus accepted L4 UI. Chapter/title/search coverage, correct links and screenshots in both languages; no untranslated navigation/control captions |
+| 15 / L7-C Cell, energy and parameter reference | cell-types, energy, simulation-parameters, glossary, how-life-works | High editorial | L2/L4 terminology accepted. Distinguish energy forms and signal control accurately; preserve technical values/code and validate all internal links |
+| 16 / L7-D Workflow and support help | sandbox/evolution/generative-art, ai-agents/files/troubleshooting/format-reference; finish 28-image review | Medium–high | Accepted tool/browser/statistics vocabulary and L7-B/C. All 19 files accounted for; English embedded image text explicitly replaced or justified; MCP/CLI examples remain runnable contracts |
+| 17 / L8-A Console and CLI | ConsoleModeController, ConsoleUi, Alien-cli human help/status/error output and explicit locale selection policy | Medium–high | Reuse catalogs only where appropriate; retain option names, machine output and numeric formats. Test console entry/exit and missing-resource errors; avoid introducing GUI dependency into CLI |
+| 18 / L8-B Vendor and diagnostic closure | ImFileDialog integration; exposed ImGui/ImPlot menus; user-facing Base/Network/Persister/Rendering/startup errors | High | Trace exposed consumers; choose supported adapter or narrowly maintained patch. No pinned-vcpkg modification. Catalog-owned explanations translated, raw vendor diagnostics documented; validate early startup before locale initialization |
+| 19 / L9 Release qualification | Complete bilingual inventory, packaging, ID/search/DPI regression and source coverage gate | High integration | All desktop stages; explicit disposition for CLI/MCP/vendor exceptions. EN/RU catalogs/embedded fallback agree, packaged resources complete, runtime language persistence and layout verified |
+
+L4-A1/A2 are deliberately first even though A3/A4/A5 complete the same editor
+family. During A1, translate only the attribute descriptions it actually consumes;
+expand the enum-to-key map incrementally without replacing the canonical enum or
+weakening its compile-time completeness checks. A2's shared channel labels then
+support node editing and live inspection. Each row may be split further if its
+review diff becomes too large; preserve this priority order.
+
+L7-A can be investigated after L4 and developed separately from later browser
+work once explicitly authorized, but translated help must use accepted UI terms.
+The numbered order is the recommended delivery sequence, not an instruction to
+start parallel branches. No source edits are authorized by this audit itself.
+
+## Cross-stage contracts
+
+1. Before source edits, refresh/check GitNexus and run upstream impact for the
+   exact symbols. Report callers/processes/risk; warn on HIGH/CRITICAL. UNKNOWN
+   requires confirming text/call-site investigation. Run complete graph change
+   analysis before each implementation commit.
+2. Keep ImGui identity, canonical specification names, enum values, JSON and
+   serialization fields, CLI switches and MCP schemas independent of language.
+   Preserve original parent scopes, not just a new child `###` suffix.
+3. Translate whole messages. Define argument signatures and Russian count forms
+   where needed; never concatenate an English noun with a translated fragment.
+   New terminology is reviewed against the normative glossary before cataloging.
+4. Use keys/static canonical metadata with lookup at display time. Invalidate
+   locale-dependent document/search/layout caches at the existing frame boundary.
+   A language switch must preserve unsaved edits, selection, focus and open modals.
+5. Use decoded UTF-8 boundaries for matching, highlighting and truncation. Existing
+   `Utf8Search` covers Russian case/Yo but does not imply normalization, stemming
+   or Yo/e equivalence. Keep byte offsets tied to original rendered strings.
+6. Do not translate user data, URLs, technical paths, tokens or raw foreign
+   diagnostics. Generated defaults, persisted peak labels and protocol prose need
+   deliberate policy rather than silent replacement.
+
+## Validation planned for implementation
+
+L3 itself requires only document/source checks and a documentation commit.
+For later stages, use small catalog/static checks plus focused GUI interaction
+coverage. Reuse and extend `source/Gui/Impl/Tests/LocalizationGuiTests.cpp` and
+the existing localization checker patterns where they establish useful contracts;
+do not infer runtime completeness from key parity or a lexical scan.
+
+GUI-only changes must still build with `build-windows-ninja.bat agent`.
+Choose runtime/tests appropriate to shared-code impact under repository rules;
+Base/Network/McpTools/Persister changes need their relevant suites. Localization
+should not alter kernel structs, CUDA algorithms or simulation semantics. Full
+release qualification should run the applicable integration suites on the required
+GPU and compare failures to the English baseline; never cancel long-running tests.
+
+Each stage records exact touched files/keys, unresolved terminology, reviewed
+screens and remaining exceptions. Check EN/RU startup and persistence, missing
+catalog fallback, switch with a modal open, repeated/dynamic IDs, 100/150/200%
+scaling, tooltip wrap, Cyrillic inputs and unchanged saved data/protocols.
+Documentation stages additionally verify every chapter link/fragment/image,
+search ranking/snippet safety, missing files and actual runtime resource paths.
+
+## Completion and explicit boundaries
+
+Desktop completion means every first-party owned menu/window/control/tooltip,
+editor/inspector/statistics caption, notification and explanatory error has RU
+coverage, with EN fully supported and stable data/identity contracts. All 19 help
+files are accounted for, Cyrillic search works by the declared matching policy,
+and all 28 images have a recorded disposition. Vendor strings and raw diagnostics
+need an explicit tested solution or named exception rather than unexplained English.
+
+MCP tool descriptions/results can remain a stable English machine-facing API
+while the desktop MCP panel is Russian. An explicit MCP locale extension, server
+emails/admin localization, translated bundled/cloud worlds and user-authored
+content are separate product/API/content decisions. They are not prerequisites
+for documenting desktop completion, and desktop completion must not be described
+as localization of the entire ALIEN ecosystem.
