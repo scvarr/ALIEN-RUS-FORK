@@ -7,7 +7,8 @@ Date: 2026-10-22 (Europe/Moscow).
 Base SHA: `634970082bd0c1e628cba91f5c40cbca2d098879`.
 After fetching origin, main and origin/main both matched this SHA. The index and
 working tree were clean. Work is isolated on `feat/ru-localization-l2b4c`.
-This delivery does not merge main or begin L2-B4d.
+The initial delivery did not merge main or begin L2-B4d. The subsequent user
+acceptance and integration review are recorded below.
 
 AGENTS.md, the normative terminology document, both B4a/B4b reports, canonical
 parameter declarations, presentation and GUI dispatch, MutationRatesWidget,
@@ -208,7 +209,8 @@ User acceptance procedure:
 6. Save/read only disposable synthetic settings. Optionally revisit the B4b
    customization matrix, then close this isolated instance.
 
-User acceptance remains pending. The normative glossary is unchanged.
+User acceptance was subsequently completed, as recorded below. The normative
+glossary is unchanged.
 
 ## Graph review
 
@@ -233,3 +235,60 @@ This is a complete response for the indexed graph, not complete C++/GUI call
 coverage. It also marks some unchanged neighboring adapter functions as touched;
 the reviewed production diff is exactly ten typed branches and two group-caption
 branches. Source review and the native interaction tests cover this discrepancy.
+
+## User acceptance and final integration review
+
+On 2026-10-22 the user confirmed that all six manual acceptance scenarios were
+completed without remarks at reviewed SHA
+`d16dfa815c92be9117e8f183576afe2b66306564` and explicitly authorized integration
+into main. Names, complete tooltips, search, editing, reset and language switching
+are visually accepted. This acceptance did not include actual mutation execution
+in a GPU simulation. The normative terminology document remains unchanged.
+
+An origin fetch confirmed both feature refs at the reviewed SHA and both main
+refs at base `634970082bd0c1e628cba91f5c40cbca2d098879`: ahead one, behind zero.
+The index and working tree were clean before this documentation-only follow-up.
+The complete 15-file feature diff was reviewed; no blocking issue was found.
+
+The review confirms both group captions, all ten independent FloatSpec member
+bindings and full English/Russian descriptions. Add node allows any insertion
+slot, whereas Extend gene targets boundaries; Delete node differs from boundary
+trimming. Copy preserves the source section and Move removes it while keeping the
+source gene nonempty. Swap exchanges the contents of two genes within one genome.
+Every sigma describes the standard deviation of a change to a mutation
+probability stored in a genome, conditional on Apply meta-mutations and applied
+once per offspring. None of these controls directly specifies a structural edit.
+
+Canonical specifications and English descriptions, zero defaults, ranges 0…1,
+logarithmic scales, `%.5f`, ID seeds and reset handlers remain unchanged.
+The production adapter diff contains only the ten typed branches and two group
+caption branches. Existing catalog entries and all Data, Engine, CUDA, mutation,
+serialization, CLI and MCP sources are unchanged. Shared widgets and dispatch
+are unchanged as well. This follow-up changes only this report, preserving all
+production code from the user-reviewed SHA.
+
+The integration Release build succeeds with `build-windows-ninja.bat agent`.
+The seven lightweight suites pass again: 584 successful C++ tests, zero failures
+or errors, and one pre-existing disabled Persister test. The full 74-test GUI
+suite includes B4a/B4b regressions and the directed 10×10 matrix checks.
+All 41 Python checks pass. EN and RU each retain 378 matching keys, and the
+embedded English missing-catalog tests pass; no forced recompilation is needed
+in this integration run. Logs and XML are retained in `temp/l2b4c/integration`.
+
+Tests used their existing isolated settings scopes and synthetic parameters.
+No user worlds, genomes, real profile or autosaves were opened or modified.
+No heavy GPU/stress tests were run. AGENTS.md retains its original SHA-256 and
+`S` skip-worktree flag. README, dependencies, upstream and submodule are unchanged.
+L2-B4d is outside this integration.
+
+The integration graph was refreshed to the user-reviewed SHA with
+`analyze --index-only`. A fresh backend's comparison against main reports 47
+indexed changed symbols across 15 files, LOW risk, no listed affected flows,
+`partial: false` and `truncated: false`; all 47 symbols are returned.
+Upstream analysis again resolves three direct `key` consumers (label, description
+and alternative labels), LOW risk. Group-label analysis remains UNKNOWN; its
+production filter/dispatch call sites were confirmed by text inspection and
+covered by the passing GUI tests. The pre-commit `scope: all` response for this
+documentation-only follow-up is also untruncated and non-partial. The known FTS
+failure, bounded process sampling and imperfect symbol/hunk attribution remain
+coverage limitations, not evidence that unlisted GUI paths are unaffected.
