@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 
 #include <Network/NetworkService.h>
 #include <Network/NetworkValidationService.h>
@@ -50,6 +51,7 @@ void UploadSimulationDialog::open(NetworkResourceType resourceType, std::string 
 {
     if (NetworkService::get().getLoggedInUserName()) {
         changeTitle("Upload " + BrowserDataTypeToLowerString.at(resourceType));
+        setTitleKey(resourceType == NetworkResourceType_Genome ? "genome.upload.title" : "");
         _resourceType = resourceType;
         _folder = folder;
         _resourceName = resourceName.empty() ? _resourceNameByFolder[_folder] : resourceName;
@@ -72,23 +74,27 @@ UploadSimulationDialog::UploadSimulationDialog()
 void UploadSimulationDialog::processIntern()
 {
     auto resourceTypeString = BrowserDataTypeToLowerString.at(_resourceType);
+    auto genomeText = [&](std::string const& canonical, std::string const& key) { return _resourceType == NetworkResourceType_Genome ? tr(key) : canonical; };
     if (ImGui::BeginChild("##header", ImVec2(0, scale(52.0f)), true, ImGuiWindowFlags_HorizontalScrollbar)) {
-        AlienGui::Text("Data privacy policy");
-        AlienGui::HelpMarker(
-            "The " + resourceTypeString + " file, name and description are stored on the server. It cannot be guaranteed that the data will not be deleted.");
+        AlienGui::Text(genomeText("Data privacy policy", "genome.upload.privacy"));
+        AlienGui::HelpMarker(genomeText(
+            "The " + resourceTypeString + " file, name and description are stored on the server. It cannot be guaranteed that the data will not be deleted.",
+            "genome.upload.privacy.help"));
 
-        AlienGui::Text("How to use or create folders?");
-        AlienGui::HelpMarker(
+        AlienGui::Text(genomeText("How to use or create folders?", "genome.upload.folders"));
+        AlienGui::HelpMarker(genomeText(
             "If you want to upload the " + resourceTypeString
-            + " to a folder, you can use the `/`-notation. The folder will be created automatically if it does not exist.\nFor instance, naming a simulation "
-              "as `Biome/Water "
-              "world/Initial/Variant 1` will create the nested folders `Biome`, `Water world` and `Initial`.");
+                + " to a folder, you can use the `/`-notation. The folder will be created automatically if it does not exist.\nFor instance, naming a "
+                  "simulation "
+                  "as `Biome/Water "
+                  "world/Initial/Variant 1` will create the nested folders `Biome`, `Water world` and `Initial`.",
+            "genome.upload.folders.help"));
     }
     ImGui::EndChild();
 
     if (!_folder.empty()) {
         if (ImGui::BeginChild("##folder info", ImVec2(0, scale(85.0f)), true, ImGuiWindowFlags_HorizontalScrollbar)) {
-            AlienGui::Text("The following folder has been selected in the browser\nand will used for the upload:\n\n");
+            AlienGui::Text(genomeText("The following folder has been selected in the browser\nand will used for the upload:\n\n", "genome.upload.folder"));
             AlienGui::Text(AlienGui::TextParameters().text(_folder).style(AlienGui::TextStyle::Bold));
         }
         ImGui::EndChild();
@@ -98,14 +104,19 @@ void UploadSimulationDialog::processIntern()
 
     AlienGui::Separator();
 
-    AlienGui::InputText(AlienGui::InputTextParameters().hint(BrowserDataTypeToUpperString.at(_resourceType) + " name").textWidth(0), _resourceName);
+    AlienGui::InputText(
+        AlienGui::InputTextParameters()
+            .hint(genomeText(BrowserDataTypeToUpperString.at(_resourceType) + " name", "genome.field.name"))
+            .hintId(BrowserDataTypeToUpperString.at(_resourceType) + " name")
+            .textWidth(0),
+        _resourceName);
 
     AlienGui::Separator();
 
     ImGui::PushID("description");
     AlienGui::InputTextMultiline(
         AlienGui::InputTextMultilineParameters()
-            .hint("Desc (optional)")
+            .hint(genomeText("Desc (optional)", "genome.upload.description"))
             .textWidth(0)
             .height(ImGui::GetContentRegionAvail().y - StyleService::get().scale(70.0f)),
         _resourceDescription);
@@ -114,21 +125,27 @@ void UploadSimulationDialog::processIntern()
     AlienGui::ToggleButton(
         AlienGui::ToggleButtonParameters()
             .name("Share with the community")
-            .tooltip(
+            .label(genomeText("Share with the community", "genome.upload.share"))
+            .tooltip(genomeText(
                 "If true, the " + resourceTypeString + " will be visible to all users in the Community workspace. If false, the " + resourceTypeString
-                + " will only be visible in your own workspace. This property can also be changed later if desired."),
+                    + " will only be visible in your own workspace. This property can also be changed later if desired.",
+                "genome.upload.share.help")),
         _share);
 
     AlienGui::Separator();
 
     ImGui::BeginDisabled(_resourceName.empty());
-    if (AlienGui::Button("OK")) {
+    if (AlienGui::DisplayButton("OK", genomeText("OK", "common.ok"))) {
         if (NetworkValidationService::get().isStringValidForDatabase(_resourceName)
             && NetworkValidationService::get().isStringValidForDatabase(_resourceDescription)) {
             close();
             onUpload();
         } else {
-            showMessage("Error", Const::NotAllowedCharacters);
+            if (_resourceType == NetworkResourceType_Genome) {
+                GenericMessageDialog::get().localizedInformation("Error", "common.error", "genome.upload.invalid");
+            } else {
+                showMessage("Error", Const::NotAllowedCharacters);
+            }
         }
         _resourceNameByFolder[_folder] = _resourceName;
         _resourceDescriptionByFolder[_folder] = _resourceDescription;
@@ -137,7 +154,7 @@ void UploadSimulationDialog::processIntern()
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::DisplayButton("Cancel", genomeText("Cancel", "common.cancel"))) {
         close();
     }
 }

@@ -6,6 +6,8 @@
 
 class _GeneEditorWidget
 {
+    friend class LocalizationGuiTests;
+
 public:
     static GeneEditorWidget create(GenomeTabEditData const& editData, GenomeTabLayoutData const& layoutData);
 

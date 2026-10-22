@@ -24,9 +24,18 @@
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
+#include <Gui/Impl/ChangeColorDialog.h>
 #include <Gui/Impl/DelayedExecutionController.h>
+#include <Gui/Impl/EntityAttributeHelp.h>
 #include <Gui/Impl/ExitDialog.h>
+#include <Gui/Impl/GeneEditorWidget.h>
 #include <Gui/Impl/GenericMessageDialog.h>
+#include <Gui/Impl/GenomeEditorPresentation.h>
+#include <Gui/Impl/GenomeEditorWidget.h>
+#include <Gui/Impl/GenomeEditorWindow.h>
+#include <Gui/Impl/GenomeTabEditData.h>
+#include <Gui/Impl/GenomeTabWidget.h>
+#include <Gui/Impl/GenomeWindowEditData.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/NewSimulationDialog.h>
@@ -158,6 +167,71 @@ protected:
 
     std::string overlayMessage() const { return OverlayController::get()._message; }
     void renderOverlay() { OverlayController::get().processMessage(); }
+
+    void initializeGenomeShell()
+    {
+        auto& window = GenomeEditorWindow::get();
+        window._tabs.clear();
+        window._tabsToAdd.clear();
+        window._selectedTabIndex = 0;
+        window._tabIndexToSelect.reset();
+        window.initIntern();
+    }
+
+    void drawGenomeShell()
+    {
+        auto& window = GenomeEditorWindow::get();
+        for (auto const& tabs : {window._tabs, window._tabsToAdd}) {
+            for (auto const& tab : tabs) {
+                tab->getEditData()->run = false;
+                tab->getEditData()->selectGene(0);
+            }
+        }
+        frame([&] {
+            window.processToolbar();
+            window.processTabWidget();
+        });
+    }
+
+    auto& genomeTabs() { return GenomeEditorWindow::get()._tabs; }
+    void selectGenomeTab(int index) { GenomeEditorWindow::get()._tabIndexToSelect = index; }
+    void copyGenome() { GenomeEditorWindow::get().onCopyGenome(); }
+    void pasteGenome() { GenomeEditorWindow::get().onPasteGenome(); }
+    void cloneGenome() { GenomeEditorWindow::get().onCloneGenome(); }
+    void closeOtherGenomeTabs() { GenomeEditorWindow::get().onCloseOtherTabs(); }
+
+    void removeGene(GenomeEditorWidget const& editor) { editor->onRemoveGene(); }
+    void swapRootGene(GenomeEditorWidget const& editor) { editor->onMoveGeneDownward(); }
+
+    void drawGenomeProperties(GenomeEditorWidget const& editor) { editor->processHeaderData(); }
+    void drawGeneProperties(GeneEditorWidget const& editor) { editor->processHeaderData(); }
+    void drawGenomeTree(GenomeEditorWidget const& editor) { editor->processStructureTree(); }
+
+    void drawGenomeStatus(GenomeTabWidget const& tab) { tab->processStatusBar(); }
+
+    void addGenomeGene(GenomeEditorWidget const& editor) { editor->onAddGene(); }
+    void moveGenomeGene(GenomeEditorWidget const& editor) { editor->onMoveGeneDownward(); }
+
+    void drawGenomeGeneRow(GenomeEditorWidget const& editor, int geneIndex, ImVec2& position)
+    {
+        if (ImGui::BeginTable("Structure list", 4)) {
+            auto start = ImGui::GetCursorScreenPos();
+            ImGui::SetNextItemOpen(false);
+            editor->processGeneNode(geneIndex, editor->_editData->genome._genes.at(geneIndex), {}, false, getDefaultCustomizationColorVector());
+            position = {start.x + ImGui::GetFontSize() * 3, start.y + ImGui::GetTextLineHeight() / 2 + ImGui::GetStyle().CellPadding.y};
+            ImGui::EndTable();
+        }
+    }
+
+    void processOpenDialog(AlienDialog& dialog, std::function<void()> const& before = {})
+    {
+        dialog._modalWindow.process([&] {
+            if (before) {
+                before();
+            }
+            dialog.processIntern();
+        });
+    }
 
     float _originalScale = 1;
     std::string _language;
@@ -5961,6 +6035,318 @@ TEST_F(LocalizationGuiTests, l2b4eTransitionCaptionAndFullDescriptionRemainAcces
                 EXPECT_NE(std::string::npos, logged.find(*SimulationParametersPresentation::description(parameter)))
                     << language << ": " << factor << ": " << width;
                 EXPECT_EQ(*defaults, *values);
+            }
+        }
+    }
+}
+
+namespace
+{
+    class GenomeShellWorldScope
+    {
+        class World : public _SimulationFacadeImpl
+        {
+        public:
+            int getSessionId() const override { return 1; }
+            IntVector2D getWorldSize() const override { return {1024, 768}; }
+            SimulationParameters getSimulationParameters() const override { return *_parameters; }
+            ContentDesc getPreviewData() override { return {}; }
+            uint64_t getCurrentTimestepForPreview() override { return 0; }
+
+        private:
+            std::unique_ptr<SimulationParameters> _parameters = std::make_unique<SimulationParameters>();
+        };
+
+    public:
+        GenomeShellWorldScope()
+            : _original(_SimulationFacade::get())
+        {
+            _SimulationFacadeImpl::set(std::make_shared<World>());
+        }
+        ~GenomeShellWorldScope() { _SimulationFacadeImpl::set(_original); }
+
+    private:
+        SimulationFacade _original;
+    };
+
+    GenomeDesc syntheticEditorGenome()
+    {
+        return GenomeDesc()
+            .name("Synthetic / Геном {index}")
+            .frontAngle(-180)
+            .genes(
+                {GeneDesc().name("User gene / Пользовательский ген").shape(ConstructorShape_Segment).nodes({NodeDesc(), NodeDesc()}),
+                 GeneDesc().name("Second / Второй").shape(ConstructorShape_Triangle).nodes({NodeDesc()})});
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a1PresentationRetainsCanonicalOrderAndAttributeFallback)
+{
+    std::vector<EntityAttribute> attributes = {
+        EntityAttribute::GenomeName,
+        EntityAttribute::GenomeFrontAngle,
+        EntityAttribute::GenomeResistanceToInjection,
+        EntityAttribute::GenomeApplyMetaMutations,
+        EntityAttribute::GeneName,
+        EntityAttribute::GeneShape,
+        EntityAttribute::GeneConnectionDistance,
+        EntityAttribute::GeneStiffness,
+        EntityAttribute::GeneHomogeneousCellType};
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        auto shapes = GenomeEditorPresentation::shapes();
+        auto cells = GenomeEditorPresentation::cellTypes();
+        ASSERT_EQ(ConstructorShape_Count, shapes.size());
+        ASSERT_EQ(CellType_Count, cells.size());
+        if (std::string(language) == "en") {
+            EXPECT_EQ(Const::ConstructorShapeStrings, shapes);
+            EXPECT_EQ(Const::CellTypeStrings, cells);
+        } else {
+            EXPECT_EQ("Большой леденец", shapes.at(ConstructorShape_LargeLolli));
+            EXPECT_EQ("Малый леденец", shapes.at(ConstructorShape_SmallLolli));
+            EXPECT_EQ("Донор", cells.at(CellType_Void));
+            EXPECT_EQ("Конвертер", cells.at(CellType_Digestor));
+        }
+        for (auto attribute : attributes) {
+            auto canonical = EntityAttributeHelp::get(attribute);
+            auto displayed = GenomeEditorPresentation::attributeDescription(attribute);
+            EXPECT_FALSE(displayed.empty());
+            EXPECT_EQ(std::string(language) == "en", canonical == displayed);
+        }
+        EXPECT_EQ(EntityAttributeHelp::get(EntityAttribute::CellType), GenomeEditorPresentation::attributeDescription(EntityAttribute::CellType));
+    }
+    LocalizationService::get().load("missing-l4a1-test-catalogs");
+    select("ru");
+    EXPECT_EQ(Const::ConstructorShapeStrings, GenomeEditorPresentation::shapes());
+    EXPECT_EQ(EntityAttributeHelp::get(EntityAttribute::GeneShape), GenomeEditorPresentation::attributeDescription(EntityAttribute::GeneShape));
+    LocalizationService::get().load("resources/locales");
+}
+
+TEST_F(LocalizationGuiTests, l4a1WholeMessagesUseRussianCountFormsAndDoNotInterpretArguments)
+{
+    select("ru");
+    for (auto const& [count, expected] : std::vector<std::pair<int, std::string>>{
+             {0, "0 генов"},
+             {1, "1 ген"},
+             {2, "2 гена"},
+             {5, "5 генов"},
+             {11, "11 генов"},
+             {12, "12 генов"},
+             {14, "14 генов"},
+             {21, "21 ген"},
+             {22, "22 гена"},
+             {25, "25 генов"},
+             {101, "101 ген"}}) {
+        EXPECT_EQ(expected, GenomeEditorPresentation::count("genome.count.genes", count));
+    }
+    EXPECT_EQ("Геном внедрён в 21 организм", GenomeEditorPresentation::count("genome.injected", 21));
+    EXPECT_EQ("Геном внедрён в 12 организмов", GenomeEditorPresentation::count("genome.injected", 12));
+    EXPECT_EQ("Ген {index}", GenomeEditorPresentation::format("genome.tree.gene", {{"index", "{index}"}}));
+    select("en");
+    EXPECT_EQ("1 gene", GenomeEditorPresentation::count("genome.count.genes", 1));
+    EXPECT_EQ("21 genes", GenomeEditorPresentation::count("genome.count.genes", 21));
+}
+
+TEST_F(LocalizationGuiTests, l4a1ProductionTabsCloneCopyPasteAndSyntheticFileRoundTripSurviveLanguageSwitch)
+{
+    GenomeShellWorldScope world;
+    initializeGenomeShell();
+    auto& window = GenomeEditorWindow::get();
+    auto genome = syntheticEditorGenome();
+    window.openTab(genome, true, false, 42);
+    drawGenomeShell();
+    drawGenomeShell();
+    ASSERT_EQ(2, genomeTabs().size());
+    selectGenomeTab(1);
+    drawGenomeShell();
+    drawGenomeShell();
+    EXPECT_EQ(genome._name, window.getCurrentGenome()._name);
+    auto tab = genomeTabs().at(1);
+    auto tabId = tab->getTabId();
+    auto normalized = tab->getGenomeDesc();
+    tab->getEditData()->genome._frontAngle = 37;
+    tab->getEditData()->changesMade = true;
+    copyGenome();
+    cloneGenome();
+    drawGenomeShell();
+    drawGenomeShell();
+    ASSERT_EQ(3, genomeTabs().size());
+    auto cloned = genomeTabs().back();
+    EXPECT_NE(tabId, cloned->getTabId());
+    EXPECT_EQ(tab->getGenomeDesc(), cloned->getGenomeDesc());
+    for (auto const& language : {"ru", "en", "ru"}) {
+        select(language);
+        drawGenomeShell();
+        EXPECT_EQ(tabId, tab->getTabId());
+        EXPECT_TRUE(tab->hasGenomeChanged());
+        EXPECT_EQ(42, tab->getLineageId());
+        EXPECT_EQ(genome._name, tab->getGenomeDesc()._name);
+        EXPECT_EQ(genome._genes.at(0)._name, tab->getGenomeDesc()._genes.at(0)._name);
+        EXPECT_EQ(0, tab->getEditData()->selectedGeneIndex);
+    }
+    selectGenomeTab(2);
+    drawGenomeShell();
+    drawGenomeShell();
+    cloned->getEditData()->genome._name = "Temporary";
+    pasteGenome();
+    EXPECT_EQ(tab->getGenomeDesc(), cloned->getGenomeDesc());
+    EXPECT_FALSE(cloned->hasGenomeChanged());
+
+    auto directory = std::filesystem::temp_directory_path() / ("alien-l4a1-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    ASSERT_TRUE(std::filesystem::create_directory(directory));
+    auto filename = directory / "synthetic.genome";
+    ASSERT_TRUE(SerializerService::get().serializeGenomeToFile(filename, cloned->getGenomeDesc()));
+    GenomeDesc loaded;
+    ASSERT_TRUE(SerializerService::get().deserializeGenomeFromFile(loaded, filename));
+    EXPECT_TRUE(loaded.equalWithoutId(cloned->getGenomeDesc()));
+    window.openTab(loaded, true, false);
+    drawGenomeShell();
+    drawGenomeShell();
+    ASSERT_EQ(4, genomeTabs().size());
+    tab->revertChanges();
+    EXPECT_EQ(normalized, tab->getGenomeDesc());
+    closeOtherGenomeTabs();
+    EXPECT_EQ(1, genomeTabs().size());
+    std::filesystem::remove(filename);
+    std::filesystem::remove(directory);
+}
+
+TEST_F(LocalizationGuiTests, l4a1GeneInputKeepsActiveIdAndCyrillicEditsAcrossLanguageSwitch)
+{
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->genome = syntheticEditorGenome();
+    data->selectGene(1);
+    auto layout = std::make_shared<_GenomeTabLayoutData>();
+    auto editor = _GeneEditorWidget::create(data, layout);
+    ImGuiID activeId = 0;
+    ImGuiWindow* header = nullptr;
+    auto draw = [&](bool activate) {
+        frame([&] {
+            if (activate) {
+                GImGui->NavActivateId = activeId;
+                GImGui->NavActivateFlags = ImGuiActivateFlags_PreferInput;
+            }
+            drawGeneProperties(editor);
+        });
+        for (auto candidate : GImGui->Windows) {
+            if (std::string(candidate->Name).find("/GeneHeader_") != std::string::npos) {
+                header = candidate;
+                activeId = ImHashStr("##Gene name", 0, ImHashStr("##", 0, header->ID));
+            }
+        }
+    };
+    draw(false);
+    ASSERT_NE(nullptr, header);
+    ImGui::FocusWindow(header);
+    draw(true);
+    draw(false);
+    ASSERT_EQ(activeId, ImGui::GetActiveID());
+    select("ru");
+    ImGui::GetIO().AddInputCharactersUTF8("ИмяЁ");
+    draw(false);
+    EXPECT_EQ(activeId, ImGui::GetActiveID());
+    EXPECT_NE(std::string::npos, data->getSelectedGeneRef()._name.find("ИмяЁ"));
+    auto name = data->getSelectedGeneRef()._name;
+    select("en");
+    draw(false);
+    EXPECT_EQ(activeId, ImGui::GetActiveID());
+    EXPECT_EQ(name, data->getSelectedGeneRef()._name);
+    EXPECT_EQ(1, data->selectedGeneIndex);
+}
+
+TEST_F(LocalizationGuiTests, l4a1TreeMouseSelectionKeepsGeneIndicesAndExpansionStorage)
+{
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->genome = syntheticEditorGenome();
+    data->selectGene(0);
+    data->setSelectedNodeIndex(1);
+    auto editor = _GenomeEditorWidget::create(data, std::make_shared<_GenomeTabLayoutData>());
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImVec2 position;
+    auto draw = [&] { frame([&] { drawGenomeGeneRow(editor, 1, position); }); };
+    draw();
+    draw();
+    io.AddMousePosEvent(position.x, position.y);
+    draw();
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    io.AddMouseButtonEvent(0, false);
+    draw();
+    ASSERT_EQ(1, data->selectedGeneIndex);
+    EXPECT_EQ(GenomeSelectionLevel::Gene, data->selectionLevel);
+    select("ru");
+    draw();
+    EXPECT_EQ(1, data->selectedGeneIndex);
+    EXPECT_EQ(1, data->selectedNodeByGeneIndex.at(0));
+    auto original = data->genome;
+    select("en");
+    draw();
+    EXPECT_EQ(original, data->genome);
+}
+
+TEST_F(LocalizationGuiTests, l4a1RootConfirmationAndReferenceErrorsStayOpenAndKeepArguments)
+{
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->genome = syntheticEditorGenome();
+    data->selectGene(0);
+    auto editor = _GenomeEditorWidget::create(data, std::make_shared<_GenomeTabLayoutData>());
+    auto& dialog = GenericMessageDialog::get();
+    removeGene(editor);
+    auto original = data->genome;
+    ImGuiWindow* popup = nullptr;
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        frame([&] {
+            processOpenDialog(dialog, [&] {
+                if (popup) {
+                    EXPECT_EQ(popup, ImGui::GetCurrentWindow());
+                }
+                popup = ImGui::GetCurrentWindow();
+            });
+        });
+        EXPECT_TRUE(dialog.isOpen());
+        EXPECT_EQ(original, data->genome);
+    }
+    closeImmediately(dialog);
+    select("en");
+    dialog.localizedInformation("Error", "common.error", "genome.error.used.many", {{"genes", "0, 2, 5"}});
+    for (auto const& language : {"en", "ru", "en"}) {
+        select(language);
+        std::string logged;
+        frame([&] {
+            ImGui::LogToBuffer();
+            processOpenDialog(dialog);
+            logged = GImGui->LogBuffer.c_str();
+            ImGui::LogFinish();
+        });
+        EXPECT_NE(std::string::npos, logged.find("0, 2, 5"));
+        EXPECT_EQ(std::string::npos, logged.find("{genes}"));
+    }
+    closeImmediately(dialog);
+}
+
+TEST_F(LocalizationGuiTests, l4a1PropertiesAndStatusRenderAtAllScalesWithoutChangingData)
+{
+    GenomeShellWorldScope world;
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->genome = _GenomeTabWidget::normalizeForEditor(syntheticEditorGenome());
+    data->selectGene(1);
+    auto original = data->genome;
+    auto layout = std::make_shared<_GenomeTabLayoutData>();
+    layout->structureHeight = 200;
+    auto genomeEditor = _GenomeEditorWidget::create(data, layout);
+    auto geneEditor = _GeneEditorWidget::create(data, layout);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            for (float width : {380.0f, 700.0f}) {
+                switcherFrame(width * factor, [&] { drawGeneProperties(geneEditor); });
+                EXPECT_EQ(original, data->genome);
+                switcherFrame(width * factor, [&] { drawGenomeProperties(genomeEditor); });
+                EXPECT_EQ(original, data->genome);
+                EXPECT_EQ(1, data->selectedGeneIndex);
             }
         }
     }

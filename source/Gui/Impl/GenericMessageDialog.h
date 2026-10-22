@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <optional>
 
 #include <Base/MarkdownDocument.h>
@@ -25,6 +26,11 @@ public:
     void yesNo(std::string const& title, std::string const& message, std::function<void()> const& yesFunction);
 
     void localizedInformation(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey);
+    void localizedInformation(
+        std::string const& stableTitle,
+        std::string const& titleKey,
+        std::string const& messageKey,
+        std::map<std::string, std::string> const& arguments);
 
     void localizedYesNo(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey, std::function<void()> const& yesFunction);
 
@@ -47,6 +53,7 @@ private:
     std::string _title;
     std::string _message;
     std::string _messageKey;
+    std::map<std::string, std::string> _messageArguments;
     std::optional<MarkdownDocument> _markdownMessage;
     MarkdownRenderer _markdownRenderer;
     std::function<void()> _execFunction;

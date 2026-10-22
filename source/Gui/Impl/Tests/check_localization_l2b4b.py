@@ -45,7 +45,7 @@ class L2b4bContracts(unittest.TestCase):
     def test_ten_typed_bindings_complete_catalogs_and_exact_english(self):
         en, ru = catalog('en'), catalog('ru')
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, len(en))
+        self.assertEqual(433, sum(not key.startswith("genome.") for key in en))
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         blocks = declarations()
         for i, member in enumerate(MEMBERS + ['customizationTransitionMatrix']):

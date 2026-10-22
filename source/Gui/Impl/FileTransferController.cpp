@@ -81,15 +81,15 @@ void FileTransferController::onSaveSimulationDialog()
 void FileTransferController::onOpenGenomeDialog(std::function<void(GenomeDesc const&)> const& openFunc)
 {
     GenericFileDialog::get().showOpenFileDialog(
-        "Open genome",
-        "Genome (*.genome){.genome},.*",
+        tr("genome.action.open"),
+        tr("genome.file.filter") + " (*.genome){.genome},.*",
         fileDialogDirectory(_referencePath),
         [&, openFunc = openFunc](std::filesystem::path const& path) {
             auto firstFilename = ifd::FileDialog::Instance().GetResult();
             _referencePath = PathHelper::toUtf8(firstFilename.parent_path());
             GenomeDesc genome;
             if (!SerializerService::get().deserializeGenomeFromFile(genome, firstFilename.string())) {
-                GenericMessageDialog::get().information("Open genome", "The selected file could not be opened.");
+                GenericMessageDialog::get().localizedInformation("Open genome", "genome.action.open", "genome.file.openerror");
             } else {
                 openFunc(genome);
             }
@@ -99,11 +99,11 @@ void FileTransferController::onOpenGenomeDialog(std::function<void(GenomeDesc co
 void FileTransferController::onSaveGenomeDialog(GenomeDesc const& genome, std::function<void()> const& afterSaveFunc)
 {
     GenericFileDialog::get().showSaveFileDialog(
-        "Save genome", "Genome (*.genome){.genome},.*", fileDialogDirectory(_referencePath), [&, genome = genome, afterSaveFunc = afterSaveFunc](std::filesystem::path const& path) {
+        tr("genome.action.save"), tr("genome.file.filter") + " (*.genome){.genome},.*", fileDialogDirectory(_referencePath), [&, genome = genome, afterSaveFunc = afterSaveFunc](std::filesystem::path const& path) {
             auto firstFilename = ifd::FileDialog::Instance().GetResult();
             _referencePath = PathHelper::toUtf8(firstFilename.parent_path());
             if (!SerializerService::get().serializeGenomeToFile(firstFilename.string(), genome)) {
-                GenericMessageDialog::get().information("Save genome", "The selected file could not be saved.");
+                GenericMessageDialog::get().localizedInformation("Save genome", "genome.action.save", "genome.file.saveerror");
             } else if (afterSaveFunc) {
                 afterSaveFunc();
             }

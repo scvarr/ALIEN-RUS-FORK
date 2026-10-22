@@ -11,6 +11,8 @@
 
 class _GenomeTabWidget
 {
+    friend class LocalizationGuiTests;
+
 public:
     static GenomeTabWidget create(
         GenomeWindowEditData const& genomeEditData,

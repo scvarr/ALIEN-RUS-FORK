@@ -14,6 +14,8 @@
 
 class GenomeEditorWindow : public AlienWindow
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(GenomeEditorWindow);
 
 public:

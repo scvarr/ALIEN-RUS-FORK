@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <Base/LocalizationService.h>
+
 #include <Fonts/IconsFontAwesome5.h>
 
 #include <Engine/Interface/SimulationFacade.h>
@@ -17,17 +19,19 @@ void ChangeColorDialog::open(GenomeTabEditData const& editData)
 }
 
 ChangeColorDialog::ChangeColorDialog()
-    : AlienDialog("Change color")
-{}
+    : AlienDialog("Change color", {560.0f, 300.0f})
+{
+    setTitleKey("genome.colors.title");
+}
 
 void ChangeColorDialog::processIntern()
 {
-    AlienGui::Group(AlienGui::GroupParameters().text("Filter"));
+    AlienGui::Group(AlienGui::GroupParameters().text(tr("genome.colors.filter")));
     ImGui::Checkbox("##restrictToSelectedGene", &_restrictToSelectedGene);
     ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
-    AlienGui::Text("Restrict to selected gene");
+    AlienGui::Text(tr("genome.colors.restrict"));
 
-    AlienGui::Group(AlienGui::GroupParameters().text("Color transition rule"));
+    AlienGui::Group(AlienGui::GroupParameters().text(tr("genome.colors.rule")));
     if (ImGui::BeginTable("##", 3, ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, scale(20));
@@ -63,13 +67,13 @@ void ChangeColorDialog::processIntern()
     ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
     AlienGui::Separator();
 
-    if (AlienGui::Button("OK")) {
+    if (AlienGui::DisplayButton("OK", tr("common.ok"))) {
         onChangeColor();
         close();
     }
     ImGui::SetItemDefaultFocus();
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::DisplayButton("Cancel", tr("common.cancel"))) {
         close();
     }
 }

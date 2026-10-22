@@ -12,6 +12,7 @@
 #include <Base/WebLinkHelper.h>
 
 #include "AlienGui.h"
+#include "LocalizationGuiText.h"
 #include "StyleService.h"
 
 void GenericMessageDialog::processIntern()
@@ -30,6 +31,7 @@ void GenericMessageDialog::information(std::string const& title, std::string con
 {
     setTitleKey("");
     _messageKey.clear();
+    _messageArguments.clear();
     _title = title;
     _message = message;
     _markdownMessage.reset();
@@ -59,6 +61,7 @@ void GenericMessageDialog::yesNo(std::string const& title, std::string const& me
 {
     setTitleKey("");
     _messageKey.clear();
+    _messageArguments.clear();
     _title = title;
     _message = message;
     _markdownMessage.reset();
@@ -71,7 +74,17 @@ void GenericMessageDialog::yesNo(std::string const& title, std::string const& me
 
 void GenericMessageDialog::localizedInformation(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey)
 {
-    information(stableTitle, tr(messageKey));
+    localizedInformation(stableTitle, titleKey, messageKey, {});
+}
+
+void GenericMessageDialog::localizedInformation(
+    std::string const& stableTitle,
+    std::string const& titleKey,
+    std::string const& messageKey,
+    std::map<std::string, std::string> const& arguments)
+{
+    information(stableTitle, LocalizationGuiText::format(messageKey, arguments));
+    _messageArguments = arguments;
     setTitleKey(titleKey);
     _messageKey = messageKey;
 }
@@ -125,7 +138,7 @@ void GenericMessageDialog::processMessageText()
             WebLinkHelper::openInBrowser(*clickedLink);
         }
     } else {
-        auto message = _messageKey.empty() ? _message : tr(_messageKey);
+        auto message = _messageKey.empty() ? _message : LocalizationGuiText::format(_messageKey, _messageArguments);
         ImGui::TextWrapped("%s", message.c_str());
     }
     ImGui::EndChild();

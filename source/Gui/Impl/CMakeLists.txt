@@ -85,6 +85,8 @@ add_library(GuiImpl
     GeneEditorWidget.h
     GeneGraphWidget.cpp
     GeneGraphWidget.h
+    GenomeEditorPresentation.cpp
+    GenomeEditorPresentation.h
     GenomeEditorWidget.cpp
     GenomeEditorWidget.h
     GenomeEditorWindow.cpp
@@ -126,6 +128,7 @@ add_library(GuiImpl
     LoginDialog.h
     LocalizationGui.cpp
     LocalizationGui.h
+    LocalizationGuiText.h
     LogWindow.cpp
     LogWindow.h
     MainLoopController.cpp

@@ -10,6 +10,8 @@ struct GenomeIssue;
 
 class _GenomeEditorWidget
 {
+    friend class LocalizationGuiTests;
+
 public:
     static GenomeEditorWidget create(GenomeTabEditData const& editData, GenomeTabLayoutData const& layoutData);
 

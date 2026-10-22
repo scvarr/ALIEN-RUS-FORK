@@ -11,6 +11,7 @@
 
 #include "AlienGui.h"
 #include "GeneEditorWidget.h"
+#include "GenomeEditorPresentation.h"
 #include "GenomeEditorWidget.h"
 #include "GenomeTabEditData.h"
 #include "GenomeTabLayoutData.h"
@@ -241,8 +242,8 @@ void _GenomeTabWidget::processRightField()
     auto selectedTabIndex = toInt(_selectedGenomeView);
     AlienGui::TabBar(
         AlienGui::TabBarParameters().id("##GenomeView").style(AlienGui::TabBarStyle::Group),
-        {AlienGui::TabItemParameters().name("Phenotype"),
-         AlienGui::TabItemParameters().name("Gene network").badge(geneNetworkBadge).badgeIcon(ICON_FA_EXCLAMATION_TRIANGLE)},
+        {AlienGui::TabItemParameters().name(tr("genome.tab.phenotype")).id("Phenotype"),
+         AlienGui::TabItemParameters().name(tr("genome.tab.network")).id("Gene network").badge(geneNetworkBadge).badgeIcon(ICON_FA_EXCLAMATION_TRIANGLE)},
         selectedTabIndex);
     _selectedGenomeView = static_cast<GenomeView>(selectedTabIndex);
 
@@ -263,14 +264,14 @@ void _GenomeTabWidget::processStatusBar()
     auto numNodes = GenomeDescAccessService::get().getNumberOfNodes(genome);
 
     std::vector<std::string> statusItems;
-    statusItems.emplace_back(std::to_string(numGenes) + (numGenes == 1 ? " gene" : " genes"));
-    statusItems.emplace_back(std::to_string(numNodes) + (numNodes == 1 ? " node" : " nodes"));
+    statusItems.emplace_back(GenomeEditorPresentation::count("genome.count.genes", numGenes));
+    statusItems.emplace_back(GenomeEditorPresentation::count("genome.count.nodes", numNodes));
     auto parameters = AlienGui::StatusBarParameters().infoItems(statusItems);
 
     auto numWarnings = countWarningsWithoutFollowUps(_editData->genomeIssues);
     if (numWarnings > 0) {
-        parameters.warningItem(std::to_string(numWarnings) + (numWarnings == 1 ? " warning" : " warnings"))
-            .warningTooltip("Click to show the warnings in the gene network, where the affected genes and constructors are highlighted.")
+        parameters.warningItem(GenomeEditorPresentation::count("genome.count.warnings", numWarnings))
+            .warningTooltip(tr("genome.warnings.help"))
             .warningClickedFunc([this] { _selectedGenomeView = GenomeView::GeneNetwork; });
     }
     AlienGui::StatusBar(parameters);

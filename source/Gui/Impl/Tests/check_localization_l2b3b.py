@@ -78,7 +78,7 @@ class L2b3bContracts(unittest.TestCase):
     def test_complete_catalogs_and_all_seventeen_typed_bindings(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, len(en))
+        self.assertEqual(433, sum(not key.startswith("genome.") for key in en))
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         for spec, member, prefix in MEMBERS:
             self.assertIn(f"references<{spec}>(spec, &SimulationParameters::{member})", adapter)
