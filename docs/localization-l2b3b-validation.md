@@ -94,7 +94,8 @@ Global SpecificationFilterService and StringHelper are unchanged.
 
 README, normative glossary, dependencies, vendored file dialog, pinned vcpkg,
 upstream, CUDA/physics, serialization, MCP and CLI are unchanged. No L2-B3c work,
-main merge, GPU or stress tests are performed.
+GPU or stress tests are performed during implementation. Main integration is
+recorded below.
 
 ## Automated validation
 
@@ -163,8 +164,8 @@ package; no user saves or autosaves are included.
 & 'E:\Projects\ALIEN\temp\l2b3b\review\Launch-L2B3b.ps1' -Scale 2.0
 ```
 
-The launcher defaults to scale 1.5. Human visual acceptance is pending; automated
-headless verification does not imply user approval of terminology or appearance.
+The launcher defaults to scale 1.5. At implementation delivery, human visual
+acceptance was pending. Subsequent user acceptance is recorded below.
 
 ## Working terminology choices
 
@@ -229,3 +230,52 @@ Zero indexed processes is qualified by the coverage limits above, not taken as
 proof that no GUI path is affected. Final source contracts independently confirm
 unchanged simulation specifications, widgets and serialization. Both main refs
 remain at the baseline; only the feature branch is prepared for push.
+
+
+## Integration review and user visual acceptance
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user reviewed implementation commit
+`1ef2e15ba50840d0740ab3d4e756fe7db1929f39` and explicitly confirmed that the menus
+work, all viewed captions fit correctly, and there were no visual remarks.
+This records exactly the reported visual scope. It does not assert user testing
+of physical algorithms, every mode/scale combination, serialization or any other
+scenario from the manual checklist that the user did not separately report.
+The normative glossary is unchanged; this acceptance does not add glossary entries.
+The user authorized fast-forward integration into main and deletion of the completed
+feature branch locally and on origin. L2-B3c remains outside scope.
+
+An origin fetch confirmed both main refs at
+`2f0f2b59edaaeb2e6bba1bee763b52b68b7a39cf` and both feature refs at the reviewed
+implementation SHA. The Git index and working tree were clean. The entire branch
+diff relative to main was reviewed, including all 17 typed bindings, all 11 indexed
+alternatives, independent Shape/Strength descriptions, fallback and tests. No
+blocking findings were found. Canonical values, references, nested structures and
+original indices remain in the unchanged specifications; GUI dispatch and ImGui
+identity code are unchanged. Physics, CUDA, serialization, README, dependencies,
+submodule, MCP/CLI and the normative glossary have no branch changes.
+
+The integration rerun passes all seven CPU/headless GUI suites: **558 C++ tests
+passed, zero failures/errors, one existing disabled test**. All **25 Python checks
+pass**. Logs/XML are under temp/l2b3b/integration. The previous successful forced
+Release build applies to the reviewed implementation; integration changes only
+this report, so no new compilation or GPU run is required. Real registry exports
+before and after this rerun are byte-identical, SHA-256
+`6FEC698E2A9CE32AC3BF2C6BC9C331DCED76C01DDD79D21CFB353465497122E9`.
+Tests use isolated SettingsTestScope profiles and synthetic parameters. No real
+simulation or autosave is opened or modified, and no real settings are restored.
+The customized AGENTS.md and its skip-worktree flag are preserved.
+
+The index-only GitNexus refresh succeeds. The complete comparison with main
+reports **11 files, 39 symbols, LOW risk**, with zero indexed affected processes.
+The documentation-only all-scope check reports **one file, three symbols, LOW
+risk**. Both responses list every reported symbol without partial/truncated flags;
+they are saved as graph-compare.json and graph-all.json in the integration log
+directory. Upstream impact finds three direct key consumers (parameter label,
+description and alternativeLabels); group-label and alternative-label wrappers
+remain UNKNOWN because callers are unresolved. Source review confirms production
+SpecificationGuiService consumers. The documented receiver-resolution and limited
+GUI process coverage remain limitations; absent graph edges are not treated as
+proof of unaffected behavior. No blocking technical finding requires a code change.
+Only this acceptance/validation report is changed for integration.
