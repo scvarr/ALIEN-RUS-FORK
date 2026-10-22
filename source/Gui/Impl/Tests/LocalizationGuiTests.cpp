@@ -30,10 +30,12 @@
 #include <Gui/Impl/EntityAttributeHelp.h>
 #include <Gui/Impl/ExitDialog.h>
 #include <Gui/Impl/GeneEditorWidget.h>
+#include <Gui/Impl/GeneGraphWidget.h>
 #include <Gui/Impl/GenericMessageDialog.h>
 #include <Gui/Impl/GenomeEditorPresentation.h>
 #include <Gui/Impl/GenomeEditorWidget.h>
 #include <Gui/Impl/GenomeEditorWindow.h>
+#include <Gui/Impl/GenomeIssueDescription.h>
 #include <Gui/Impl/GenomeTabEditData.h>
 #include <Gui/Impl/GenomeTabLayoutData.h>
 #include <Gui/Impl/GenomeTabWidget.h>
@@ -48,7 +50,9 @@
 #include <Gui/Impl/NewSimulationDialog.h>
 #include <Gui/Impl/NodeEditorWidget.h>
 #include <Gui/Impl/OverlayController.h>
+#include <Gui/Impl/PreviewSettingsDialog.h>
 #include <Gui/Impl/SavePictureDialog.h>
+#include <Gui/Impl/SignalsBufferDialog.h>
 #include <Gui/Impl/SimulationParametersBaseWidget.h>
 #include <Gui/Impl/SimulationParametersGuiText.h>
 #include <Gui/Impl/SimulationParametersMainWindow.h>
@@ -341,6 +345,18 @@ protected:
     void mutationContent(MutationRatesDialog& dialog) { dialog.processContent(); }
     void mutationButtons(MutationRatesDialog& dialog) { dialog.processButtons(); }
     void clearMutationClipboard() { MutationRatesDialog::_clipboard.reset(); }
+
+    SignalsBufferDialog& signalDialog() { return SignalsBufferDialog::get(); }
+    void signalContent() { signalDialog().processIntern(); }
+    auto& signalDraft() { return signalDialog()._channelsBuffer; }
+    int& signalSelection() { return signalDialog()._selectedEntry; }
+    void previewTitle(CreaturePreviewWidget const& editor, int count, bool trimmed, int start)
+    {
+        editor->_subGenome.trimmed = trimmed;
+        editor->_subGenome.startIndex = start;
+        editor->_previewDesc._cells.resize(count);
+        editor->processTitle();
+    }
 
     float _originalScale = 1;
     std::string _language;
@@ -7443,4 +7459,329 @@ TEST_F(LocalizationGuiTests, l4a4MutationCopyResetPasteAdoptAndCancelUseProducti
     click("Cancel");
     EXPECT_EQ(1, adopts);
     EXPECT_FALSE(mutationOpen(dialog));
+}
+
+TEST_F(LocalizationGuiTests, l4a5DiagnosticFamiliesFollowUpsLocationsAndFallback)
+{
+    auto genome = GenomeDesc().genes({GeneDesc().nodes({NodeDesc().cellType(VoidGenomeDesc()), NodeDesc(), NodeDesc()})});
+    auto original = genome;
+    std::vector<std::string> english;
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto type :
+             {GenomeIssueType::VoidBoundaryNode,
+              GenomeIssueType::NodesCutOffFromLastNode,
+              GenomeIssueType::CycleAvoidingRootGene,
+              GenomeIssueType::GeneUnreachableFromRoot,
+              GenomeIssueType::TooManyGenesWithSeparation,
+              GenomeIssueType::ConstructsRemovedGene,
+              GenomeIssueType::InjectsRemovedGene}) {
+            GenomeIssue issue{
+                .type = type,
+                .geneIndex = 0,
+                .nodeIndex = 0,
+                .cutOffNodeIndices = {0, 1},
+                .cycleGeneIndices = {1, 2, 1},
+                .geneIndicesKeepingSeparation = {0, 1, 2},
+                .referencedGeneIndex = 21};
+            for (bool meta : {false, true}) {
+                genome._applyMetaMutations = meta;
+                for (bool followUp : {false, true}) {
+                    issue.causeIssueIndex = followUp ? std::optional<int>(0) : std::nullopt;
+                    auto text = GenomeIssueDescription::getTooltip({issue}, genome);
+                    EXPECT_EQ(std::string::npos, text.find('{')) << text;
+                    EXPECT_NE(std::string::npos, text.find(std::string(language) == "ru" ? "ген 0, узел 0" : "gene 0, node 0"));
+                    EXPECT_NE(
+                        std::string::npos,
+                        text.find(std::string(language) == "ru" ? "Исправление в геноме потомства:" : "Correction in the genome of offspring:"));
+                    EXPECT_EQ(std::string::npos, text.find(std::string(language) == "ru" ? "gene " : "ген "));
+                    EXPECT_EQ(followUp, issue.isFollowUp());
+                    if (type == GenomeIssueType::ConstructsRemovedGene || type == GenomeIssueType::InjectsRemovedGene) {
+                        EXPECT_NE(std::string::npos, text.find("21"));
+                    }
+                    if (english.size() < 28 && std::string(language) == "en") {
+                        english.push_back(text);
+                    }
+                }
+            }
+        }
+    }
+    genome._applyMetaMutations = original._applyMetaMutations;
+    EXPECT_EQ(original, genome);
+    EXPECT_TRUE(GenomeIssueDescription::getTooltip({}, genome).empty());
+    auto enText = GenomeIssueDescription::getTooltip({GenomeIssue()}, genome);
+    LocalizationService::get().load("missing-l4a5-catalogs");
+    select("ru");
+    EXPECT_EQ(enText, GenomeIssueDescription::getTooltip({GenomeIssue()}, genome));
+}
+
+TEST_F(LocalizationGuiTests, l4a5DiagnosticCountFormsAndNodeConsequences)
+{
+    select("ru");
+    for (auto const& [count, form] : std::vector<std::pair<int, std::string>>{
+             {0, "узлов-доноров"}, {1, "узел-донор"}, {2, "узла-донора"}, {5, "узлов-доноров"}, {11, "узлов-доноров"}, {21, "узел-донор"}}) {
+        GenomeDesc genome;
+        genome._genes = {GeneDesc()};
+        GenomeIssue issue{.type = GenomeIssueType::NodesCutOffFromLastNode};
+        for (int i = 0; i < count; ++i) {
+            genome._genes.at(0)._nodes.emplace_back(NodeDesc().cellType(VoidGenomeDesc()));
+            issue.cutOffNodeIndices.push_back(i);
+        }
+        auto text = GenomeIssueDescription::getTooltip({issue}, genome);
+        EXPECT_NE(std::string::npos, text.find(std::to_string(count) + " " + form)) << text;
+        EXPECT_NE(std::string::npos, text.find("Их конструкторы будут отключены."));
+        for (auto& node : genome._genes.at(0)._nodes) {
+            node._cellType = BaseGenomeDesc();
+        }
+        if (count > 0) {
+            text = GenomeIssueDescription::getTooltip({issue}, genome);
+            EXPECT_NE(std::string::npos, text.find(count % 10 == 1 && count != 11 ? "Донором станет" : "Донорами станут"));
+        }
+        issue.removesGene = true;
+        EXPECT_NE(std::string::npos, GenomeIssueDescription::getTooltip({issue}, genome).find("Ген будет удалён."));
+    }
+    for (int donors : {1, 2, 5, 21}) {
+        for (int affected : {1, 2, 5, 21}) {
+            auto genome = GenomeDesc().genes({GeneDesc().nodes(std::vector<NodeDesc>(donors + affected))});
+            GenomeIssue issue{.type = GenomeIssueType::NodesCutOffFromLastNode};
+            for (int index = 0; index < donors; ++index) {
+                genome._genes.at(0)._nodes.at(index).cellType(VoidGenomeDesc());
+            }
+            for (int index = donors; index < donors + affected; ++index) {
+                issue.cutOffNodeIndices.push_back(index);
+            }
+            auto text = GenomeIssueDescription::getTooltip({issue}, genome);
+            EXPECT_NE(std::string::npos, text.find(donors == 1 ? "Узел-донор с индексом" : "Узлы-доноры с индексами"));
+            if (donors == 1) {
+                EXPECT_NE(std::string::npos, text.find(affected == 1 ? "отсоединяет узел с индексом" : "отсоединяет узлы с индексами"));
+            } else {
+                EXPECT_NE(std::string::npos, text.find(affected == 1 ? "отсоединяют узел с индексом" : "отсоединяют узлы с индексами"));
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a5GraphPreviewHeadersAndDiagnosticsWrapAtEveryScale)
+{
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->genome = syntheticEditorGenome();
+    data->genome._genes.at(0)._name = "Длинное имя гена / {genes} / Ёжик";
+    data->selectNode(0, 0);
+    auto original = data->genome;
+    auto preview = _CreaturePreviewWidget::create(data, {}, {});
+    std::vector<int> geneIndices;
+    for (int index = 0; index < 21; ++index) {
+        geneIndices.push_back(index);
+    }
+    preview->setGeneIndices(geneIndices);
+    GeneGraphWidget graph;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (int count : {0, 1, 2, 5, 21}) {
+                for (bool trimmed : {false, true}) {
+                    for (int start : {0, 1}) {
+                        switcherFrame(600 * factor, [&] {
+                            previewTitle(preview, count, trimmed, start);
+                            auto rect = GImGui->LastItemData.Rect;
+                            EXPECT_LE(rect.Max.x, ImGui::GetWindowPos().x + ImGui::GetWindowWidth());
+                            ImGui::Dummy({0, 120 * factor});
+                            graph.process(data);
+                        });
+                    }
+                }
+            }
+            auto text = GenomeIssueDescription::getTooltip({GenomeIssue()}, data->genome);
+            frame([&] {
+                auto wrapWidth = ImGui::GetFontSize() * 35;
+                auto size = ImGui::CalcTextSize(text.c_str(), nullptr, false, wrapWidth);
+                EXPECT_LE(size.x, wrapWidth + ImGui::GetFontSize());
+                EXPECT_GT(size.y, ImGui::GetFontSize() * 3);
+                for (auto character : {L'Д', L'я', L'Ё', L'ё'}) {
+                    EXPECT_NE(nullptr, ImGui::GetFont()->FindGlyphNoFallback(character));
+                }
+            });
+            EXPECT_EQ(original, data->genome);
+            EXPECT_EQ(0, data->selectedGeneIndex);
+            EXPECT_EQ(0, data->getSelectedNodeIndex());
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a5SharedSignalsRetainActiveInputAndIndependentValues)
+{
+    std::vector<SignalEntryGenomeDesc> entries(2);
+    entries.at(0)._channels.at(0) = 0.125f;
+    entries.at(1)._channels.at(0) = 0.875f;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImVec2 start;
+    auto draw = [&] {
+        frame([&] {
+            start = ImGui::GetCursorScreenPos();
+            AlienGui::SignalMemoryEditor(AlienGui::SignalMemoryEditorParameters().textWidth(180), entries);
+        });
+    };
+    draw();
+    draw();
+    auto row = ImGui::GetFrameHeightWithSpacing();
+    io.AddMousePosEvent(start.x + 80, start.y + 2 * row + ImGui::GetFrameHeight() / 2);
+    draw();
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    auto active = GImGui->ActiveId;
+    ASSERT_NE(0u, active);
+    io.AddMouseButtonEvent(0, false);
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    draw();
+    select("ru");
+    draw();
+    EXPECT_EQ(active, GImGui->ActiveId);
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    io.AddKeyEvent(ImGuiKey_A, true);
+    draw();
+    io.AddKeyEvent(ImGuiKey_A, false);
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    io.AddInputCharactersUTF8("-0.625");
+    draw();
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    draw();
+    io.AddKeyEvent(ImGuiKey_Enter, false);
+    draw();
+    EXPECT_FLOAT_EQ(-0.625f, entries.at(0)._channels.at(0));
+    EXPECT_FLOAT_EQ(0.875f, entries.at(1)._channels.at(0));
+    auto edited = entries;
+    auto genome = GenomeDesc().genes({GeneDesc().nodes({NodeDesc().cellType(MemoryGenomeDesc().signalEntries(entries))})});
+    auto file = std::filesystem::temp_directory_path()
+        / ("alien-l4a5-signals-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".genome");
+    ASSERT_TRUE(SerializerService::get().serializeGenomeToFile(file, genome));
+    GenomeDesc loaded;
+    ASSERT_TRUE(SerializerService::get().deserializeGenomeFromFile(loaded, file));
+    EXPECT_TRUE(genome.equalWithoutId(loaded));
+    std::filesystem::remove(file);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_EQ(edited, entries);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a5SignalsModalDraftSelectionCallbacksAdoptAndCancel)
+{
+    std::vector<SignalEntryGenomeDesc> entries(2);
+    entries.at(0)._channels.at(0) = 0.125f;
+    entries.at(1)._channels.at(0) = 0.875f;
+    int adopts = 0;
+    signalDialog().open(entries, [&](auto const& result) {
+        entries = result;
+        ++adopts;
+    });
+    signalSelection() = 1;
+    signalDraft().at(1).at(0) = -0.375f;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImRect cancel;
+    auto draw = [&] {
+        frame([&] {
+            signalContent();
+            cancel = GImGui->LastItemData.Rect;
+        });
+    };
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_EQ(1, signalSelection());
+            EXPECT_FLOAT_EQ(-0.375f, signalDraft().at(1).at(0));
+            EXPECT_FLOAT_EQ(0.875f, entries.at(1)._channels.at(0));
+            EXPECT_EQ(0, adopts);
+        }
+    }
+    setTestScale(1);
+    draw();
+    draw();
+    io.AddMousePosEvent(cancel.GetCenter().x, cancel.GetCenter().y);
+    draw();
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    auto active = GImGui->ActiveId;
+    ASSERT_NE(0u, active);
+    select("ru");
+    draw();
+    EXPECT_EQ(active, GImGui->ActiveId);
+    io.AddMousePosEvent(cancel.GetCenter().x, cancel.GetCenter().y);
+    draw();
+    io.AddMouseButtonEvent(0, false);
+    draw();
+    EXPECT_EQ(0, adopts);
+    EXPECT_FLOAT_EQ(0.875f, entries.at(1)._channels.at(0));
+    signalDialog().open(entries, [&](auto const& result) {
+        entries = result;
+        ++adopts;
+    });
+    signalDraft().at(1).at(0) = -0.375f;
+    auto adoptCenter = [&] {
+        auto width = ImGui::CalcTextSize(tr("neural.adopt").c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+        return ImVec2(cancel.Min.x - ImGui::GetStyle().ItemSpacing.x - width / 2, cancel.GetCenter().y);
+    };
+    draw();
+    draw();
+    io.AddMousePosEvent(adoptCenter().x, adoptCenter().y);
+    draw();
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    io.AddMouseButtonEvent(0, false);
+    draw();
+    EXPECT_EQ(1, adopts);
+    EXPECT_FLOAT_EQ(-0.375f, entries.at(1)._channels.at(0));
+    EXPECT_FLOAT_EQ(0.125f, entries.at(0)._channels.at(0));
+    std::vector<SignalEntryDesc> live(1);
+    live.at(0)._channels.at(2) = 1.25f;
+    signalDialog().open(live, [&](auto const& result) {
+        live = result;
+        ++adopts;
+    });
+    signalDraft().at(0).at(2) = -1.25f;
+    draw();
+    draw();
+    io.AddMousePosEvent(adoptCenter().x, adoptCenter().y);
+    draw();
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    io.AddMouseButtonEvent(0, false);
+    draw();
+    EXPECT_EQ(2, adopts);
+    EXPECT_FLOAT_EQ(-1.25f, live.at(0)._channels.at(2));
+}
+
+TEST_F(LocalizationGuiTests, l4a5PreviewSettingsOpenModalKeepsDraftAcrossLanguagesAndScales)
+{
+    GenomeShellWorldScope world;
+    auto windowData = std::make_shared<_GenomeWindowEditData>();
+    auto tabData = std::make_shared<_GenomeTabEditData>();
+    tabData->showNodeIndex = false;
+    auto& dialog = PreviewSettingsDialog::get();
+    dialog.setEditData(windowData, tabData);
+    dialog.open();
+    ImRect cancel;
+    auto draw = [&] { frame([&] { cancel = processDialogButton(dialog); }); };
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            draw();
+            EXPECT_TRUE(dialog.isOpen());
+            EXPECT_FALSE(tabData->showNodeIndex);
+            EXPECT_GT(cancel.GetWidth(), 0);
+        }
+    }
+    closeImmediately(dialog);
+    EXPECT_FALSE(tabData->showNodeIndex);
 }

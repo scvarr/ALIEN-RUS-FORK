@@ -22,6 +22,7 @@
 #include "CreaturePreviewWidget.h"
 #include "GenomeTabEditData.h"
 #include "GenomeWindowEditData.h"
+#include "LocalizationGuiText.h"
 #include "PreviewSettingsDialog.h"
 #include "StyleService.h"
 #include "WindowController.h"
@@ -236,6 +237,7 @@ void _PreviewWidget::processActionBar()
     if (AlienGui::Button(ICON_FA_PLAY)) {
         onRun();
     }
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("preview.run")));
     ImGui::EndDisabled();
 
     ImGui::SameLine();
@@ -243,6 +245,7 @@ void _PreviewWidget::processActionBar()
     if (AlienGui::Button(ICON_FA_PAUSE)) {
         _editData->run = false;
     }
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("preview.pause")));
     ImGui::EndDisabled();
 
     ImGui::SameLine();
@@ -253,6 +256,7 @@ void _PreviewWidget::processActionBar()
     if (AlienGui::Button(ICON_FA_CHEVRON_LEFT)) {
         onStepBackward();
     }
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("preview.back")));
     ImGui::EndDisabled();
 
     ImGui::SameLine();
@@ -260,6 +264,7 @@ void _PreviewWidget::processActionBar()
     if (AlienGui::Button(ICON_FA_CHEVRON_RIGHT)) {
         onStepForward();
     }
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("preview.step")));
     ImGui::EndDisabled();
 
     ImGui::SameLine();
@@ -269,6 +274,8 @@ void _PreviewWidget::processActionBar()
     if (AlienGui::Button(ICON_FA_REDO)) {
         onRestart();
     }
+
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("preview.restart")));
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(scale(90.0f));
@@ -280,7 +287,7 @@ void _PreviewWidget::processActionBar()
 
     ImGui::SameLine();
     auto tps = calcTpsForPreview();
-    AlienGui::Text("TPS: " + StringHelper::format(tps));
+    AlienGui::Text(LocalizationGuiText::format("preview.tps", {{"value", StringHelper::format(tps)}}));
 }
 
 int _PreviewWidget::calcTpsForPreview()

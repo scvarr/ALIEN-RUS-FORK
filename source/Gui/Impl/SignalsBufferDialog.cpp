@@ -8,16 +8,23 @@
 #include <Data/EngineConstants.h>
 
 #include "AlienGui.h"
+#include "LocalizationGuiText.h"
 #include "StyleService.h"
 
 namespace
 {
-    auto constexpr DialogTextWidth = 160.0f;
+    float signalLabelWidth()
+    {
+        return std::max(
+            160.0f, scaleInverse(std::max(ImGui::CalcTextSize(tr("signals.count").c_str()).x, ImGui::CalcTextSize(tr("signals.edit").c_str()).x)) + 16.0f);
+    }
 }
 
 SignalsBufferDialog::SignalsBufferDialog()
-    : AlienDialog("Signal buffer", {300.0f, 500.0f})
-{}
+    : AlienDialog("Signal buffer", {450.0f, 500.0f})
+{
+    setTitleKey("signals.title");
+}
 
 void SignalsBufferDialog::initIntern() {}
 
@@ -54,9 +61,16 @@ void SignalsBufferDialog::open(
 void SignalsBufferDialog::processIntern()
 {
     auto buttonAreaHeight = scale(50.0f);
-    if (ImGui::BeginChild("SignalsBufferContent", ImVec2(0, -buttonAreaHeight), false)) {
+    ImGui::SetNextWindowContentSize({std::max(0.0f, scale(signalLabelWidth() + 140.0f)), 0});
+    if (ImGui::BeginChild("SignalsBufferContent", ImVec2(0, -buttonAreaHeight), false, ImGuiWindowFlags_HorizontalScrollbar)) {
         int numEntries = static_cast<int>(_channelsBuffer.size());
-        if (AlienGui::InputInt(AlienGui::InputIntParameters().name("Number of signals").textWidth(DialogTextWidth), numEntries)) {
+        if (AlienGui::InputInt(
+                AlienGui::InputIntParameters()
+                    .name("Number of signals")
+                    .label(tr("signals.count"))
+                    .tooltip(tr("signals.counthelp"))
+                    .textWidth(signalLabelWidth()),
+                numEntries)) {
             numEntries = std::clamp(numEntries, 0, MAX_CELL_MEMORY_ENTRIES);
             _channelsBuffer.resize(numEntries, std::vector<float>(STANDARD_NEURONS_PER_CELL, 0.0f));
         }
@@ -67,7 +81,14 @@ void SignalsBufferDialog::processIntern()
             }
             _selectedEntry = std::clamp(_selectedEntry, 0, numEntries - 1);
 
-            AlienGui::Switcher(AlienGui::SwitcherParameters().name("Edit signal").values(entryTexts).textWidth(DialogTextWidth), &_selectedEntry);
+            AlienGui::Switcher(
+                AlienGui::SwitcherParameters()
+                    .name("Edit signal")
+                    .label(tr("signals.edit"))
+                    .tooltip(tr("signals.edithelp"))
+                    .values(entryTexts)
+                    .textWidth(signalLabelWidth()),
+                &_selectedEntry);
             _selectedEntry = std::clamp(_selectedEntry, 0, numEntries - 1);
 
             auto& channels = _channelsBuffer.at(_selectedEntry);
@@ -76,7 +97,14 @@ void SignalsBufferDialog::processIntern()
             }
             for (int i = 0; i < STANDARD_NEURONS_PER_CELL; ++i) {
                 AlienGui::SliderFloat(
-                    AlienGui::SliderFloatParameters().name("#" + std::to_string(i + 1)).format("%.2f").textWidth(DialogTextWidth).min(-2.0f).max(2.0f),
+                    AlienGui::SliderFloatParameters()
+                        .name("#" + std::to_string(i + 1))
+                        .label(LocalizationGuiText::format("signals.channel", {{"index", std::to_string(i + 1)}}))
+                        .tooltip(tr("signals.channelhelp"))
+                        .format("%.2f")
+                        .textWidth(signalLabelWidth())
+                        .min(-2.0f)
+                        .max(2.0f),
                     &channels.at(i));
             }
         }
@@ -85,7 +113,7 @@ void SignalsBufferDialog::processIntern()
 
     AlienGui::Separator();
 
-    if (AlienGui::Button("Adopt")) {
+    if (AlienGui::DisplayButton("Adopt", tr("neural.adopt"))) {
         ImGui::CloseCurrentPopup();
         onAdopt();
         close();
@@ -93,7 +121,7 @@ void SignalsBufferDialog::processIntern()
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::DisplayButton("Cancel", tr("neural.cancel"))) {
         ImGui::CloseCurrentPopup();
         close();
     }

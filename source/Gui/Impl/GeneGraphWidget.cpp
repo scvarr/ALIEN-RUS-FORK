@@ -18,6 +18,7 @@
 #include "AlienGui.h"
 #include "GenomeIssueDescription.h"
 #include "GenomeTabEditData.h"
+#include "LocalizationGuiText.h"
 #include "StyleService.h"
 
 namespace
@@ -317,12 +318,12 @@ namespace
     std::string getGeneTooltip(GenomeDesc const& genome, std::vector<GenomeIssue> const& issues, int geneIndex)
     {
         auto const& gene = genome._genes.at(geneIndex);
-        auto result = "Gene " + std::to_string(geneIndex);
+        auto result = LocalizationGuiText::format("genegraph.gene", {{"gene", std::to_string(geneIndex)}});
         if (!gene._name.empty()) {
             result += " (" + gene._name + ")";
         }
         if (geneIndex == 0) {
-            result += ", root gene";
+            result = LocalizationGuiText::format("genegraph.root", {{"gene", result}});
         }
         auto geneIssues = GenomeIssue::filterByGene(issues, geneIndex);
         if (!geneIssues.empty()) {
@@ -334,9 +335,13 @@ namespace
     std::string getEdgeTooltip(GenomeDesc const& genome, GeneEdge const& edge)
     {
         auto const& construction = edge.construction;
-        auto result = "Gene " + std::to_string(construction.constructingGeneIndex) + " constructs gene " + std::to_string(construction.constructedGeneIndex)
-            + (construction.constructorNodeIndices.size() == 1 ? "\nConstructor in node " : "\nConstructors in nodes ")
-            + StringHelper::join(construction.constructorNodeIndices) + (construction.anyWithSeparation ? ", with separation" : "");
+        auto result = LocalizationGuiText::format(
+                          construction.anyWithSeparation ? "genegraph.edge.separation" : "genegraph.edge",
+                          {{"source", std::to_string(construction.constructingGeneIndex)}, {"target", std::to_string(construction.constructedGeneIndex)}})
+            + "\n"
+            + LocalizationGuiText::format(
+                          construction.constructorNodeIndices.size() == 1 ? "genegraph.constructor.one" : "genegraph.constructor.many",
+                          {{"nodes", StringHelper::join(construction.constructorNodeIndices)}});
         if (!edge.issues.empty()) {
             result += "\n\n" + GenomeIssueDescription::getTooltip(edge.issues, genome);
         }
@@ -456,7 +461,7 @@ namespace
                 drawSelectionOutline(drawList, boxRect);
             }
 
-            auto label = "Gene " + std::to_string(geneIndex);
+            auto label = LocalizationGuiText::format("genegraph.gene", {{"gene", std::to_string(geneIndex)}});
             drawList->AddText({boxRect.Min.x + padding, boxRect.Min.y + padding}, labelColor, label.c_str());
             if (!gene._name.empty()) {
                 drawList->AddText(

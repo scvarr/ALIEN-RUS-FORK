@@ -29,6 +29,7 @@
 #include "OverlayController.h"
 #include "StyleService.h"
 #include "Utf8Search.h"
+#include "LocalizationGuiText.h"
 
 namespace
 {
@@ -3103,8 +3104,10 @@ bool AlienGui::ToggleButton(ToggleButtonParameters const& parameters, bool& valu
 
 void AlienGui::SignalMemoryEditor(SignalMemoryEditorParameters const& parameters, std::vector<SignalEntryGenomeDesc>& entries)
 {
+    auto textWidth = std::max(parameters._textWidth, scaleInverse(std::max(ImGui::CalcTextSize(tr("signals.count").c_str()).x,
+        ImGui::CalcTextSize(tr("signals.edit").c_str()).x)) + 16.0f);
     int numEntries = toInt(entries.size());
-    if (AlienGui::InputInt(AlienGui::InputIntParameters().name("Number of signals").textWidth(parameters._textWidth), numEntries)) {
+    if (AlienGui::InputInt(AlienGui::InputIntParameters().name("Number of signals").label(tr("signals.count")).tooltip(tr("signals.counthelp")).textWidth(textWidth), numEntries)) {
         numEntries = std::clamp(numEntries, 1, MAX_CELL_MEMORY_ENTRIES);
         entries.resize(numEntries, SignalEntryGenomeDesc());
     }
@@ -3117,7 +3120,7 @@ void AlienGui::SignalMemoryEditor(SignalMemoryEditorParameters const& parameters
         auto selectedEntry = _signalMemorySelection.contains(id) ? _signalMemorySelection.at(id) : 0;
         selectedEntry = std::min(selectedEntry, numEntries);
 
-        AlienGui::Switcher(AlienGui::SwitcherParameters().name("Edit signal").values(entryTexts).textWidth(parameters._textWidth), &selectedEntry);
+        AlienGui::Switcher(AlienGui::SwitcherParameters().name("Edit signal").label(tr("signals.edit")).tooltip(tr("signals.edithelp")).values(entryTexts).textWidth(textWidth), &selectedEntry);
 
         _signalMemorySelection.insert_or_assign(id, selectedEntry);
 
@@ -3128,7 +3131,7 @@ void AlienGui::SignalMemoryEditor(SignalMemoryEditorParameters const& parameters
         AlienGui::BeginIndent();
         for (int i = 0; i < STANDARD_NEURONS_PER_CELL; ++i) {
             AlienGui::SliderFloat(
-                AlienGui::SliderFloatParameters().name("#" + std::to_string(i + 1)).format("%.2f").textWidth(parameters._textWidth).min(-2.0f).max(2.0f),
+                AlienGui::SliderFloatParameters().name("#" + std::to_string(i + 1)).label(LocalizationGuiText::format("signals.channel", {{"index", std::to_string(i + 1)}})).tooltip(tr("signals.channelhelp")).format("%.2f").textWidth(textWidth).min(-2.0f).max(2.0f),
                 &entries.at(selectedEntry)._channels.at(i));
         }
         AlienGui::EndIndent();

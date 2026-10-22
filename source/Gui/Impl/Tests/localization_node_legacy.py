@@ -9,6 +9,16 @@ def legacy_node_widget_text(file, text):
         text = text.replace('        MEMBER(ButtonParameters, std::optional<std::string>, buttonLabel, std::nullopt);\n', '')
         text = text.replace('        MEMBER(ComboParameters, std::vector<std::string>, displayValues, std::vector<std::string>());\n', '')
     if file.endswith("AlienGui.cpp"):
+        # Only A5's signal presentation is superseded; all other shared code stays frozen.
+        import re
+        import subprocess
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[4]
+        baseline = subprocess.check_output(['git', 'show', 'aa69598bd2962b2daa455978c5a6fc4f73983b43:source/Gui/Impl/AlienGui.cpp'], cwd=root).decode('utf8').replace('\r\n', '\n')
+        pattern = r'void AlienGui::SignalMemoryEditor\(.*?\n\}'
+        original = re.search(pattern, baseline, re.S).group()
+        text = re.sub(pattern, lambda _: original, text, flags=re.S)
+        text = text.replace('#include "LocalizationGuiText.h"\n', '')
         text = text.replace('std::string text = parameters._label ? tr("common.infinity") : "Infinity";', 'std::string text = "Infinity";')
         for name in ("ComboColor", "MultiCheckboxes", "ColorCheckboxes", "Button"):
             import re

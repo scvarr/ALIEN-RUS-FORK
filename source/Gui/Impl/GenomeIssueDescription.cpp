@@ -11,6 +11,7 @@
 #include <Base/Definitions.h>
 #include <Base/StringHelper.h>
 
+#include "GenomeEditorPresentation.h"
 #include "StyleService.h"
 
 char const* GenomeIssueDescription::getIcon(GenomeIssue const& issue)
@@ -41,15 +42,18 @@ namespace
         std::string consequence;
     };
 
-    std::string toGeneList(std::vector<int> const& geneIndices)
-    {
-        auto numbers = geneIndices | std::views::transform([](int geneIndex) { return std::to_string(geneIndex); });
-        return (geneIndices.size() == 1 ? "gene " : "genes ") + StringHelper::formatEnumeration(std::vector(numbers.begin(), numbers.end()));
-    }
+    using LocalizationGuiText::format;
 
-    std::string toNodeList(std::vector<int> const& nodeIndices)
+    std::string formatCount(std::string const& key, int count, std::map<std::string, std::string> arguments)
     {
-        return (nodeIndices.size() == 1 ? "node " : "nodes ") + StringHelper::formatRanges(nodeIndices);
+        auto suffix = count == 1 ? ".one" : ".many";
+        if (LocalizationService::get().getLanguage() == "ru") {
+            auto lastTwo = count % 100;
+            auto last = count % 10;
+            suffix = lastTwo >= 11 && lastTwo <= 14 ? ".many" : last == 1 ? ".one" : last >= 2 && last <= 4 ? ".few" : ".many";
+        }
+        arguments.emplace("count", std::to_string(count));
+        return LocalizationGuiText::format(key + suffix, arguments);
     }
 
     std::vector<int> getVoidNodeIndices(GeneDesc const& gene)
@@ -71,46 +75,40 @@ namespace
 
     std::string getVoidBoundaryNodeProblem(GenomeIssue const& issue)
     {
-        return issue.nodeIndex == 0 ? "The first node is void." : "The last node is void.";
+        return tr(issue.nodeIndex == 0 ? "genomeissues.first" : "genomeissues.last");
     }
 
     std::string getMetaMutationNote(GenomeDesc const& genome)
     {
-        return genome._applyMetaMutations ? " Meta-mutations may change the structural mutation rates, which decide whether the node gets a random "
-                                            "cell type or the gene is removed."
-                                          : "";
+        return genome._applyMetaMutations ? " " + tr("genomeissues.meta") : "";
     }
 
     IssueText getNodesCutOffText(GenomeIssue const& issue, GenomeDesc const& genome)
     {
         auto const& gene = genome._genes.at(issue.geneIndex);
         auto nodeIndicesBecomingVoid = getNodeIndicesBecomingVoid(issue, gene);
-        auto isSingleNode = nodeIndicesBecomingVoid.size() == 1;
-
-        IssueText result{
-            .title = "Nodes cut off from last node",
-            .explanation = "A construction stays attached to its constructor at the last node of a gene. Void cells die right after their construction, "
-                           "so nodes that are connected to the last node only via void nodes are lost. If the first node is among them, the whole "
-                           "gene is lost."};
+        IssueText result{.title = tr("genomeissues.cut.title"), .explanation = tr("genomeissues.cut.explanation")};
         if (issue.nodeIndex.has_value()) {
             result.problem = getVoidBoundaryNodeProblem(issue);
             result.explanation += getMetaMutationNote(genome);
         } else if (nodeIndicesBecomingVoid.empty()) {
-            result.problem =
-                "Void " + toNodeList(issue.cutOffNodeIndices) + (issue.cutOffNodeIndices.size() == 1 ? " is" : " are") + " cut off from the last node.";
+            result.problem = issue.cutOffNodeIndices.empty()
+                ? tr("genomeissues.cut.empty")
+                : formatCount("genomeissues.cut.void", toInt(issue.cutOffNodeIndices.size()), {{"nodes", StringHelper::formatRanges(issue.cutOffNodeIndices)}});
         } else {
             auto voidNodeIndices = getVoidNodeIndices(gene);
-            result.problem = "Void " + toNodeList(voidNodeIndices) + (voidNodeIndices.size() == 1 ? " cuts " : " cut ") + toNodeList(nodeIndicesBecomingVoid)
-                + " off from the last node.";
+            auto key = std::string("genomeissues.cut.disconnect") + (voidNodeIndices.size() == 1 ? ".one" : ".many")
+                + (nodeIndicesBecomingVoid.size() == 1 ? ".one" : ".many");
+            result.problem =
+                format(key, {{"voids", StringHelper::formatRanges(voidNodeIndices)}, {"nodes", StringHelper::formatRanges(nodeIndicesBecomingVoid)}});
         }
-
         if (issue.removesGene) {
-            result.consequence = "The gene is removed.";
+            result.consequence = tr("genomeissues.removed");
         } else if (nodeIndicesBecomingVoid.empty()) {
-            result.consequence = "Their constructors are turned off.";
+            result.consequence = tr("genomeissues.constructorsoff");
         } else {
             result.consequence =
-                (isSingleNode ? "Node " : "Nodes ") + StringHelper::formatRanges(nodeIndicesBecomingVoid) + (isSingleNode ? " becomes void." : " become void.");
+                formatCount("genomeissues.cut.become", toInt(nodeIndicesBecomingVoid.size()), {{"nodes", StringHelper::formatRanges(nodeIndicesBecomingVoid)}});
         }
         return result;
     }
@@ -120,50 +118,51 @@ namespace
         switch (issue.type) {
         case GenomeIssueType::VoidBoundaryNode:
             return IssueText{
-                .title = "Void node at gene boundary",
+                .title = tr("genomeissues.boundary.title"),
                 .problem = getVoidBoundaryNodeProblem(issue),
-                .explanation = "The first and the last node of a gene must not be void." + getMetaMutationNote(genome),
-                .consequence = "The node gets a random cell type."};
+                .explanation = tr("genomeissues.boundary.explanation") + getMetaMutationNote(genome),
+                .consequence = tr("genomeissues.boundary.consequence")};
         case GenomeIssueType::NodesCutOffFromLastNode:
             return getNodesCutOffText(issue, genome);
         case GenomeIssueType::CycleAvoidingRootGene: {
-            auto genes = issue.cycleGeneIndices | std::views::transform([](int geneIndex) { return "gene " + std::to_string(geneIndex); });
+            auto genes = issue.cycleGeneIndices
+                | std::views::transform([](int geneIndex) { return format("genomeissues.gene", {{"gene", std::to_string(geneIndex)}}); });
             return IssueText{
-                .title = "Cycle avoiding the root gene",
-                .problem = "Closes the cycle " + boost::algorithm::join(std::vector(genes.begin(), genes.end()), " " ICON_FA_LONG_ARROW_ALT_RIGHT " ") + ".",
-                .explanation = "Constructors may only form cycles through the root gene, since constructing the root gene starts a new creature. A "
-                               "cycle avoiding the root gene would construct cells endlessly within the same creature.",
-                .consequence = "The constructor is turned off."};
+                .title = tr("genomeissues.cycle.title"),
+                .problem = format(
+                    "genomeissues.cycle.problem",
+                    {{"cycle", boost::algorithm::join(std::vector(genes.begin(), genes.end()), " " ICON_FA_LONG_ARROW_ALT_RIGHT " ")}}),
+                .explanation = tr("genomeissues.cycle.explanation"),
+                .consequence = tr("genomeissues.constructoroff")};
         }
         case GenomeIssueType::GeneUnreachableFromRoot:
             return IssueText{
-                .title = "Gene unreachable from root",
-                .problem = issue.isFollowUp() ? "Becomes unreachable from the root gene." : "Not reachable from the root gene.",
-                .explanation = issue.isFollowUp() ? "Another correction removes the last chain of constructors that leads from the root gene to this gene."
-                                                  : "No chain of constructors leads from the root gene to this gene, so it is never constructed.",
-                .consequence = "The gene is removed."};
+                .title = tr("genomeissues.unreachable.title"),
+                .problem = tr(issue.isFollowUp() ? "genomeissues.unreachable.followup" : "genomeissues.unreachable.problem"),
+                .explanation = tr(issue.isFollowUp() ? "genomeissues.unreachable.cause" : "genomeissues.unreachable.explanation"),
+                .consequence = tr("genomeissues.removed")};
         case GenomeIssueType::TooManyGenesWithSeparation: {
             auto const& constructor = genome._genes.at(issue.geneIndex)._nodes.at(issue.nodeIndex.value())._constructor;
             auto targetGene = constructor.has_value() ? std::to_string(constructor->_geneIndex) : std::string("?");
             return IssueText{
-                .title = "Too many genes with separation",
-                .problem = "Constructs gene " + targetGene + " with separation in addition to " + toGeneList(issue.geneIndicesKeepingSeparation) + ".",
-                .explanation = "At most " + std::to_string(Const::MaxGenesWithSeparation)
-                    + " different genes can be constructed with separation. They are counted in construction order starting at the root gene.",
-                .consequence = "Separation is turned off, so gene " + targetGene + " becomes part of the same creature."};
+                .title = tr("genomeissues.separation.title"),
+                .problem = format(
+                    "genomeissues.separation.problem", {{"target", targetGene}, {"genes", StringHelper::formatRanges(issue.geneIndicesKeepingSeparation)}}),
+                .explanation = formatCount("genomeissues.separation.limit", Const::MaxGenesWithSeparation, {}),
+                .consequence = format("genomeissues.separation.consequence", {{"target", targetGene}})};
         }
         case GenomeIssueType::ConstructsRemovedGene:
             return IssueText{
-                .title = "Constructs a removed gene",
-                .problem = "Constructs gene " + std::to_string(issue.referencedGeneIndex.value_or(0)) + ", which is removed.",
-                .explanation = "The constructed gene is removed because of another warning.",
-                .consequence = "The constructor is turned off."};
+                .title = tr("genomeissues.constructs.title"),
+                .problem = format("genomeissues.constructs.problem", {{"gene", std::to_string(issue.referencedGeneIndex.value_or(0))}}),
+                .explanation = tr("genomeissues.constructs.explanation"),
+                .consequence = tr("genomeissues.constructoroff")};
         case GenomeIssueType::InjectsRemovedGene:
             return IssueText{
-                .title = "Injects a removed gene",
-                .problem = "Injects gene " + std::to_string(issue.referencedGeneIndex.value_or(0)) + ", which is removed.",
-                .explanation = "The injected gene is removed because of another warning.",
-                .consequence = "The injector uses the first remaining gene instead."};
+                .title = tr("genomeissues.injects.title"),
+                .problem = format("genomeissues.injects.problem", {{"gene", std::to_string(issue.referencedGeneIndex.value_or(0))}}),
+                .explanation = tr("genomeissues.injects.explanation"),
+                .consequence = tr("genomeissues.injector")};
         default:
             return IssueText();
         }
@@ -171,19 +170,25 @@ namespace
 
     std::string getLocation(GenomeIssue const& issue)
     {
-        auto result = "gene " + std::to_string(issue.geneIndex);
         if (issue.nodeIndex.has_value()) {
-            result += ", node " + std::to_string(issue.nodeIndex.value());
+            return format("genomeissues.location.node", {{"gene", std::to_string(issue.geneIndex)}, {"node", std::to_string(issue.nodeIndex.value())}});
         }
-        return result;
+        return format("genomeissues.gene", {{"gene", std::to_string(issue.geneIndex)}});
     }
 
     std::string getIssueTooltip(GenomeIssue const& issue, GenomeDesc const& genome)
     {
         auto text = getIssueText(issue, genome);
-        return std::string(GenomeIssueDescription::getIcon(issue)) + " " + text.title + " (" + getLocation(issue) + ")\n" + text.problem + " "
-            + text.explanation + "\nCorrection in the genome of offspring: " + text.consequence;
+        return format(
+            "genomeissues.tooltip",
+            {{"icon", GenomeIssueDescription::getIcon(issue)},
+             {"title", text.title},
+             {"location", getLocation(issue)},
+             {"problem", text.problem},
+             {"explanation", text.explanation},
+             {"consequence", text.consequence}});
     }
+
 }
 
 std::string GenomeIssueDescription::getTooltip(std::vector<GenomeIssue> const& issues, GenomeDesc const& genome)

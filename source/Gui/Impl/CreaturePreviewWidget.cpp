@@ -18,6 +18,7 @@
 #include <Data/SpaceCalculator.h>
 
 #include "AlienGui.h"
+#include "GenomeEditorPresentation.h"
 #include "GenomeTabEditData.h"
 #include "GenomeWindowEditData.h"
 #include "NeuralNetEditorPresentation.h"
@@ -425,11 +426,17 @@ void _CreaturePreviewWidget::processTitle()
     for (auto const& geneIndex : geneIndices) {
         geneIndexStrings.emplace_back(std::to_string(geneIndex));
     }
-    auto subGenomeType = _subGenome.startIndex == 0 ? "Primary" : "Secondary";
+    auto key = std::string(_subGenome.startIndex == 0 ? "preview.primary" : "preview.secondary") + (_subGenome.trimmed ? ".trimmed" : "");
     auto numCells = std::ranges::count_if(_previewDesc._cells, [](auto const& cell) { return cell._cellType != CellType_Void; });
-    auto cellCountText = std::to_string(numCells) + " cells" + (_subGenome.trimmed ? " (trimmed)" : "");
-    auto title = std::string(subGenomeType) + ": " + cellCountText + ", gene indices: " + boost::join(geneIndexStrings, ", ");
-    AlienGui::Text(title.c_str());
+    auto title = GenomeEditorPresentation::count(key, toInt(numCells));
+    auto genes = boost::join(geneIndexStrings, ", ");
+    auto position = title.find("{genes}");
+    if (position != std::string::npos) {
+        title.replace(position, 7, genes);
+    }
+    ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - scale(TitleMargin));
+    AlienGui::Text(title);
+    ImGui::PopTextWrapPos();
 }
 
 void _CreaturePreviewWidget::moveCenter(RealVector2D const& startWorldPosition, RealVector2D const& endViewPos)

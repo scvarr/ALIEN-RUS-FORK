@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <ranges>
 
+#include <Base/LocalizationService.h>
 #include <Base/Math.h>
 
 #include <Data/CellTypeConstants.h>
@@ -196,8 +197,10 @@ void _PreviewDescView::drawFrontMarker(ImDrawList* drawList, PreviewDesc const& 
 
     AlienGui::RotateStart(drawList);
     auto textPos = center + Math::unitVectorOfAngle(visualFrontAngle) * (radius + textSize);
+    auto label = tr("preview.front");
+    auto labelWidth = ImGui::GetFont()->CalcTextSizeA(textSize, FLT_MAX, 0, label.c_str()).x;
     AlienGui::AddTextWithSubpixelAccuracy(
-        drawList, ImGui::GetFont(), textSize, {textPos.x - textSize, textPos.y - textSize / 2}, ImColor::HSV(0, 0, 0.4f), "Front");
+        drawList, ImGui::GetFont(), textSize, {textPos.x - labelWidth / 2, textPos.y - textSize / 2}, ImColor::HSV(0, 0, 0.4f), label.c_str());
     AlienGui::RotateEnd(visualFrontAngle, drawList);
 }
 
