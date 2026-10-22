@@ -1,0 +1,311 @@
+# L4-A2 validation: neural network editor
+
+Date: 2026-10-22 (Europe/Moscow).
+Branch: `feat/ru-localization-l4a2`.
+Baseline: `2ec767deff324d1eee7b5c4552c76a12003e1a01` (`main`).
+
+## Delivered scope
+
+The neural network editor now resolves English/Russian input/output, memory,
+telemetry, weight/bias, channel-role, module, action and activation captions at
+render time. Both embedded and modal editors use the same presentation adapter.
+The six activation functions retain their enum order and mathematical evaluation.
+The mathematical graph notation `tanh`, `abs` and `mod` is shared; the other short
+annotations and all chooser names are localized. Canonical Data constants remain
+unchanged.
+
+`CellFunctionChannels` resolves captions while constructing its presentation
+modules each frame. Read/write roles, channel indices, ordering, masks and mode
+branches are unchanged. No neural algorithm, kernel, genome structure, numeric
+range, randomization algorithm, clipboard data structure or serialization format
+was changed.
+
+The graph measures translated node and channel strings using the actual label
+font. The weight/bias slider reserves the wider of both captions; inspector card
+width follows the widest possible translated connection header. The rotated rail
+labels are measured before rotation and fit their available vertical span without
+byte truncation. Module blocks that need extra height stay inside the graph.
+Glyph generation bypasses the unrotated CPU clip rectangle while retaining the
+original GPU scissor for the final rotated vertices. Horizontal graph scrolling
+continues to expose long channel labels. Tool buttons wrap using translated
+widths; modal Adopt/Cancel occupy their own row and reserve that row's height.
+
+The related preview neural-activity overlay translates signals, memory, heading,
+empty states and hide hint, measures its columns from their display labels and
+scrolls horizontally when needed. Preview detail/activity hints and speed format
+are localized. Preview settings resolve their title, display mode, choices and
+actions without changing their stored mode.
+
+Canonical ImGui names, numeric node scopes, parent children, slider IDs, window
+identity and editing state remain independent of language. All seven action
+buttons use `DisplayButton` with their original canonical names. The modal uses
+the existing stable title-key API. Preview sliders retain `Signal N` / `Mem N` as
+their names and supply translated labels separately.
+
+The only change in `NodeEditorWidget` is the heading of its neural editor. The
+additive optional `GroupParameters.label` displays that heading while keeping
+`GroupParameters.text` as the original expand-button scope. This is a narrow A2
+integration change, not the start of A3: node properties, cell modes, mutation
+panels and their help are unchanged. Existing Group callers keep their behavior.
+
+The EN/RU catalogs each contain **633 keys**, including **66 new `neural.*` keys**.
+All 567 pre-existing entries are unchanged. Translations follow the normative
+terminology; no glossary decisions or canonical enum labels were modified.
+
+## Automated validation
+
+Windows Release completed successfully:
+
+```powershell
+.\build-windows-ninja.bat agent Release 16
+python -m unittest discover -s source/Gui/Impl/Tests -p 'check_localization*.py'
+```
+
+Only `build-agent` was configured/built. No IDE build tree was used. No CUDA
+structure/header changed, so no clean kernel rebuild was needed. An incremental
+build retained an old localization object despite an updated generated English
+catalog header. Removing only
+`build-agent/source/Base/CMakeFiles/Base.dir/Release/LocalizationService.cpp.obj`
+and rebuilding corrected the embedded fallback; the final Base suite passes.
+This is a resolved build-cache issue, not a missing-catalog exception.
+
+| Executable | Passed | Other results |
+| --- | ---: | --- |
+| BaseTests | 41 | 0 failures |
+| DataTests | 247 | 0 failures |
+| EngineInterfaceTests | 2 | 0 failures |
+| McpToolsTests | 40 | 0 failures |
+| NetworkTests | 38 | 0 failures |
+| PersisterTests | 142 | 1 previously disabled test |
+| GuiLocalizationTests | 108 | 9 new A2 tests; 0 failures |
+| EngineTests | 2196 | 2 existing runtime skips, 2 disabled; 0 failures |
+
+Total: **2814 passing C++ tests**, 2 runtime skips and 3 disabled tests. The engine
+skips remain `provideEnergy_insufficientEnergy/2` and `/5`. No build or test was
+cancelled. Logs, XML results and exit codes are retained under `temp/l4a2/`.
+
+The nine new production ImGui tests cover:
+
+- Enum-ordered activation adapters and unchanged canonical activation names.
+- Memory modes with masks 0/1/85/255, channel read/write roles and ordering through
+  EN/RU/EN, plus the sensor's dual-role trigger/found channel.
+- Both editor layout modes, live memory/telemetry and selected indices at
+  100/150/200%, with narrow/wide windows, measured bounds and finite draw vertices.
+- Actual mouse clicks for Clear, Identity, Randomize, Copy and Paste through a
+  language switch, with exact value checks and unchanged connection weights.
+- An actual open neural modal, retained popup ID and buffered edits on a language
+  switch, mouse Cancel rollback and Adopt of both neural and connection values.
+- Mouse input/output selection, retained selected connection and active numeric
+  weight input ID on a language switch.
+- Preview overlay rendering, bounded placement, unchanged signals/memory and
+  selection at all three scales in both languages.
+- Canonical expand-button identity with the localized neural heading.
+- Mouse resets of weight/bias and activation choice affecting only the selected
+  neuron.
+
+Language switching inside a modal is driven through the existing deferred locale
+API in tests; it does not depend on being able to operate a blocked settings menu.
+These tests render real ImGui widgets without a graphics backend. They establish
+interaction/state contracts, not human visual acceptance of rasterized text.
+
+All **61 Python checks pass**, including six new A2 contracts for catalog parity,
+old-entry preservation, placeholders, display consumers, canonical scopes,
+unchanged operation bodies, paired measurements and later-stage boundaries.
+Historical catalog assertions now isolate their original slice from `neural.*`.
+The historical shared-widget byte checks exclude exactly the additive optional
+Group-label declaration/rendering expression; their original handler checks remain.
+The new A2 boundary check permits only the neural heading change in NodeEditorWidget.
+The Base catalog test covers all 633 entries and embedded English fallback.
+
+clang-format **19.1.5** was used. All changed C++ files clean at HEAD and the new
+header pass formatting checks. `AlienGui.cpp` was already not format-clean; only
+its one display expression was changed. `git diff --check` passes.
+
+## Graph analysis
+
+The index was refreshed with `node .gitnexus/run.cjs analyze --index-only` at the
+specified baseline. Graph indexing completed (729985 nodes, 949093 edges, 435
+flows). The full-text/BM25 index build failed; graph traversal remains available.
+The long-lived MCP service kept stale metadata, so fresh LocalBackend instances
+were used for the final impact/change checks.
+
+Method-level upstream impact for editor rendering/layout/actions, channels and
+preview paths reports LOW. The indexed flows are neural `processGraph` and
+creature-preview `process`; concrete neural-header importers include
+InspectionWindow and NodeEditorWidget. Constructors, macro-generated tests and
+virtual dialog/Group dispatch may return UNKNOWN or have no indexed target.
+Those results were not treated as unused code: creation, singleton, virtual
+callback and Group call sites were checked in source. The optional Group API is
+covered by its identity test and the complete GUI suite.
+
+Final graph change analysis uses `detect_changes(scope="all")` on the complete
+staged diff. Its result is **78 changed symbols, 5 affected graph flows, MEDIUM
+risk**, with `partial=false`, `truncated=false` and all 78 symbols returned.
+Machine-readable output is `temp/l4a2/graph-final.json`; upstream results are in
+`temp/l4a2/impact-fresh.json`. Newly added presentation/test code is additionally
+covered by runtime and source-contract tests; the graph was indexed at baseline.
+
+## Isolated visual acceptance build
+
+Launch from PowerShell:
+
+```powershell
+& 'E:\Projects\ALIEN\temp\l4a2\review\Launch-L4A2.ps1' -Scale 1.0
+& 'E:\Projects\ALIEN\temp\l4a2\review\Launch-L4A2.ps1' -Scale 1.5
+& 'E:\Projects\ALIEN\temp\l4a2\review\Launch-L4A2.ps1' -Scale 2.0 -English
+```
+
+Default: scale 1.5, Russian. Executable:
+`E:\Projects\ALIEN\temp\l4a2\review\alien-l4a2.exe`.
+
+The separately linked executable uses the final Release production libraries.
+Its entry-point wrapper uses `SettingsTestScope` to redirect HKCU only for that
+process. It enables the genome editor and detailed preview, disables autosave and
+save-on-exit, and generates disposable samples with sensor/constructor, memory,
+nonzero weights and bias. It contains DLLs, tracked resources, current catalogs
+and licensed fonts; no user settings, worlds or autosaves were copied.
+`--review-check-profile` and `--review-generate-samples` return 0; the launcher
+parses without errors. Package sources/build log are in `temp/l4a2/` and remain
+ignored local review artifacts.
+
+Manual visual acceptance remains for the user:
+
+1. Open `samples/synthetic-a.genome`; select its sensor/constructor node. Inspect
+   embedded input/output, memory, telemetry, channel roles and the neural card.
+   Select several input/output nodes and confirm the selected connection follows.
+2. Expand the neural heading. Compare weight/bias values with the embedded view.
+   Test each activation graph/name, sliders and resets. Cancel must discard modal
+   edits; Adopt must transfer the edited net and connection weights.
+3. Copy the net, Randomize, then Paste and compare values. Clear must zero weights
+   and biases and select identity activations; Identity must restore the diagonal.
+   Switch EN/RU between edits and verify values, selection and clipboard survive.
+4. Select the memory node; inspect its channel labels and constructor block if
+   enabled. Enable detailed simulation and the neural-activity preview overlay,
+   select a preview cell and edit a signal/memory value. Inspect the overlay's hide
+   hint and preview settings; Cancel/Adopt must retain their existing semantics.
+5. Repeat at 1.0/1.5/2.0 and with narrow/wide editor panes. Scroll long graphs and
+   overlay columns. Check rotated Cyrillic rails, clipping, button wrapping,
+   inspector header, weight/bias captions, activation hints and tooltip wrapping.
+   Save any disposable edits only under this package's `samples/` directory.
+
+## Limitations and preservation
+
+Human visual acceptance at all three scales is pending; no native-window
+screenshots are claimed. Automated font/layout/state checks and isolated launch
+preparation are complete. General preview titles/counts, preview cell-type
+annotations, SignalsBufferDialog and other A5 work remain outside this stage.
+Node properties/cell modes and mutation panels retain their planned A3/A4 scope.
+The shared channel captions also appear in live inspectors, but this does not
+localize the remaining inspector properties. Third-party file-dialog controls
+retain the previously documented English vendor strings.
+
+`main` remains at the specified baseline. `AGENTS.md` retains skip-worktree and
+SHA-256 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
+The real `HKCU\Software\alien` exports before/after checks are compared under
+`temp/l4a2/` (both SHA-256 `891CF1B4278DAD9DB22B571DC7A7EA897196EA45E717187C99CA9D41B0C1DB37`). User worlds/genomes/autosaves and pinned dependency sources are
+unchanged. No CodeQL, submodule update, IDE-tree build or dependency edit ran.
+The implementation and this report are committed/pushed only on the feature
+branch; no integration into main is performed.
+
+## Exact change inventory
+
+- `resources/locales/en.json`
+- `resources/locales/ru.json`
+- `source/Base/Tests/LocalizationServiceTests.cpp`
+- `source/Gui/Impl/AlienGui.cpp`
+- `source/Gui/Impl/AlienGui.h`
+- `source/Gui/Impl/CellFunctionChannels.cpp`
+- `source/Gui/Impl/CreaturePreviewWidget.cpp`
+- `source/Gui/Impl/CreaturePreviewWidget.h`
+- `source/Gui/Impl/NeuralNetEditorPresentation.h`
+- `source/Gui/Impl/NeuralNetEditorWidget.cpp`
+- `source/Gui/Impl/NeuralNetEditorWidget.h`
+- `source/Gui/Impl/NodeEditorWidget.cpp`
+- `source/Gui/Impl/PreviewSettingsDialog.cpp`
+- `source/Gui/Impl/PreviewWidget.cpp`
+- `source/Gui/Impl/Tests/LocalizationGuiTests.cpp`
+- `source/Gui/Impl/Tests/check_localization_l2a.py`
+- `source/Gui/Impl/Tests/check_localization_l2b1.py`
+- `source/Gui/Impl/Tests/check_localization_l2b2.py`
+- `source/Gui/Impl/Tests/check_localization_l2b3a.py`
+- `source/Gui/Impl/Tests/check_localization_l2b3b.py`
+- `source/Gui/Impl/Tests/check_localization_l2b3c.py`
+- `source/Gui/Impl/Tests/check_localization_l2b4a.py`
+- `source/Gui/Impl/Tests/check_localization_l2b4b.py`
+- `source/Gui/Impl/Tests/check_localization_l2b4c.py`
+- `source/Gui/Impl/Tests/check_localization_l2b4d.py`
+- `source/Gui/Impl/Tests/check_localization_l2b4e.py`
+- `source/Gui/Impl/Tests/check_localization_l4a1.py`
+- `source/Gui/Impl/Tests/check_localization_l4a2.py`
+- `docs/localization-l4a2-validation.md`
+
+New catalog keys (same set in EN/RU):
+
+```text
+neural.title
+neural.connections
+neural.weight
+neural.bias
+neural.incoming
+neural.outgoing
+neural.memory
+neural.telemetry
+neural.energy
+neural.attacked
+neural.age
+neural.velocity
+neural.yes
+neural.no
+neural.input
+neural.output
+neural.mem
+neural.signal
+neural.adopt
+neural.cancel
+neural.clear
+neural.identity
+neural.randomize
+neural.copy
+neural.paste
+neural.activation.tanh
+neural.activation.step
+neural.activation.identity
+neural.activation.abs
+neural.activation.gaussian
+neural.activation.mod
+neural.channel.trigger
+neural.channel.found
+neural.channel.angle
+neural.channel.mass
+neural.channel.distance
+neural.channel.activation
+neural.channel.delayed
+neural.channel.replayed
+neural.channel.restored
+neural.channel.smoothed
+neural.channel.readwrite
+neural.channel.transfer
+neural.channel.value
+neural.channel.success
+neural.module.gen
+neural.module.attack
+neural.module.inject
+neural.module.recon
+neural.module.deton
+neural.module.comm
+neural.module.constructor
+neural.preview.activity
+neural.preview.disabled
+neural.preview.noselection
+neural.preview.detailed
+neural.preview.showactivity
+neural.preview.settings
+neural.preview.speed
+neural.preview.mode
+neural.preview.node
+neural.preview.cell
+neural.preview.hideactivity
+neural.activation.shortstep
+neural.activation.shortidentity
+neural.activation.shortgaussian
+```

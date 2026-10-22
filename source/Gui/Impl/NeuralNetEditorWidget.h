@@ -13,6 +13,8 @@
 
 class _NeuralNetEditorWidget
 {
+    friend class LocalizationGuiTests;
+
 public:
     static NeuralNetEditorWidget create();
 
@@ -157,6 +159,8 @@ private:
     float calcMinEditorHeight(std::vector<CellFunctionModule> const& cellFunctionModules);
     static float calcNetToolButtonsWidth();
     static float calcInspectorCardHeight();
+    float calcInspectorCardWidth();
+    float calcActionButtonsHeight(EditorMode mode);
 
     // Depend on the label font and are therefore no static helpers
     bool isNarrowLayout(float availableWidth, std::vector<CellFunctionModule> const& cellFunctionModules);

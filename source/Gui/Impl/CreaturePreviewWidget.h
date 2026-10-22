@@ -8,6 +8,8 @@
 
 class _CreaturePreviewWidget
 {
+    friend class LocalizationGuiTests;
+
 public:
     static CreaturePreviewWidget
     create(GenomeTabEditData const& editData, GeneIndicesForSubGenome const& geneIndices, SubGenomeDesc const& genomeWithStartIndex);

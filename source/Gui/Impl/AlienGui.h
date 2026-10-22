@@ -489,6 +489,7 @@ public:
     struct GroupParameters
     {
         MEMBER(GroupParameters, std::string, text, "");
+        MEMBER(GroupParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(GroupParameters, std::optional<std::string>, tooltip, std::nullopt);
         MEMBER(GroupParameters, bool, highlighted, false);
         MEMBER(GroupParameters, bool, expandButton, false);

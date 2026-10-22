@@ -8,6 +8,7 @@
 
 #include <Fonts/IconsFontAwesome5.h>
 
+#include <Base/LocalizationService.h>
 #include <Base/StringHelper.h>
 
 #include <Data/DescEditService.h>
@@ -210,16 +211,14 @@ void _PreviewWidget::processActionBar()
     AlienGui::Separator();
     // Alternatives: ICON_FA_GEM, ICON_FA_FIRE, ICON_FA_CUDA
     if (AlienGui::SelectableButton(
-            AlienGui::SelectableButtonParameters().name(ICON_FA_DICE_D20).tooltip("Activates a more detailed simulation including signals and muscles"),
-            _editData->detailSimulation)) {
+            AlienGui::SelectableButtonParameters().name(ICON_FA_DICE_D20).tooltip(tr("neural.preview.detailed")), _editData->detailSimulation)) {
         _genomeEditData->defaultDetailSimulation = _editData->detailSimulation;
         onRestart();
     }
 
     ImGui::SameLine();
     AlienGui::SelectableButton(
-        AlienGui::SelectableButtonParameters().name(ICON_FA_WAVE_SQUARE).tooltip("Shows the neural activity editor in the preview"),
-        _editData->showNeuralActivityEditor);
+        AlienGui::SelectableButtonParameters().name(ICON_FA_WAVE_SQUARE).tooltip(tr("neural.preview.showactivity")), _editData->showNeuralActivityEditor);
     _genomeEditData->defaultShowNeuralActivityEditor = _editData->showNeuralActivityEditor;
 
     ImGui::SameLine();
@@ -227,7 +226,7 @@ void _PreviewWidget::processActionBar()
         PreviewSettingsDialog::get().setEditData(_genomeEditData, _editData);
         PreviewSettingsDialog::get().open();
     }
-    AlienGui::Tooltip(AlienGui::TooltipParameters().text("Preview settings"));
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("neural.preview.settings")));
 
     ImGui::SameLine();
     AlienGui::VerticalSeparator(20.0f);
@@ -273,7 +272,7 @@ void _PreviewWidget::processActionBar()
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(scale(90.0f));
-    ImGui::SliderInt("##TPSRestriction", &_editData->simulationSpeed, 1, 100, "%d%% speed", ImGuiSliderFlags_None);
+    ImGui::SliderInt("##TPSRestriction", &_editData->simulationSpeed, 1, 100, tr("neural.preview.speed").c_str(), ImGuiSliderFlags_None);
     _editData->simulationSpeed = std::clamp(_editData->simulationSpeed, 1, 100);
 
     ImGui::SameLine();

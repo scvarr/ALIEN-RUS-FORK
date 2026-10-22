@@ -20,6 +20,7 @@
 #include "AlienGui.h"
 #include "GenomeTabEditData.h"
 #include "GenomeWindowEditData.h"
+#include "NeuralNetEditorPresentation.h"
 #include "SimulationScrollbars.h"
 #include "StyleService.h"
 
@@ -33,12 +34,12 @@ namespace
 
     std::string getNeuralActivityEditorSignalLabel(int index)
     {
-        return "Signal " + std::to_string(index);
+        return NeuralNetEditorPresentation::indexed("neural.signal", index);
     }
 
     std::string getNeuralActivityEditorMemoryLabel(int index)
     {
-        return "Mem " + std::to_string(index);
+        return NeuralNetEditorPresentation::indexed("neural.mem", index);
     }
 
     // The labels are placed right of the sliders and would be clipped by the column boundary if the text column were too narrow
@@ -262,7 +263,7 @@ bool _CreaturePreviewWidget::processHideButton()
 
     auto cursorPos = ImGui::GetCursorPos();
     ImGui::SetCursorPos({ImGui::GetWindowWidth() - contentStartPos.x - buttonWidth, contentStartPos.y + style.ItemSpacing.y - style.FramePadding.y});
-    auto result = AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_TIMES).tooltip("Hide the neural activity editor"));
+    auto result = AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_TIMES).tooltip(tr("neural.preview.hideactivity")));
     ImGui::SetCursorPos(cursorPos);
 
     return result;
@@ -279,18 +280,29 @@ void _CreaturePreviewWidget::processNeuralActivityEditor(bool& phenotypeChanged,
     }
 
     auto editorWidth = calcNeuralActivityColumnWidth() * toFloat(calcNumNeuralActivityEditorColumns()) + 30.0f;
-    auto width = _editData->detailSimulation && _selectedCellIdFromPreview.has_value() ? scale(editorWidth) : scale(250);
+    auto width = _editData->detailSimulation && _selectedCellIdFromPreview.has_value()
+        ? scale(editorWidth)
+        : std::max(scale(250), ImGui::CalcTextSize(tr("neural.preview.disabled").c_str()).x + scale(45));
+    width = std::max(width, ImGui::CalcTextSize(tr("neural.preview.activity").c_str()).x + scale(55));
     auto height = _editData->detailSimulation && _selectedCellIdFromPreview.has_value() ? scale(149.0f) : scale(67.0f);
+    auto contentWidth = width;
+    width = std::min(width, contentAvailable.x - scale(NeuralActivityEditorRightMargin));
+    auto scrollHorizontally = width < contentWidth;
+    if (scrollHorizontally) {
+        height += ImGui::GetStyle().ScrollbarSize;
+        ImGui::SetNextWindowContentSize({contentWidth - 2 * ImGui::GetStyle().FramePadding.x, 0});
+    }
     ImGui::SetCursorPos(
         {ImGui::GetScrollX() + ImGui::GetWindowWidth() - width - scale(NeuralActivityEditorRightMargin), ImGui::GetScrollY() + scale(TitleMargin)});
 
     // The frame style derives the background of the editor from the frame color, therefore it is overridden only for the child window itself
     ImGui::PushStyleColor(ImGuiCol_FrameBg, static_cast<ImVec4>(Const::FloatingCardBackgroundColor));
-    auto signalEditorVisible = ImGui::BeginChild("signalEditor", ImVec2(width, height), ImGuiChildFlags_FrameStyle);
+    auto signalEditorVisible =
+        ImGui::BeginChild("signalEditor", ImVec2(width, height), ImGuiChildFlags_FrameStyle, scrollHorizontally ? ImGuiWindowFlags_HorizontalScrollbar : 0);
     ImGui::PopStyleColor();
     if (signalEditorVisible) {
 
-        AlienGui::Group(AlienGui::GroupParameters().text("Neural activity editor"));
+        AlienGui::Group(AlienGui::GroupParameters().text(tr("neural.preview.activity")));
         if (processHideButton()) {
             _editData->showNeuralActivityEditor = false;
         }
@@ -313,14 +325,15 @@ void _CreaturePreviewWidget::processNeuralActivityEditor(bool& phenotypeChanged,
             struct NeuralActivityEditorEntry
             {
                 std::string name;
+                std::string label;
                 float value;
             };
             std::vector<NeuralActivityEditorEntry> entries;
             for (auto index : std::views::iota(0, STANDARD_NEURONS_PER_CELL)) {
-                entries.emplace_back(getNeuralActivityEditorSignalLabel(index), selectedCell->_signal._channels.at(index));
+                entries.emplace_back("Signal " + std::to_string(index), getNeuralActivityEditorSignalLabel(index), selectedCell->_signal._channels.at(index));
             }
             for (auto index : std::views::iota(0, MEMORY_NEURONS_PER_CELL)) {
-                entries.emplace_back(getNeuralActivityEditorMemoryLabel(index), selectedCell->_memory.at(index));
+                entries.emplace_back("Mem " + std::to_string(index), getNeuralActivityEditorMemoryLabel(index), selectedCell->_memory.at(index));
             }
 
             auto textWidth = calcNeuralActivityTextWidth();
@@ -331,7 +344,8 @@ void _CreaturePreviewWidget::processNeuralActivityEditor(bool& phenotypeChanged,
                     for (auto row : std::views::iota(0, NeuralActivitySlidersPerColumn)) {
                         auto& entry = entries.at(column * NeuralActivitySlidersPerColumn + row);
                         phenotypeChanged |= AlienGui::SliderFloat(
-                            AlienGui::SliderFloatParameters().name(entry.name).format("%.3f").textWidth(textWidth).min(-2.0f).max(2.0f), &entry.value);
+                            AlienGui::SliderFloatParameters().name(entry.name).label(entry.label).format("%.3f").textWidth(textWidth).min(-2.0f).max(2.0f),
+                            &entry.value);
                     }
                 }
                 ImGui::EndChild();
@@ -357,9 +371,9 @@ void _CreaturePreviewWidget::processNeuralActivityEditor(bool& phenotypeChanged,
         } else {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + scale(AlienGui::GroupTextIndent));
             if (!_editData->detailSimulation) {
-                AlienGui::Text("Detailed simulation mode disabled");
+                AlienGui::Text(tr("neural.preview.disabled"));
             } else if (!_selectedCellIdFromPreview.has_value()) {
-                AlienGui::Text("No cell selected");
+                AlienGui::Text(tr("neural.preview.noselection"));
             }
         }
     }

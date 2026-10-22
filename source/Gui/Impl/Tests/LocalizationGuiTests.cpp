@@ -25,6 +25,7 @@
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
 #include <Gui/Impl/ChangeColorDialog.h>
+#include <Gui/Impl/CreaturePreviewWidget.h>
 #include <Gui/Impl/DelayedExecutionController.h>
 #include <Gui/Impl/EntityAttributeHelp.h>
 #include <Gui/Impl/ExitDialog.h>
@@ -38,6 +39,8 @@
 #include <Gui/Impl/GenomeWindowEditData.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
+#include <Gui/Impl/NeuralNetEditorPresentation.h>
+#include <Gui/Impl/NeuralNetEditorWidget.h>
 #include <Gui/Impl/NewSimulationDialog.h>
 #include <Gui/Impl/OverlayController.h>
 #include <Gui/Impl/SavePictureDialog.h>
@@ -232,6 +235,101 @@ protected:
             dialog.processIntern();
         });
     }
+
+    void neuralActions(NeuralNetEditorWidget const& editor, NeuralNetGenomeDesc& net, bool dialog = false)
+    {
+        editor->processActionButtons(
+            net._weights,
+            net._biases,
+            net._activationFunctions,
+            dialog ? _NeuralNetEditorWidget::EditorMode::Dialog : _NeuralNetEditorWidget::EditorMode::Embedded);
+    }
+
+    void neuralEditor(NeuralNetEditorWidget const& editor, NeuralNetGenomeDesc& net, bool dialog = false)
+    {
+        auto& selection = editor->getValueRef(editor->_dataById);
+        auto modules = CellFunctionChannels::getModules(NodeDesc().cellType(SensorGenomeDesc()).constructor(ConstructorGenomeDesc()));
+        _NeuralNetEditorWidget::LiveData live;
+        live.memory = {0.1f, -0.2f, 0.3f, -0.4f};
+        live.energy = 123.4f;
+        live.attacked = true;
+        live.age = 321;
+        live.speed = 0.25f;
+        editor->processEditor(
+            net._weights,
+            net._biases,
+            net._activationFunctions,
+            net._connectionWeights,
+            modules,
+            live,
+            selection,
+            dialog ? _NeuralNetEditorWidget::EditorMode::Dialog : _NeuralNetEditorWidget::EditorMode::Embedded,
+            _NeuralNetEditorWidget::HeightMode::Natural);
+    }
+
+    void neuralDialog(NeuralNetEditorWidget const& editor, NeuralNetGenomeDesc& net)
+    {
+        auto& selection = editor->getValueRef(editor->_dataById);
+        editor->processDialog(net._weights, net._biases, net._activationFunctions, net._connectionWeights, {}, std::nullopt, selection);
+    }
+
+    void editNeuralDialog(NeuralNetEditorWidget const& editor)
+    {
+        editor->_dialogNet.biases.at(2) = 0.375f;
+        editor->_dialogConnectionWeights.at(1) = -0.625f;
+    }
+
+    auto neuralSelection(NeuralNetEditorWidget const& editor)
+    {
+        auto& selection = editor->getValueRef(editor->_dataById);
+        return std::pair(selection.inputIndex, selection.outputIndex);
+    }
+
+    void selectNeuralConnection(NeuralNetEditorWidget const& editor, int input, int output)
+    {
+        auto& selection = editor->getValueRef(editor->_dataById);
+        selection.inputIndex = input;
+        selection.outputIndex = output;
+    }
+
+    float neuralCardWidth(NeuralNetEditorWidget const& editor) { return editor->calcInspectorCardWidth(); }
+    float neuralInputMargin(NeuralNetEditorWidget const& editor) { return editor->calcInputNodeMargin(); }
+    float neuralActionHeight(NeuralNetEditorWidget const& editor, bool dialog)
+    {
+        return editor->calcActionButtonsHeight(dialog ? _NeuralNetEditorWidget::EditorMode::Dialog : _NeuralNetEditorWidget::EditorMode::Embedded);
+    }
+
+    void neuralNodes(NeuralNetEditorWidget const& editor, NeuralNetGenomeDesc& net)
+    {
+        editor->_labelFont = StyleService::get().getDefaultFont();
+        _NeuralNetEditorWidget::LayoutData layout;
+        auto start = ImGui::GetCursorScreenPos();
+        for (int index = 0; index < NEURAL_NET_INPUTS; ++index) {
+            layout.inputNodePos[index] = {start.x + 160, start.y + 20 + index * 24.0f};
+        }
+        for (int index = 0; index < NEURAL_NET_OUTPUTS; ++index) {
+            layout.outputNodePos[index] = {start.x + 350, start.y + 20 + index * 24.0f};
+        }
+        auto& selection = editor->getValueRef(editor->_dataById);
+        editor->drawInputNodes(selection, ImGui::GetWindowDrawList(), layout, std::nullopt);
+        editor->drawOutputNodes(net._biases, net._activationFunctions, selection, ImGui::GetWindowDrawList(), layout);
+    }
+
+    void neuralCard(NeuralNetEditorWidget const& editor, NeuralNetGenomeDesc& net)
+    {
+        editor->_labelFont = StyleService::get().getDefaultFont();
+        auto& selection = editor->getValueRef(editor->_dataById);
+        editor->processInspectorCardContent(
+            net._weights, net._biases, net._activationFunctions, selection, editor->calcInspectorCardWidth(), editor->calcInspectorCardHeight());
+    }
+
+    void prepareActivity(CreaturePreviewWidget const& editor)
+    {
+        editor->_selectedCellIdFromPreview = 123;
+        editor->_previewDesc._cells = {CellPreviewDesc().id(123).memory({0.1f, 0.2f, -0.3f, 0.4f})};
+    }
+
+    void drawActivity(CreaturePreviewWidget const& editor, bool& changed, ContentDesc& phenotype) { editor->processNeuralActivityEditor(changed, phenotype); }
 
     float _originalScale = 1;
     std::string _language;
@@ -6350,4 +6448,374 @@ TEST_F(LocalizationGuiTests, l4a1PropertiesAndStatusRenderAtAllScalesWithoutChan
             }
         }
     }
+}
+
+TEST_F(LocalizationGuiTests, l4a2ActivationAdapterPreservesEnumOrderAndCanonicalNames)
+{
+    auto const canonical = Const::ActivationFunctionStrings;
+    select("en");
+    auto english = NeuralNetEditorPresentation::activationFunctions();
+    ASSERT_EQ(ActivationFunction_Count, english.size());
+    select("ru");
+    auto russian = NeuralNetEditorPresentation::activationFunctions();
+    ASSERT_EQ(english.size(), russian.size());
+    EXPECT_EQ("Тождественная функция", russian.at(ActivationFunction_Identity));
+    EXPECT_EQ("Абсолютное значение", russian.at(ActivationFunction_Abs));
+    EXPECT_EQ("ступ", NeuralNetEditorPresentation::shortActivationFunctions().at(ActivationFunction_BinaryStep));
+    for (int index = 0; index < ActivationFunction_Count; ++index) {
+        EXPECT_NE(english.at(index), russian.at(index));
+    }
+    EXPECT_EQ(canonical, Const::ActivationFunctionStrings);
+    select("en");
+    EXPECT_EQ(english, NeuralNetEditorPresentation::activationFunctions());
+}
+
+TEST_F(LocalizationGuiTests, l4a2ChannelRolesMasksAndOrderSurviveLanguageSwitch)
+{
+    for (int mode = 0; mode < MemoryMode_Count; ++mode) {
+        for (int mask : {0, 1, 85, 255}) {
+            std::vector<MemoryModeGenomeDesc> modes = {
+                SignalDelayGenomeDesc(), SignalRecorderGenomeDesc(), SignalStorageGenomeDesc(), SignalIntegratorGenomeDesc()};
+            auto node = NodeDesc()
+                            .cellType(MemoryGenomeDesc().mode(modes.at(mode)).channelBitMask(mask))
+                            .constructor(ConstructorGenomeDesc().autoTriggerInterval(std::nullopt));
+            select("en");
+            auto english = CellFunctionChannels::getModules(node);
+            for (auto language : {"ru", "en"}) {
+                select(language);
+                auto modules = CellFunctionChannels::getModules(node);
+                ASSERT_EQ(english.size(), modules.size());
+                for (size_t index = 0; index < modules.size(); ++index) {
+                    auto const& before = english.at(index).channels;
+                    auto const& after = modules.at(index).channels;
+                    ASSERT_EQ(before.size(), after.size());
+                    for (size_t channel = 0; channel < before.size(); ++channel) {
+                        EXPECT_EQ(before.at(channel).channel, after.at(channel).channel);
+                        EXPECT_EQ(before.at(channel).readLabel.empty(), after.at(channel).readLabel.empty());
+                        EXPECT_EQ(before.at(channel).writeLabel.empty(), after.at(channel).writeLabel.empty());
+                    }
+                }
+            }
+            EXPECT_EQ(mask, std::get<MemoryGenomeDesc>(node._cellType)._channelBitMask);
+        }
+    }
+    auto sensor = NodeDesc().cellType(SensorGenomeDesc());
+    select("ru");
+    auto modules = CellFunctionChannels::getModules(sensor);
+    ASSERT_EQ(1, modules.size());
+    EXPECT_EQ("Сенсор", modules.front().name);
+    EXPECT_EQ("запуск", modules.front().channels.front().readLabel);
+    EXPECT_EQ("найдено", modules.front().channels.front().writeLabel);
+}
+
+TEST_F(LocalizationGuiTests, l4a2GraphRetainsDataSelectionAndMeasuredLayoutAtAllScales)
+{
+    auto editor = _NeuralNetEditorWidget::create();
+    auto net = NeuralNetGenomeDesc().weight(2, 4, -0.625f).bias(2, 0.375f).connectionWeight(1, -0.75f);
+    auto original = net;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (bool dialog : {false, true}) {
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                for (float width : {380.0f, 1200.0f}) {
+                    switcherFrame(width * factor, [&] {
+                        selectNeuralConnection(editor, NEURAL_NET_INPUTS - 1, NEURAL_NET_OUTPUTS - 1);
+                        neuralEditor(editor, net, dialog);
+                        EXPECT_EQ(std::make_pair(NEURAL_NET_INPUTS - 1, NEURAL_NET_OUTPUTS - 1), neuralSelection(editor));
+                        auto font = dialog ? StyleService::get().getDefaultFont() : StyleService::get().getTinyFont();
+                        auto label = tr("neural.velocity");
+                        EXPECT_GE(neuralInputMargin(editor), font->CalcTextSizeA(font->FontSize, FLT_MAX, 0, label.c_str()).x);
+                        EXPECT_GE(neuralCardWidth(editor), scale(260));
+                        EXPECT_GE(neuralActionHeight(editor, dialog), scale(50));
+                    });
+                    EXPECT_EQ(original, net);
+                    auto drawData = ImGui::GetDrawData();
+                    ASSERT_GT(drawData->TotalVtxCount, 0);
+                    for (auto drawList : drawData->CmdLists) {
+                        for (auto const& vertex : drawList->VtxBuffer) {
+                            EXPECT_TRUE(std::isfinite(vertex.pos.x));
+                            EXPECT_TRUE(std::isfinite(vertex.pos.y));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a2ToolsUseCanonicalIdsAndOperateAcrossLanguageSwitch)
+{
+    auto editor = _NeuralNetEditorWidget::create();
+    auto net = NeuralNetGenomeDesc().weight(2, 4, -0.625f).bias(2, 0.375f).connectionWeight(1, -0.75f);
+    auto original = net;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImVec2 target;
+    auto draw = [&](std::string const& button) {
+        frame([&] {
+            auto pos = ImGui::GetCursorScreenPos();
+            for (auto name : {"Clear", "Identity", "Randomize", "Copy", "Paste"}) {
+                auto key = std::string(name);
+                std::ranges::transform(key, key.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                auto label = tr("neural." + key);
+                auto width = ImGui::CalcTextSize(label.c_str()).x + 2 * ImGui::GetStyle().FramePadding.x;
+                if (button == name) {
+                    target = {pos.x + width / 2, pos.y + ImGui::GetFrameHeight() / 2};
+                }
+                pos.x += width + ImGui::GetStyle().ItemSpacing.x;
+            }
+            auto expectedPaste = ImGui::GetID("Paste");
+            neuralActions(editor, net);
+            EXPECT_EQ(expectedPaste, GImGui->LastItemData.ID);
+        });
+    };
+    auto click = [&](std::string const& button) {
+        draw(button);
+        draw(button);
+        io.AddMousePosEvent(target.x, target.y);
+        draw(button);
+        io.AddMouseButtonEvent(0, true);
+        draw(button);
+        io.AddMouseButtonEvent(0, false);
+        draw(button);
+    };
+    select("en");
+    click("Copy");
+    select("ru");
+    click("Randomize");
+    EXPECT_NE(original, net);
+    for (auto const& value : net._weights) {
+        EXPECT_LE(std::abs(value.getValue()), 2.0f);
+    }
+    EXPECT_EQ(original._connectionWeights, net._connectionWeights);
+    click("Paste");
+    EXPECT_EQ(original, net);
+    click("Clear");
+    for (auto const& value : net._weights) {
+        EXPECT_FLOAT_EQ(0, value.getValue());
+    }
+    click("Identity");
+    for (int row = 0; row < NEURAL_NET_OUTPUTS; ++row) {
+        EXPECT_FLOAT_EQ(0, net._biases.at(row));
+        EXPECT_EQ(ActivationFunction_Identity, net._activationFunctions.at(row));
+        for (int col = 0; col < NEURAL_NET_INPUTS; ++col) {
+            EXPECT_FLOAT_EQ(row == col ? 1.0f : 0.0f, net._weights.at(row * NEURAL_NET_INPUTS + col).getValue());
+        }
+    }
+    select("en");
+    click("Paste");
+    EXPECT_EQ(original, net);
+}
+
+TEST_F(LocalizationGuiTests, l4a2OpenModalKeepsIdentityAndAdoptsOrCancelsCopiedData)
+{
+    auto editor = _NeuralNetEditorWidget::create();
+    auto net = NeuralNetGenomeDesc().weight(2, 4, -0.625f).bias(2, 0.25f).connectionWeight(1, -0.75f);
+    auto original = net;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    auto draw = [&] { frame([&] { neuralDialog(editor, net); }); };
+    for (bool adopt : {false, true}) {
+        select("en");
+        editor->openDialog();
+        draw();
+        draw();
+        ImGuiWindow* popup = nullptr;
+        for (auto window : GImGui->Windows) {
+            if (window->Active && (window->Flags & ImGuiWindowFlags_Modal)) {
+                popup = window;
+            }
+        }
+        ASSERT_NE(nullptr, popup);
+        auto popupId = popup->ID;
+        editNeuralDialog(editor);
+        select("ru");
+        draw();
+        EXPECT_EQ(popupId, popup->ID);
+        EXPECT_EQ(original, net);
+        // The first modal action row follows the content child and separator.
+        ImGuiWindow* editorWindow = nullptr;
+        for (auto window : GImGui->Windows) {
+            if (window->Active && window->ParentWindow == popup && std::string(window->Name).find("NeuralNetEditor_") != std::string::npos) {
+                editorWindow = window;
+            }
+        }
+        ASSERT_NE(nullptr, editorWindow);
+        auto y = editorWindow->DC.CursorMaxPos.y - ImGui::GetFrameHeightWithSpacing() - ImGui::GetFrameHeight() / 2;
+        auto x = editorWindow->Pos.x + ImGui::GetStyle().WindowPadding.x;
+        auto adoptWidth = ImGui::CalcTextSize(tr("neural.adopt").c_str()).x + 2 * ImGui::GetStyle().FramePadding.x;
+        auto cancelWidth = ImGui::CalcTextSize(tr("neural.cancel").c_str()).x + 2 * ImGui::GetStyle().FramePadding.x;
+        x += adopt ? adoptWidth / 2 : adoptWidth + ImGui::GetStyle().ItemSpacing.x + cancelWidth / 2;
+        io.AddMousePosEvent(x, y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+        if (adopt) {
+            EXPECT_FLOAT_EQ(0.375f, net._biases.at(2));
+            EXPECT_FLOAT_EQ(-0.625f, net._connectionWeights.at(1));
+            EXPECT_EQ(original._weights, net._weights);
+        } else {
+            EXPECT_EQ(original, net);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a2MouseNodeSelectionAndActiveWeightInputKeepTheirIds)
+{
+    auto editor = _NeuralNetEditorWidget::create();
+    NeuralNetGenomeDesc net;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImVec2 input, output;
+    auto nodes = [&] {
+        frame([&] {
+            auto start = ImGui::GetCursorScreenPos();
+            input = {start.x + 160, start.y + 20 + 3 * 24.0f};
+            output = {start.x + 350, start.y + 20 + 5 * 24.0f};
+            neuralNodes(editor, net);
+        });
+    };
+    nodes();
+    nodes();
+    auto click = [&](ImVec2 target) {
+        io.AddMousePosEvent(target.x, target.y);
+        nodes();
+        io.AddMouseButtonEvent(0, true);
+        nodes();
+        io.AddMouseButtonEvent(0, false);
+        nodes();
+    };
+    click(input);
+    select("ru");
+    click(output);
+    frame([&] { EXPECT_EQ(std::make_pair(3, 5), neuralSelection(editor)); });
+    ImVec2 slider;
+    auto card = [&] {
+        frame([&] {
+            auto start = ImGui::GetWindowPos();
+            slider = {start.x + scale(40), start.y + scale(9) + ImGui::GetTextLineHeight() + scale(5) + ImGui::GetFrameHeight() / 2};
+            neuralCard(editor, net);
+        });
+    };
+    card();
+    card();
+    io.AddMousePosEvent(slider.x, slider.y);
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    card();
+    io.AddMouseButtonEvent(0, true);
+    card();
+    io.AddMouseButtonEvent(0, false);
+    card();
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    card();
+    ASSERT_NE(0, ImGui::GetActiveID());
+    auto active = ImGui::GetActiveID();
+    select("en");
+    card();
+    EXPECT_EQ(active, ImGui::GetActiveID());
+    io.AddKeyEvent(ImGuiKey_Escape, true);
+    card();
+    io.AddKeyEvent(ImGuiKey_Escape, false);
+    card();
+    EXPECT_FLOAT_EQ(0, net._weights.at(5 * NEURAL_NET_INPUTS + 3).getValue());
+}
+
+TEST_F(LocalizationGuiTests, l4a2ActivityPreviewFitsAndRetainsSignalsAtAllScales)
+{
+    auto data = std::make_shared<_GenomeTabEditData>();
+    data->showNeuralActivityEditor = true;
+    data->detailSimulation = true;
+    auto editor = _CreaturePreviewWidget::create(data, {}, {});
+    prepareActivity(editor);
+    auto original = editor->getPreviewDesc();
+    ContentDesc phenotype;
+    bool changed = false;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (float width : {500.0f, 1200.0f}) {
+                switcherFrame(width * factor, [&] { drawActivity(editor, changed, phenotype); });
+                switcherFrame(width * factor, [&] { drawActivity(editor, changed, phenotype); });
+                EXPECT_FALSE(changed);
+                EXPECT_EQ(original, editor->getPreviewDesc());
+                EXPECT_TRUE(data->showNeuralActivityEditor);
+                for (auto window : GImGui->Windows) {
+                    if (window->Active && std::string(window->Name).find("/signalEditor_") != std::string::npos && window->ParentWindow
+                        && !window->ParentWindow->ParentWindow) {
+                        EXPECT_GE(window->Pos.x, window->ParentWindow->Pos.x);
+                        EXPECT_LE(window->Pos.x + window->Size.x, window->ParentWindow->Pos.x + window->ParentWindow->Size.x);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a2NeuralHeadingKeepsExpandButtonIdentity)
+{
+    ImGuiID canonical = 0;
+    frame([&] {
+        AlienGui::Group(AlienGui::GroupParameters().text("Neural network").highlighted(true).expandButton(true));
+        canonical = GImGui->LastItemData.ID;
+    });
+    ASSERT_NE(0, canonical);
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        frame([&] {
+            AlienGui::Group(AlienGui::GroupParameters().text("Neural network").label(tr("neural.title")).highlighted(true).expandButton(true));
+            EXPECT_EQ(canonical, GImGui->LastItemData.ID);
+        });
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a2WeightAndBiasResetsAndActivationChooserEditOnlySelectedNeuron)
+{
+    auto editor = _NeuralNetEditorWidget::create();
+    auto net = NeuralNetGenomeDesc().weight(2, 4, 0.75f).bias(2, -0.5f).bias(1, 0.25f);
+    select("ru");
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImVec2 weightReset, biasReset, activation;
+    auto draw = [&] {
+        frame([&] {
+            selectNeuralConnection(editor, 4, 2);
+            auto min = ImGui::GetWindowPos();
+            auto cardWidth = neuralCardWidth(editor);
+            auto labelWidth = std::max(ImGui::CalcTextSize(tr("neural.weight").c_str()).x, ImGui::CalcTextSize(tr("neural.bias").c_str()).x);
+            auto resetWidth = StyleService::get().getTinyFont()->CalcTextSizeA(StyleService::get().getTinyFont()->FontSize, FLT_MAX, 0, ICON_FA_TIMES).x
+                + 2 * ImGui::GetStyle().FramePadding.x;
+            auto x = min.x + cardWidth - scale(9) - ImGui::GetStyle().ItemSpacing.x - labelWidth - resetWidth / 2;
+            auto y = min.y + scale(9) + ImGui::GetTextLineHeight() + scale(5) + ImGui::GetFrameHeight() / 2;
+            weightReset = {x, y};
+            biasReset = {x, y + ImGui::GetFrameHeight() + scale(5)};
+            auto contentWidth = cardWidth - scale(18);
+            auto buttonWidth = (contentWidth - 5 * ImGui::GetStyle().ItemSpacing.x) / 6;
+            activation = {
+                min.x + scale(9) + buttonWidth / 2, min.y + scale(9) + ImGui::GetTextLineHeight() + 3 * scale(5) + 2 * ImGui::GetFrameHeight() + scale(9)};
+            neuralCard(editor, net);
+        });
+    };
+    auto click = [&](ImVec2 target) {
+        io.AddMousePosEvent(target.x, target.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+    };
+    draw();
+    draw();
+    click(weightReset);
+    EXPECT_FLOAT_EQ(0, net._weights.at(2 * NEURAL_NET_INPUTS + 4).getValue());
+    click(biasReset);
+    EXPECT_FLOAT_EQ(0, net._biases.at(2));
+    EXPECT_FLOAT_EQ(0.25f, net._biases.at(1));
+    net._activationFunctions.at(2) = ActivationFunction_Identity;
+    click(activation);
+    EXPECT_EQ(ActivationFunction_Tanh, net._activationFunctions.at(2));
+    EXPECT_EQ(ActivationFunction_Identity, net._activationFunctions.at(1));
 }

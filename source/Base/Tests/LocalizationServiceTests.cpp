@@ -222,7 +222,7 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
     auto english = boost::json::parse(read(LOCALES / "en.json")).as_object();
     auto russian = boost::json::parse(read(LOCALES / "ru.json")).as_object();
     ASSERT_EQ(english.size(), russian.size());
-    ASSERT_EQ(567, english.size());
+    ASSERT_EQ(633, english.size());
     _service.load(LOCALES);  // Also validates UTF-8, duplicates, key syntax and types in both shipped files.
     ASSERT_TRUE(_service.getDiagnostics().empty());
     for (auto const& member : english) {
@@ -251,6 +251,12 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
           "GeneEditorWidget.cpp",
           "GenomeTabWidget.cpp",
           "GenomeEditorPresentation.cpp",
+          "NeuralNetEditorWidget.cpp",
+          "NeuralNetEditorPresentation.h",
+          "CellFunctionChannels.cpp",
+          "CreaturePreviewWidget.cpp",
+          "PreviewWidget.cpp",
+          "PreviewSettingsDialog.cpp",
           "ChangeColorDialog.cpp",
           "UploadSimulationDialog.cpp"}) {
         auto source = read(std::filesystem::path(ALIEN_SOURCE_DIR) / "source/Gui/Impl" / file);

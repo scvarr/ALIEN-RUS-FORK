@@ -2,6 +2,10 @@
 
 #include <ranges>
 
+#include <Base/LocalizationService.h>
+
+#include "GenomeEditorPresentation.h"
+
 #include <Data/CellTypeConstants.h>
 
 namespace
@@ -32,19 +36,19 @@ namespace
     {
         // The trigger channel also selects the relocation scan and is therefore read even with auto triggering
         return {
-            {Channels::SensorFoundResult, "trigger", "found"},
-            writeChannel(Channels::SensorAngle, "angle"),
-            writeChannel(Channels::SensorMass, "mass"),
-            writeChannel(Channels::SensorDistance, "distance")};
+            {Channels::SensorFoundResult, tr("neural.channel.trigger"), tr("neural.channel.found")},
+            writeChannel(Channels::SensorAngle, tr("neural.channel.angle")),
+            writeChannel(Channels::SensorMass, tr("neural.channel.mass")),
+            writeChannel(Channels::SensorDistance, tr("neural.channel.distance"))};
     }
 
     std::vector<CellFunctionChannel> getMuscleChannels(CellProperties const& properties)
     {
-        std::vector<CellFunctionChannel> result{readChannel(Channels::CellTypeActivation, "activation")};
+        std::vector<CellFunctionChannel> result{readChannel(Channels::CellTypeActivation, tr("neural.channel.activation"))};
         auto usesAngle = properties.muscleMode == MuscleMode_AutoBending || properties.muscleMode == MuscleMode_AngleBending
             || properties.muscleMode == MuscleMode_DirectMovement;
         if (usesAngle) {
-            result.emplace_back(readChannel(Channels::MuscleAngle, "angle"));
+            result.emplace_back(readChannel(Channels::MuscleAngle, tr("neural.channel.angle")));
         }
         return result;
     }
@@ -55,18 +59,18 @@ namespace
         auto readsAction = false;
         switch (properties.memoryMode) {
         case MemoryMode_SignalDelay:
-            writeLabel = "delayed";
+            writeLabel = tr("neural.channel.delayed");
             break;
         case MemoryMode_SignalRecorder:
-            writeLabel = "replayed";
+            writeLabel = tr("neural.channel.replayed");
             readsAction = true;
             break;
         case MemoryMode_SignalStorage:
-            writeLabel = "restored";
+            writeLabel = tr("neural.channel.restored");
             readsAction = true;
             break;
         case MemoryMode_SignalIntegrator:
-            writeLabel = "smoothed";
+            writeLabel = tr("neural.channel.smoothed");
             break;
         }
 
@@ -75,7 +79,7 @@ namespace
             auto isRead = readsAction && channel == Channels::MemoryReadWriteAction;
             auto isWritten = (properties.memoryChannelBitMask & (1 << channel)) != 0;
             if (isRead || isWritten) {
-                result.emplace_back(channel, isRead ? "read / write" : "", isWritten ? writeLabel : "");
+                result.emplace_back(channel, isRead ? tr("neural.channel.readwrite") : "", isWritten ? writeLabel : "");
             }
         }
         return result;
@@ -84,32 +88,37 @@ namespace
     std::vector<CellFunctionChannel> getCommunicatorChannels(CellProperties const& properties)
     {
         if (properties.communicatorMode == CommunicatorMode_Sender) {
-            return {readChannel(Channels::CellTypeActivation, "trigger"), readChannel(Channels::CommunicatorAngle, "angle")};
+            return {
+                readChannel(Channels::CellTypeActivation, tr("neural.channel.trigger")), readChannel(Channels::CommunicatorAngle, tr("neural.channel.angle"))};
         }
 
         // The angle is written by the sending cell into the signal of this cell
-        return {writeChannel(Channels::CommunicatorAngle, "angle")};
+        return {writeChannel(Channels::CommunicatorAngle, tr("neural.channel.angle"))};
     }
 
     std::vector<CellFunctionChannel> getCellTypeChannels(CellProperties const& properties)
     {
         switch (properties.cellType) {
         case CellType_Depot:
-            return {readChannel(Channels::CellTypeActivation, "transfer")};
+            return {readChannel(Channels::CellTypeActivation, tr("neural.channel.transfer"))};
         case CellType_Sensor:
             return getSensorChannels();
         case CellType_Generator:
-            return {writeChannel(Channels::GeneratorOutput, "value")};
+            return {writeChannel(Channels::GeneratorOutput, tr("neural.channel.value"))};
         case CellType_Attacker:
-            return {readChannel(Channels::CellTypeActivation, "trigger"), writeChannel(Channels::AttackerSuccess, "success")};
+            return {
+                readChannel(Channels::CellTypeActivation, tr("neural.channel.trigger")), writeChannel(Channels::AttackerSuccess, tr("neural.channel.success"))};
         case CellType_Injector:
-            return {readChannel(Channels::CellTypeActivation, "trigger"), writeChannel(Channels::InjectorSuccess, "success")};
+            return {
+                readChannel(Channels::CellTypeActivation, tr("neural.channel.trigger")), writeChannel(Channels::InjectorSuccess, tr("neural.channel.success"))};
         case CellType_Muscle:
             return getMuscleChannels(properties);
         case CellType_Reconnector:
-            return {readChannel(Channels::CellTypeActivation, "trigger"), writeChannel(Channels::ReconnectorSuccess, "success")};
+            return {
+                readChannel(Channels::CellTypeActivation, tr("neural.channel.trigger")),
+                writeChannel(Channels::ReconnectorSuccess, tr("neural.channel.success"))};
         case CellType_Detonator:
-            return {readChannel(Channels::CellTypeActivation, "trigger")};
+            return {readChannel(Channels::CellTypeActivation, tr("neural.channel.trigger"))};
         case CellType_Memory:
             return getMemoryChannels(properties);
         case CellType_Communicator:
@@ -123,19 +132,19 @@ namespace
     {
         switch (cellType) {
         case CellType_Generator:
-            return "Gen";
+            return tr("neural.module.gen");
         case CellType_Attacker:
-            return "Attack";
+            return tr("neural.module.attack");
         case CellType_Injector:
-            return "Inject";
+            return tr("neural.module.inject");
         case CellType_Reconnector:
-            return "Recon";
+            return tr("neural.module.recon");
         case CellType_Detonator:
-            return "Deton";
+            return tr("neural.module.deton");
         case CellType_Communicator:
-            return "Comm";
+            return tr("neural.module.comm");
         }
-        return Const::CellTypeStrings.at(cellType);
+        return GenomeEditorPresentation::cellTypes().at(cellType);
     }
 
     std::vector<CellFunctionModule> createModules(CellProperties const& properties)
@@ -151,10 +160,10 @@ namespace
         if (properties.constructorAvailable) {
             std::vector<CellFunctionChannel> constructorChannels;
             if (properties.constructorManuallyTriggered) {
-                constructorChannels.emplace_back(readChannel(Channels::CellTypeActivation, "trigger"));
+                constructorChannels.emplace_back(readChannel(Channels::CellTypeActivation, tr("neural.channel.trigger")));
             }
-            constructorChannels.emplace_back(writeChannel(Channels::ConstructorSuccess, "success"));
-            result.emplace_back("Constr", constructorChannels);
+            constructorChannels.emplace_back(writeChannel(Channels::ConstructorSuccess, tr("neural.channel.success")));
+            result.emplace_back(tr("neural.module.constructor"), constructorChannels);
         }
 
         return result;

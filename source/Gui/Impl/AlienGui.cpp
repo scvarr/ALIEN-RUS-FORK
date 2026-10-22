@@ -2009,7 +2009,7 @@ bool AlienGui::Group(GroupParameters const& parameters)
 
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + scrollOffset + textIndent);
     ImGui::PushStyleColor(ImGuiCol_Text, parameters._highlighted ? Const::GroupHighTextColor.Value : Const::GroupTextColor.Value);
-    ImGui::TextUnformatted(parameters._text.c_str());
+    ImGui::TextUnformatted(parameters._label.value_or(parameters._text).c_str());
     ImGui::PopStyleColor();
     if (parameters._tooltip.has_value()) {
         AlienGui::HelpMarker(*parameters._tooltip);

@@ -15,6 +15,7 @@
 #include <Data/CellTypeConstants.h>
 
 #include "AlienGui.h"
+#include "NeuralNetEditorPresentation.h"
 #include "StyleService.h"
 
 namespace
@@ -66,8 +67,6 @@ namespace
     auto constexpr ConnectionWeightSliderMinWidth = 42.0f;
     auto constexpr ConnectionWeightIndexMargin = 4.0f;
     auto constexpr ConnectionWeightIndexAlpha = 0.6f;
-    auto constexpr ToolButtonSeparatorMargin = 5.0f;
-    auto constexpr ToolButtonSeparatorPadding = 3.0f;
     auto constexpr GraphMinCurveWidth = 30.0f;
     auto constexpr CardItemSpacing = 5.0f;
     auto constexpr CardTopMargin = 6.0f;
@@ -90,8 +89,7 @@ namespace
     auto const SelectedNodeColor = ImColor(255, 210, 77);
     auto const ZeroWeightColor = ImColor(90, 97, 110);
 
-    std::vector<std::string> const TelemetryLabels = {"Energy", "Attacked", "Age", "Velocity"};
-    std::vector<std::string> const ActivationFunctionShortStrings = {"tanh", "step", "id", "abs", "gauss", "mod"};
+    std::vector<std::string> const TelemetryLabelKeys = {"neural.energy", "neural.attacked", "neural.age", "neural.velocity"};
 
     ImColor withAlpha(ImColor const& color, float alpha)
     {
@@ -168,15 +166,24 @@ namespace
     // ImGui cannot render rotated text, therefore the text is written horizontally and its vertices are rotated afterwards.
     // Glyphs outside the clip rectangle would be dropped before the rotation, therefore the text is written at the center
     // of the visible area and moved to its final position together with the rotation.
-    void addRotatedNodeLabel(ImDrawList* drawList, ImFont* font, ImVec2 const& center, ImColor const& color, std::string const& text, bool clockwise)
+    void addRotatedNodeLabel(
+        ImDrawList* drawList,
+        ImFont* font,
+        ImVec2 const& center,
+        ImColor const& color,
+        std::string const& text,
+        bool clockwise,
+        float fontScale)
     {
         auto clipRectMin = drawList->GetClipRectMin();
         auto clipRectMax = drawList->GetClipRectMax();
         ImVec2 pivot((clipRectMin.x + clipRectMax.x) / 2, (clipRectMin.y + clipRectMax.y) / 2);
 
-        auto textSize = calcNodeLabelSize(font, text);
+        auto textSize = calcNodeLabelSize(font, text, fontScale);
         auto firstVertex = drawList->VtxBuffer.Size;
-        addNodeLabel(drawList, font, {pivot.x - textSize.x / 2, pivot.y - textSize.y / 2}, color, text);
+        ImVec4 cpuClip{-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX};
+        font->RenderText(
+            drawList, nodeLabelFontSize(font, fontScale), {pivot.x - textSize.x / 2, pivot.y - textSize.y / 2}, color, cpuClip, text.c_str(), nullptr);
         auto lastVertex = drawList->VtxBuffer.Size;
 
         auto angle = clockwise ? Const::Pi / 2 : -Const::Pi / 2;
@@ -341,18 +348,6 @@ namespace
         return calcNodeLabelSize(font, channel.readLabel.empty() ? channel.writeLabel : channel.readLabel).x;
     }
 
-    // Divides the buttons of a row into groups
-    void addToolButtonSeparator()
-    {
-        auto drawList = ImGui::GetWindowDrawList();
-        auto pos = ImGui::GetCursorScreenPos();
-        auto centerX = pos.x + scale(ToolButtonSeparatorMargin);
-        auto padding = scale(ToolButtonSeparatorPadding);
-        drawList->AddLine(
-            {centerX, pos.y + padding}, {centerX, pos.y + ImGui::GetFrameHeight() - padding}, withAlpha(Const::NeuronEditorLabelColor, 0.25f), scale(1.0f));
-        ImGui::Dummy({2 * scale(ToolButtonSeparatorMargin), ImGui::GetFrameHeight()});
-    }
-
     float buttonWidth(std::string const& text)
     {
         return ImGui::CalcTextSize(text.c_str()).x + 2 * ImGui::GetStyle().FramePadding.x;
@@ -458,7 +453,7 @@ void _NeuralNetEditorWidget::processEditor(
         auto narrowLayout = isNarrowLayout(ImGui::GetContentRegionAvail().x, cellFunctionModules);
 
         // Use a child window for the content, reserving space for the action buttons
-        auto buttonAreaHeight = scale(ButtonAreaHeight);
+        auto buttonAreaHeight = calcActionButtonsHeight(mode);
         GraphGeometry graphGeometry;
         if (ImGui::BeginChild("NeuralNetEditorContent", ImVec2(0, -buttonAreaHeight), false)) {
             processConnectionWeightSliders(connectionWeights);
@@ -505,7 +500,7 @@ void _NeuralNetEditorWidget::processConnectionWeightSliders(std::vector<float>& 
     ImGui::Indent(horizontalMargin);
 
     ImGui::AlignTextToFramePadding();
-    AlienGui::Text("Connection weights");
+    AlienGui::Text(tr("neural.connections"));
     ImGui::SameLine();
 
     auto contentMin = ImGui::GetCursorScreenPos();
@@ -643,7 +638,9 @@ void _NeuralNetEditorWidget::drawGroupBlock(
     auto railMaxX = leftSide ? min.x + scale(GroupLabelRailWidth) : max.x;
     drawList->AddRectFilled({railMinX, min.y}, {railMaxX, max.y}, withAlpha(color, GroupLabelRailAlpha), rounding, cornerFlags);
 
-    addRotatedNodeLabel(drawList, _labelFont, {(railMinX + railMaxX) / 2, (min.y + max.y) / 2}, withAlpha(color, 0.9f), name, !leftSide);
+    auto labelSize = calcNodeLabelSize(_labelFont, name);
+    auto fontScale = std::min(1.0f, std::max(1.0f, max.y - min.y - 2 * scale(GroupBlockPadding)) / labelSize.x);
+    addRotatedNodeLabel(drawList, _labelFont, {(railMinX + railMaxX) / 2, (min.y + max.y) / 2}, withAlpha(color, 0.9f), name, !leftSide, fontScale);
 }
 
 void _NeuralNetEditorWidget::drawGroupBlocks(ImDrawList* drawList, LayoutData const& layout, float rowSpacing)
@@ -655,12 +652,12 @@ void _NeuralNetEditorWidget::drawGroupBlocks(ImDrawList* drawList, LayoutData co
         drawGroupBlock(drawList, name, color, {minX, firstNodePos.y - padding}, {maxX, lastNodePos.y + padding}, leftSide);
     };
 
-    drawBlock("INCOMING", SignalNodeColor, layout.inputNodePos[0], layout.inputNodePos[STANDARD_NEURONS_PER_CELL - 1], true);
-    drawBlock("MEMORY", MemoryNodeColor, layout.inputNodePos[STANDARD_NEURONS_PER_CELL], layout.inputNodePos[NEURAL_NET_OUTPUTS - 1], true);
-    drawBlock("TELEMETRY", TelemetryNodeColor, layout.inputNodePos[NEURAL_NET_OUTPUTS], layout.inputNodePos[NEURAL_NET_INPUTS - 1], true);
+    drawBlock(tr("neural.incoming"), SignalNodeColor, layout.inputNodePos[0], layout.inputNodePos[STANDARD_NEURONS_PER_CELL - 1], true);
+    drawBlock(tr("neural.memory"), MemoryNodeColor, layout.inputNodePos[STANDARD_NEURONS_PER_CELL], layout.inputNodePos[NEURAL_NET_OUTPUTS - 1], true);
+    drawBlock(tr("neural.telemetry"), TelemetryNodeColor, layout.inputNodePos[NEURAL_NET_OUTPUTS], layout.inputNodePos[NEURAL_NET_INPUTS - 1], true);
 
-    drawBlock("OUTGOING", SignalNodeColor, layout.outputNodePos[0], layout.outputNodePos[STANDARD_NEURONS_PER_CELL - 1], false);
-    drawBlock("MEMORY", MemoryNodeColor, layout.outputNodePos[STANDARD_NEURONS_PER_CELL], layout.outputNodePos[NEURAL_NET_OUTPUTS - 1], false);
+    drawBlock(tr("neural.outgoing"), SignalNodeColor, layout.outputNodePos[0], layout.outputNodePos[STANDARD_NEURONS_PER_CELL - 1], false);
+    drawBlock(tr("neural.memory"), MemoryNodeColor, layout.outputNodePos[STANDARD_NEURONS_PER_CELL], layout.outputNodePos[NEURAL_NET_OUTPUTS - 1], false);
 }
 
 // The cell functions read and overwrite the outgoing signal after the neural net has been evaluated. Each of them is
@@ -682,12 +679,15 @@ void _NeuralNetEditorWidget::drawCellFunctionBlocks(
         auto maxY = layout.outputNodePos[functionModule.channels.back().channel].y + padding;
 
         // The name is drawn vertically, therefore a block covering only few channels is extended around its center
-        auto name = StringHelper::toUpper(functionModule.name);
+        auto name = functionModule.name;
         auto minHeight = calcNodeLabelSize(_labelFont, name).x + 2 * scale(GroupBlockPadding);
         if (maxY - minY < minHeight) {
             auto centerY = (minY + maxY) / 2;
-            minY = centerY - minHeight / 2;
-            maxY = centerY + minHeight / 2;
+            auto graphMinY = layout.inputNodePos[0].y - padding;
+            auto graphMaxY = layout.inputNodePos[NEURAL_NET_INPUTS - 1].y + padding;
+            minHeight = std::min(minHeight, graphMaxY - graphMinY);
+            minY = std::clamp(centerY - minHeight / 2, graphMinY, graphMaxY - minHeight);
+            maxY = minY + minHeight;
         }
         drawGroupBlock(drawList, name, CellFunctionColor, {lane.minX, minY}, {lane.maxX, maxY}, false);
 
@@ -813,7 +813,7 @@ void _NeuralNetEditorWidget::drawInputNodes(
                     value = StringHelper::format(liveData->energy, 1);
                     break;
                 case TelemetryInputs::Attacked:
-                    value = liveData->attacked ? "yes" : "no";
+                    value = liveData->attacked ? tr("neural.yes") : tr("neural.no");
                     break;
                 case TelemetryInputs::Age:
                     value = std::to_string(liveData->age);
@@ -868,7 +868,7 @@ void _NeuralNetEditorWidget::drawOutputNodes(
         auto labelX = pos.x + scale(NodeRadius + NodeLabelMargin);
         addNodeLabel(drawList, _labelFont, {labelX, pos.y - textSize.y / 2}, isSelected ? Const::TextStrongColor : Const::NeuronEditorLabelColor, label);
 
-        auto const& actfnLabel = ActivationFunctionShortStrings.at(activationFunctions.at(i));
+        auto actfnLabel = NeuralNetEditorPresentation::shortActivationFunctions().at(activationFunctions.at(i));
         addNodeLabel(
             drawList,
             _labelFont,
@@ -900,7 +900,7 @@ void _NeuralNetEditorWidget::processInspectorCard(
         cardWidth = ImGui::GetContentRegionAvail().x;
         ImGui::Dummy({0, cardMargin});
     } else {
-        cardWidth = scale(CardWidth);
+        cardWidth = calcInspectorCardWidth();
 
         // The card sits in the lower part of the graph area, is kept inside the visible area when the editor is scrolled
         // and is moved up as far as needed to leave the action buttons below the graph uncovered
@@ -964,7 +964,7 @@ void _NeuralNetEditorWidget::processInspectorCardContent(
     ImGui::PushID("InspectorCard");
 
     // The label is drawn manually so that the reset button fits between slider and label
-    auto labelWidth = ImGui::CalcTextSize("Weight").x;
+    auto labelWidth = std::max(ImGui::CalcTextSize(tr("neural.weight").c_str()).x, ImGui::CalcTextSize(tr("neural.bias").c_str()).x);
     auto spacing = ImGui::GetStyle().ItemSpacing.x;
     auto sliderWidth = scaleInverse(cardContentWidth - 2 * spacing + scale(ResetButtonOverlap) - resetButtonWidth() - labelWidth);
     auto sliderParameters = AlienGui::SliderFloatParameters().format("%.2f").width(sliderWidth).textWidth(0).min(-2.0f).max(2.0f);
@@ -980,7 +980,7 @@ void _NeuralNetEditorWidget::processInspectorCardContent(
         weightValue = NeuralNetWeight(0);
     }
     ImGui::SameLine();
-    AlienGui::Text("Weight");
+    AlienGui::Text(tr("neural.weight"));
     ImGui::PopID();
     posY += frameHeight + itemSpacing;
 
@@ -991,7 +991,7 @@ void _NeuralNetEditorWidget::processInspectorCardContent(
         biases.at(outputIndex) = 0.0f;
     }
     ImGui::SameLine();
-    AlienGui::Text("Bias");
+    AlienGui::Text(tr("neural.bias"));
     ImGui::PopID();
     posY += frameHeight + itemSpacing;
 
@@ -1013,7 +1013,7 @@ void _NeuralNetEditorWidget::processInspectorCardContent(
         if (isSelected) {
             ImGui::PopStyleColor();
         }
-        AlienGui::Tooltip(AlienGui::TooltipParameters().text(Const::ActivationFunctionStrings.at(i)));
+        AlienGui::Tooltip(AlienGui::TooltipParameters().text(NeuralNetEditorPresentation::activationFunctions().at(i)));
 
         auto iconMin = ImGui::GetItemRectMin();
         auto iconMax = ImGui::GetItemRectMax();
@@ -1035,9 +1035,11 @@ void _NeuralNetEditorWidget::processInspectorCardContent(
 
 _NeuralNetEditorWidget::_NeuralNetEditorWidget()
     : _dialog("Neural network", DialogSize)
-{}
+{
+    _dialog.setTitleKey("neural.title");
+}
 
-// The dialog is closed from here so that its buttons and the net tools share one row
+// The dialog actions precede the net tools and retain the same ID scope
 void _NeuralNetEditorWidget::processActionButtons(
     std::vector<NeuralNetWeight>& weights,
     std::vector<float>& biases,
@@ -1045,20 +1047,15 @@ void _NeuralNetEditorWidget::processActionButtons(
     EditorMode mode)
 {
     if (mode == EditorMode::Dialog) {
-        if (AlienGui::Button("Adopt")) {
+        if (AlienGui::DisplayButton("Adopt", tr("neural.adopt"))) {
             _adopted = true;
             _dialog.close();
         }
         ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
-        if (AlienGui::Button("Cancel")) {
+        if (AlienGui::DisplayButton("Cancel", tr("neural.cancel"))) {
             _dialog.close();
         }
-
-        // The net tools belong to the content and are therefore set off from the dialog buttons
-        ImGui::SameLine();
-        auto offset = ImGui::GetContentRegionAvail().x - calcNetToolButtonsWidth();
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, offset));
     }
     processNetToolButtons(weights, biases, activationFunctions);
 }
@@ -1068,7 +1065,7 @@ void _NeuralNetEditorWidget::processNetToolButtons(
     std::vector<float>& biases,
     std::vector<ActivationFunction>& activationFunctions)
 {
-    if (AlienGui::Button("Clear")) {
+    if (AlienGui::DisplayButton("Clear", tr("neural.clear"))) {
         for (int i = 0; i < NEURAL_NET_OUTPUTS; ++i) {
             for (int j = 0; j < NEURAL_NET_INPUTS; ++j) {
                 weights[i * NEURAL_NET_INPUTS + j] = NeuralNetWeight(0);
@@ -1078,7 +1075,10 @@ void _NeuralNetEditorWidget::processNetToolButtons(
         }
     }
     ImGui::SameLine();
-    if (AlienGui::Button("Identity")) {
+    if (ImGui::GetContentRegionAvail().x < buttonWidth(tr("neural.identity"))) {
+        ImGui::NewLine();
+    }
+    if (AlienGui::DisplayButton("Identity", tr("neural.identity"))) {
         for (int i = 0; i < NEURAL_NET_OUTPUTS; ++i) {
             for (int j = 0; j < NEURAL_NET_INPUTS; ++j) {
                 weights[i * NEURAL_NET_INPUTS + j] = (i == j) ? NeuralNetWeight(1.0f) : NeuralNetWeight(0);
@@ -1088,7 +1088,10 @@ void _NeuralNetEditorWidget::processNetToolButtons(
         }
     }
     ImGui::SameLine();
-    if (AlienGui::Button("Randomize")) {
+    if (ImGui::GetContentRegionAvail().x < buttonWidth(tr("neural.randomize"))) {
+        ImGui::NewLine();
+    }
+    if (AlienGui::DisplayButton("Randomize", tr("neural.randomize"))) {
         for (int i = 0; i < NEURAL_NET_OUTPUTS; ++i) {
             for (int j = 0; j < NEURAL_NET_INPUTS; ++j) {
                 weights[i * NEURAL_NET_INPUTS + j] = NeuralNetWeight(NumberGenerator::get().getRandomFloat(-2.0f, 2.0f));
@@ -1099,16 +1102,19 @@ void _NeuralNetEditorWidget::processNetToolButtons(
     }
 
     ImGui::SameLine();
-    addToolButtonSeparator();
-
-    ImGui::SameLine();
-    if (AlienGui::Button("Copy")) {
+    if (ImGui::GetContentRegionAvail().x < buttonWidth(tr("neural.copy"))) {
+        ImGui::NewLine();
+    }
+    if (AlienGui::DisplayButton("Copy", tr("neural.copy"))) {
         NetData copiedNet{weights, biases, activationFunctions};
         _copiedNet = copiedNet;
     }
     ImGui::SameLine();
+    if (ImGui::GetContentRegionAvail().x < buttonWidth(tr("neural.paste"))) {
+        ImGui::NewLine();
+    }
     ImGui::BeginDisabled(!_copiedNet.has_value());
-    if (AlienGui::Button("Paste")) {
+    if (AlienGui::DisplayButton("Paste", tr("neural.paste"))) {
         weights = _copiedNet->weights;
         biases = _copiedNet->biases;
         activationFunctions = _copiedNet->activationFunctions;
@@ -1127,7 +1133,7 @@ ImColor _NeuralNetEditorWidget::calcWeightColor(float value, float alpha)
 // Otherwise the editor switches to a narrow layout in which the card is placed below the graph.
 bool _NeuralNetEditorWidget::isNarrowLayout(float availableWidth, std::vector<CellFunctionModule> const& cellFunctionModules)
 {
-    auto requiredWidth = calcGraphMinWidth(cellFunctionModules) - scale(GraphMinCurveWidth) + scale(CardWidth + 2 * CardOverlayMargin);
+    auto requiredWidth = calcGraphMinWidth(cellFunctionModules) - scale(GraphMinCurveWidth) + calcInspectorCardWidth() + scale(2 * CardOverlayMargin);
     return availableWidth < requiredWidth;
 }
 
@@ -1151,7 +1157,7 @@ float _NeuralNetEditorWidget::calcMinEditorHeight(std::vector<CellFunctionModule
 
     // Connection weight sliders, which share their line with the label and may wrap into several rows
     auto indexWidth = calcNodeLabelSize(smallLabelFont(), std::to_string(MAX_OBJECT_CONNECTIONS)).x + scale(ConnectionWeightIndexMargin);
-    auto sliderAreaWidth = availableWidth - 2 * scale(GraphHorizontalMargin) - ImGui::CalcTextSize("Connection weights").x - style.ItemSpacing.x;
+    auto sliderAreaWidth = availableWidth - 2 * scale(GraphHorizontalMargin) - ImGui::CalcTextSize(tr("neural.connections").c_str()).x - style.ItemSpacing.x;
     auto numRows = MAX_OBJECT_CONNECTIONS / calcConnectionWeightSlidersPerRow(sliderAreaWidth, indexWidth);
     auto slidersHeight = toFloat(numRows) * ImGui::GetFrameHeight() + toFloat(numRows - 1) * style.ItemSpacing.y;
 
@@ -1162,15 +1168,52 @@ float _NeuralNetEditorWidget::calcMinEditorHeight(std::vector<CellFunctionModule
     }
 
     auto separatorsHeight = 2 * (ImGui::GetFrameHeight() / 2 + style.ItemSpacing.y);
-    return slidersHeight + graphHeight + separatorsHeight + scale(ButtonAreaHeight);
+    return slidersHeight + graphHeight + separatorsHeight + calcActionButtonsHeight(EditorMode::Embedded);
 }
 
 float _NeuralNetEditorWidget::calcNetToolButtonsWidth()
 {
     auto& style = ImGui::GetStyle();
-    auto result = buttonWidth("Clear") + buttonWidth("Identity") + buttonWidth("Randomize") + buttonWidth("Copy") + buttonWidth("Paste");
-    result += 2 * scale(ToolButtonSeparatorMargin) + 5 * style.ItemSpacing.x;
+    auto result = buttonWidth(tr("neural.clear")) + buttonWidth(tr("neural.identity")) + buttonWidth(tr("neural.randomize")) + buttonWidth(tr("neural.copy"))
+        + buttonWidth(tr("neural.paste"));
+    result += 4 * style.ItemSpacing.x;
     return result;
+}
+
+float _NeuralNetEditorWidget::calcActionButtonsHeight(EditorMode mode)
+{
+    auto width = ImGui::GetContentRegionAvail().x;
+    auto used = 0.0f;
+    auto rows = 1;
+    for (auto key : {"neural.clear", "neural.identity", "neural.randomize", "neural.copy", "neural.paste"}) {
+        auto nextWidth = buttonWidth(tr(key));
+        auto spacing = used > 0 ? ImGui::GetStyle().ItemSpacing.x : 0.0f;
+        if (used > 0 && used + spacing + nextWidth > width) {
+            ++rows;
+            used = 0.0f;
+            spacing = 0.0f;
+        }
+        used += spacing + nextWidth;
+    }
+    if (mode == EditorMode::Dialog) {
+        ++rows;
+    }
+    return std::max(scale(ButtonAreaHeight), rows * ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y);
+}
+
+float _NeuralNetEditorWidget::calcInspectorCardWidth()
+{
+    auto inputWidth = 0.0f;
+    auto outputWidth = 0.0f;
+    for (auto index : std::views::iota(0, NEURAL_NET_INPUTS)) {
+        inputWidth = std::max(inputWidth, ImGui::CalcTextSize(getInputLabel(index).c_str()).x);
+    }
+    for (auto index : std::views::iota(0, NEURAL_NET_OUTPUTS)) {
+        outputWidth = std::max(outputWidth, ImGui::CalcTextSize(getOutputLabel(index).c_str()).x);
+    }
+    return std::max(
+        scale(CardWidth),
+        inputWidth + outputWidth + ImGui::CalcTextSize("  " ICON_FA_LONG_ARROW_ALT_RIGHT "  ").x + scale(2 * CardPadding + 2 * NodeRadius + 20.0f));
 }
 
 float _NeuralNetEditorWidget::calcInspectorCardHeight()
@@ -1196,7 +1239,7 @@ float _NeuralNetEditorWidget::calcOutputNodeMargin()
         maxLabelWidth = std::max(maxLabelWidth, calcNodeLabelSize(_labelFont, getOutputLabel(index)).x);
     }
     auto maxActfnLabelWidth = 0.0f;
-    for (auto const& actfnLabel : ActivationFunctionShortStrings) {
+    for (auto const& actfnLabel : NeuralNetEditorPresentation::shortActivationFunctions()) {
         maxActfnLabelWidth = std::max(maxActfnLabelWidth, calcNodeLabelSize(_labelFont, actfnLabel).x);
     }
     return scale(GroupLabelRailWidth + GroupLabelRailMargin + ActivationLabelMargin + NodeLabelMargin + NodeRadius) + maxLabelWidth + maxActfnLabelWidth;
@@ -1226,19 +1269,19 @@ float _NeuralNetEditorWidget::calcCellFunctionAreaWidth(std::vector<CellFunction
 std::string _NeuralNetEditorWidget::getInputLabel(int inputIndex)
 {
     if (inputIndex < STANDARD_NEURONS_PER_CELL) {
-        return "In " + std::to_string(inputIndex);
+        return NeuralNetEditorPresentation::indexed("neural.input", inputIndex);
     } else if (inputIndex < NEURAL_NET_OUTPUTS) {
-        return "Mem " + std::to_string(inputIndex - STANDARD_NEURONS_PER_CELL);
+        return NeuralNetEditorPresentation::indexed("neural.mem", inputIndex - STANDARD_NEURONS_PER_CELL);
     }
-    return TelemetryLabels.at(inputIndex - NEURAL_NET_OUTPUTS);
+    return tr(TelemetryLabelKeys.at(inputIndex - NEURAL_NET_OUTPUTS));
 }
 
 std::string _NeuralNetEditorWidget::getOutputLabel(int outputIndex)
 {
     if (outputIndex < STANDARD_NEURONS_PER_CELL) {
-        return "Out " + std::to_string(outputIndex);
+        return NeuralNetEditorPresentation::indexed("neural.output", outputIndex);
     }
-    return "Mem " + std::to_string(outputIndex - STANDARD_NEURONS_PER_CELL);
+    return NeuralNetEditorPresentation::indexed("neural.mem", outputIndex - STANDARD_NEURONS_PER_CELL);
 }
 
 template <typename T>

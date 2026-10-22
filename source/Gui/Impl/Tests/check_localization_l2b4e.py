@@ -22,6 +22,13 @@ def original(file):
 
 def legacy_transition_text(file, text):
     """Remove only the exact B4e presentation additions for older whole-file contracts."""
+    # L4-A2 adds only an optional Group label; preserve the original-byte checks below.
+    if file.endswith('AlienGui.h'):
+        text = text.replace('        MEMBER(GroupParameters, std::optional<std::string>, label, std::nullopt);\n', '')
+    if file.endswith('AlienGui.cpp'):
+        a = text.index('bool AlienGui::Group(')
+        b = text.index('\n}', a)
+        text = text[:a] + text[a:b].replace('parameters._label.value_or(parameters._text).c_str()', 'parameters._text.c_str()') + text[b:]
     if file.endswith('AlienGui.h'):
         return text.replace('        MEMBER(InputColorTransitionParameters, std::optional<std::string>, label, std::nullopt);\n', '')
     if file.endswith('AlienGui.cpp'):
@@ -49,7 +56,7 @@ class L2b4eContracts(unittest.TestCase):
         for lang in ('en', 'ru'):
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(408, len(old))
-            self.assertEqual(NEW_KEYS, {key for key in catalog(lang) if not key.startswith("genome.")} - set(old))
+            self.assertEqual(NEW_KEYS, {key for key in catalog(lang) if not key.startswith(("genome.", "neural."))} - set(old))
             self.assertEqual(old, {k: catalog(lang)[k] for k in old})
         for field, group in zip(FIELDS, GROUPS):
             typ = 'ColorTransitionRulesSpec' if field == 'colorTransitionRules' else 'FloatSpec'
