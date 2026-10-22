@@ -152,15 +152,18 @@ Run from PowerShell:
 Default: Russian, 150%. Each run has a disposable profile; save review edits only
 inside this package's `samples/` directory.
 
-**Visual acceptance is pending.** The agent attempted native window capture using
+**Visual acceptance is complete.** The user confirmed successful visual acceptance
+of implementation `2f466e0e51ea218dda93e5f24c05272bae322c69` on 2026-10-22.
+During implementation, the agent attempted native window capture using
 the [Computer Use skill](C:/Users/infarh/.codex/plugins/cache/openai-bundled/computer-use/26.1016.51333/skills/computer-use/SKILL.md).
 The app window was discovered, but capture repeatedly returned
 `window capture timed out: timed out waiting on channel` (also
 `FrameArrived timed out`). No pixel-level visual review is claimed. The headless
 production-widget and font-measurement tests establish interaction/layout
-contracts, not human visual acceptance.
+contracts. The acceptance recorded here is the user's confirmation, not an
+additional agent visual session.
 
-Manual acceptance checklist:
+Manual acceptance checklist retained as the review record:
 
 1. Open `samples/synthetic-a.genome`; open mutation editing. Inspect all 19
    groups and both paired panels, every label and tooltip, sigma/activation
@@ -177,10 +180,29 @@ Manual acceptance checklist:
 
 ## Preservation
 
-`main` remains at the requested baseline; this feature branch is committed and
-pushed without integration. `AGENTS.md` retains skip-worktree and SHA-256
+At implementation delivery, `main` remained at the requested baseline; the feature
+branch was committed and pushed without integration. `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 Real HKCU profile exports before/after validation match SHA-256
 `1104383BB644A4FFE3E2CA667F50D764657233CB4A697AD009D8C1767503319A`.
 User worlds, genomes, autosaves and dependency sources are preserved. No CodeQL,
 submodule update, dependency edit or IDE-tree build ran.
+
+## User acceptance and closure
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user confirmed successful visual acceptance of L4-A4 implementation
+`2f466e0e51ea218dda93e5f24c05272bae322c69`. L4-A4 is accepted.
+
+The user authorizes a documentation-only acceptance commit and push, followed by
+fast-forward-only integration into `main`, pushing `main`, verifying its
+synchronization with `origin/main`, and deleting the integrated feature branch.
+Builds and tests are not repeated: the passing results above remain the validation
+for the accepted implementation. No L4-A5 work is started.
+
+Before closure, the working tree was clean, local and remote feature refs matched
+the accepted implementation, and local and remote `main` matched the recorded
+baseline. The closure changes only this report. `AGENTS.md`, its skip-worktree
+flag, user data and dependencies are preserved. Pre-commit graph change analysis
+and Git verification evidence are retained separately under `temp/l4a4/closure/`.
