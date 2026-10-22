@@ -13,7 +13,9 @@ The normative terminology and L2-B2, L2-B3a, L2-B3b and L2-B3c reports were read
 Three group captions and eight complete parameter names/descriptions are added
 through the existing presentation adapter. Each catalog now contains 325 entries,
 with identical EN/RU key sets; the previous 306 entries are unchanged.
-No L2-B4b work or main integration is included. Human acceptance remains pending.
+The initial implementation was published only on the feature branch. User visual
+acceptance and the subsequent integration review are recorded below. L2-B4b is
+outside scope.
 
 ## Changed files
 
@@ -61,7 +63,8 @@ The proposed lineage caption is reordered to retain the exact normative noun
 match the genitive происхождения in the proposed Порог нового происхождения
 through the existing substring filter. Новое происхождение: порог preserves the
 meaning and makes that search work without changing filtering or adding stemming.
-This is a working wording for acceptance, not a glossary amendment.
+The user has accepted this interface wording for L2-B4a. It is not a glossary
+amendment.
 
 Both age descriptions explicitly count simulation steps. Ordinary cells enter
 the dying state before eventual disintegration. Free cells arise from energy
@@ -235,3 +238,61 @@ processes, `partial: false` and `truncated: false`. The listed-symbol count matc
 the summary. The process inventory was inspected; its limited GUI coverage and
 enumeration bounds remain limitations, supplemented by source checks and real
 headless widget tests. Results are saved in `temp/l2b4a/graph-final.json`.
+
+## User acceptance and integration review
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user reports visually checking the L2-B4a interface at implementation commit
+`d0f5ff3d596207cc2b6db6b6b615e48832134e02`, with no remarks on the elements
+inspected. This records the reported visual scope only. It does not assert that
+the user manually completed all seven scenarios above, inspected every control
+or tooltip, or checked every scale. The manual checklist remains a reference,
+not a record of individually completed scenarios.
+
+The user explicitly accepts Новое происхождение: порог as the interface wording
+for this stage. The normative glossary is unchanged. The user authorizes
+fast-forward integration into main, pushing main to origin, and safe removal of
+the completed feature branch locally and remotely after synchronization checks.
+
+An origin fetch confirmed main and origin/main at
+`eff787fc38247f338a7be3e07bde07968c43669f`, and both feature-branch refs at the
+user-reviewed implementation commit. The index and working tree were clean, the
+comparison was ahead one / behind zero, and no additional worktree was registered.
+
+Final review against main found no blocking issue. All three group captions and
+eight typed member bindings have separate complete name/description catalog keys.
+Both catalogs contain 325 keys with identical key sets; all prior entries and
+English descriptions remain intact. The existing fallback, IntSpec dispatch,
+infinity sentinels, color dependence, parameter indices and canonical ImGui IDs
+are preserved. Original numeric ranges, formats, logarithmic flags and the
+normal/minimum energy dependency are unchanged. There is no diff to Data, Engine,
+CUDA, physics, persistence, serialization, widget handlers, README, dependencies,
+submodule configuration or the normative glossary.
+
+A fresh integration run of all seven CPU/headless executables confirms 575
+successful C++ tests, zero failures and one disabled Persister test. All 33 Python
+checks pass again. The production code is unchanged from the user-reviewed SHA;
+this follow-up edits documentation only, so no rebuild or heavy GPU/stress run is
+needed. Logs and XML are retained under `temp/l2b4a/integration`.
+
+The test run used synthetic parameters and the existing process-local
+SettingsTestScope isolation. The real HKCU/Software/alien exports before and after
+testing are byte-identical, SHA-256
+`B638FB78EA07130C80BB6469BDB79DC38DFE05A750ED4604850A62C2B2C7E66E`.
+No real user simulation or autosave was opened or modified, and no registry
+restoration was performed. The customized AGENTS.md has SHA-256
+`090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`;
+its bytes and skip-worktree flag are preserved.
+
+The refreshed GitNexus comparison against main reports LOW risk, 13 changed files
+and 44 listed symbols, without partial/truncated flags. The all-scope pre-commit
+check covers only this report: one changed file and four indexed Markdown sections,
+also LOW without partial/truncated flags. Key lookup again resolves three direct
+consumers; group-label impact remains UNKNOWN. The actual group-label consumer in
+SpecificationGuiService and its canonical `.name()` identity path were confirmed
+in source. Receiver-resolution gaps, old ranges in some indexed symbol records,
+bounded process coverage and the repeated full-text/BM25 build warning remain
+graph limitations, not evidence that unlisted GUI paths are unused. Direct diff
+review and production headless tests supplement the graph. Integration graph
+results are saved under `temp/l2b4a/integration`.
