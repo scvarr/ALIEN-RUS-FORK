@@ -60,7 +60,8 @@ def declarations():
 
 
 def baseline_bytes(file):
-    text = read(ROOT / file)
+    from check_localization_l2b4b import legacy_widget_text
+    text = legacy_widget_text(file, read(ROOT / file))
     if file.endswith("SpecificationGuiService.cpp"):
         start = text.index("        AlienGui::SliderInt(")
         end = text.index("\nvoid SpecificationGuiService::createWidgetsForFloatSpec", start)
@@ -77,7 +78,7 @@ class L2b3bContracts(unittest.TestCase):
     def test_complete_catalogs_and_all_seventeen_typed_bindings(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(325, len(en))
+        self.assertEqual(356, len(en))
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         for spec, member, prefix in MEMBERS:
             self.assertIn(f"references<{spec}>(spec, &SimulationParameters::{member})", adapter)

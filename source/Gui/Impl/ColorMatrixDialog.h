@@ -20,6 +20,7 @@ public:
         T const (&value)[MAX_COLORS][MAX_COLORS],
         std::function<void(ColorMatrix<T> const&)> const& onAdoptCallback);
     void process();
+    void setPresentation(AlienGui::ExpandedColorMatrixParameters<T> const& parameters);
 
 private:
     void processContent();

@@ -35,7 +35,7 @@ class L2b3cContracts(unittest.TestCase):
     def test_all_twenty_one_typed_bindings_and_exact_english(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(325, len(en))
+        self.assertEqual(356, len(en))
         blocks = declarations()
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         self.assertEqual(21, len(MEMBERS))
@@ -55,7 +55,8 @@ class L2b3cContracts(unittest.TestCase):
                      "source/Data/SpecificationEvaluationService.cpp", "source/Data/RadiationStrengthService.cpp",
                      "source/Gui/Impl/AlienGui.cpp", "source/Gui/Impl/AlienGui.h"):
             original = subprocess.check_output(["git", "show", "1605ded80f85ea2b3496f1cf2e0d6e65bf7a8306:" + file], cwd=ROOT)
-            actual = (ROOT / file).read_bytes().replace(b"\r\n", b"\n")
+            from check_localization_l2b4b import legacy_widget_text
+            actual = legacy_widget_text(file, read(ROOT / file)).encode("utf8")
             if file.endswith("AlienGui.cpp"):
                 self.assertEqual(2, actual.count(b".truncate(parameters._label.has_value())"))
                 actual = actual.replace(b".truncate(parameters._label.has_value())", b"")

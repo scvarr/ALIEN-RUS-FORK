@@ -24,7 +24,7 @@ class L2b4aContracts(unittest.TestCase):
     def test_eight_unique_typed_bindings_and_complete_descriptions(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(325, len(en))
+        self.assertEqual(356, len(en))
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         blocks = declarations()
         for typ, member, group, russian in MEMBERS:
@@ -59,7 +59,8 @@ class L2b4aContracts(unittest.TestCase):
                      "source/Gui/Impl/AlienGui.cpp", "source/Gui/Impl/AlienGui.h", "source/Gui/Impl/Utf8Search.h",
                      "source/Persister/Interface/SerializerService.cpp", "docs/localization-terminology.md"):
             original = subprocess.check_output(["git", "show", f"{BASE}:{file}"], cwd=ROOT).replace(b"\r\n", b"\n")
-            self.assertEqual(original, (ROOT / file).read_bytes().replace(b"\r\n", b"\n"), file)
+            from check_localization_l2b4b import legacy_widget_text
+            self.assertEqual(original, legacy_widget_text(file, read(ROOT / file)).encode("utf8"), file)
         blocks = declarations()
         self.assertIn(".greaterThan(&SimulationParameters::minCellEnergy)", blocks["normalCellEnergy"])
         for member in ("maxCellAge", "freeCellMaxAge"):

@@ -185,18 +185,22 @@ void SpecificationGuiService::createWidgetsForBoolSpec(
 
     auto ref = evaluationService.getRef(boolSpec._member, parameters, orderNumber);
     auto origRef = evaluationService.getRef(boolSpec._member, origParameters, orderNumber);
+    auto member = std::get_if<std::shared_ptr<decltype(&SimulationParameters::customizationTransitionMatrix)>>(&boolSpec._member);
+    auto localizedMatrix = member && *member && **member == &SimulationParameters::customizationTransitionMatrix;
     if (ref.colorDependence == ColorDependence::ColorMatrix) {
 
         AlienGui::CheckboxColorMatrix(
             AlienGui::CheckboxColorMatrixParameters()
                 .name(parameterSpec._name)
+                .label(localizedMatrix ? std::optional(SimulationParametersPresentation::label(parameterSpec)) : std::nullopt)
+                .localizationKey(localizedMatrix ? "parameters.metamidentity.customizationtransitionmatrix" : "")
                 .textWidth(TextColumnWidth)
                 .customizationColors(parameters.customizationColors.value)
                 .defaultValue(toVector<MAX_COLORS, MAX_COLORS>(*reinterpret_cast<bool(*)[MAX_COLORS][MAX_COLORS]>(origRef.value)))
                 .highlightedSubString(filter.containedText)
                 .tooltip(SimulationParametersPresentation::description(parameterSpec))
-                .rowLabel("[customization]")
-                .columnLabel("[target customization]")
+                .rowLabel(localizedMatrix ? tr("parameters.matrix.row") : "[customization]")
+                .columnLabel(localizedMatrix ? tr("parameters.matrix.column") : "[target customization]")
                 .disableDiagonal(true),
             *reinterpret_cast<bool(*)[MAX_COLORS][MAX_COLORS]>(ref.value),
             _boolColorMatrixDialogById[ImGui::GetID("colorMatrix")]);

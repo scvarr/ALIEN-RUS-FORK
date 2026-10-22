@@ -474,6 +474,8 @@ void AlienGui::CheckboxColorMatrix(CheckboxColorMatrixParameters const& paramete
 {
     ExpandedColorMatrixParameters<bool> matrixParameters;
     matrixParameters._name = parameters._name;
+    matrixParameters._label = parameters._label;
+    matrixParameters._localizationKey = parameters._localizationKey;
     matrixParameters._textWidth = parameters._textWidth;
     matrixParameters._customizationColors = parameters._customizationColors;
     matrixParameters._defaultValue = parameters._defaultValue;
@@ -3494,7 +3496,7 @@ void AlienGui::BasicInputColorMatrix(
     auto contentWidth = ImGui::GetContentRegionAvail().x - textWidth;
     ImGui::BeginGroup();
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-    if (ImGui::Button("Edit matrix", ImVec2(contentWidth, 0))) {
+    if (DisplayButton("Edit matrix", parameters._localizationKey.empty() ? "Edit matrix" : tr("parameters.matrix.edit"), ImVec2(contentWidth, 0))) {
         dialog.open(parameters, value, [&value](ColorMatrix<T> const& adoptedValue) {
             for (auto const& [valueRow, adoptedRow] : std::views::zip(value, adoptedValue.values)) {
                 std::ranges::copy(adoptedRow, std::begin(valueRow));
@@ -3518,7 +3520,7 @@ void AlienGui::BasicInputColorMatrix(
             }
         }
         ImGui::BeginDisabled(!changed);
-        if (RevertButton(parameters._name)) {
+        if (RevertButton(parameters._name, parameters._label.has_value())) {
             for (int row = 0; row < MAX_COLORS; ++row) {
                 for (int col = 0; col < MAX_COLORS; ++col) {
                     value[row][col] = (*parameters._defaultValue)[row][col];
@@ -3533,12 +3535,13 @@ void AlienGui::BasicInputColorMatrix(
     }
 
     ImGui::SameLine();
-    AlienGui::Text(TextParameters().text(parameters._name.c_str()).highlightedSubString(parameters._highlightedSubString));
+    AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).truncate(parameters._label.has_value()).highlightedSubString(parameters._highlightedSubString));
 
     if (parameters._tooltip) {
         AlienGui::HelpMarker(*parameters._tooltip);
     }
 
+    dialog.setPresentation(parameters);
     dialog.process();
 
     ImGui::PopID();
@@ -3809,4 +3812,27 @@ int AlienGui::DynamicTableLayout::getCurrentColumn() const
 int AlienGui::DynamicTableLayout::getCurrentRow() const
 {
     return _elementNumber / _numColumns;
+}
+
+bool AlienGui::DisplayButton(std::string const& name, std::string const& label, ImVec2 size)
+{
+    auto labelSize = ImGui::CalcTextSize(label.c_str());
+    auto padding = ImGui::GetStyle().FramePadding;
+    if (size.x == 0) {
+        size.x = labelSize.x + padding.x * 2;
+    }
+    if (size.y == 0) {
+        size.y = labelSize.y + padding.y * 2;
+    }
+    auto id = ImGui::GetID(name.c_str());
+    ImGui::PushOverrideID(id);
+    auto pressed = ImGui::Button("", size);
+    ImGui::PopID();
+    auto rect = GImGui->LastItemData.Rect;
+    if (!ImGui::GetCurrentWindow()->SkipItems && ImGui::IsItemVisible()) {
+        ImGui::RenderTextClipped(
+            {rect.Min.x + padding.x, rect.Min.y + padding.y}, {rect.Max.x - padding.x, rect.Max.y - padding.y},
+            label.c_str(), nullptr, &labelSize, ImGui::GetStyle().ButtonTextAlign, &rect);
+    }
+    return pressed;
 }

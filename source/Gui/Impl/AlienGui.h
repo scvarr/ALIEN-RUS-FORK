@@ -166,6 +166,8 @@ public:
     struct ExpandedColorMatrixParameters
     {
         MEMBER(ExpandedColorMatrixParameters, std::string, name, "");
+        MEMBER(ExpandedColorMatrixParameters, std::optional<std::string>, label, std::nullopt);
+        MEMBER(ExpandedColorMatrixParameters, std::string, localizationKey, "");
         MEMBER(ExpandedColorMatrixParameters, T, min, static_cast<T>(0));
         MEMBER(ExpandedColorMatrixParameters, T, max, static_cast<T>(0));
         MEMBER(ExpandedColorMatrixParameters, bool, logarithmic, false);
@@ -189,6 +191,8 @@ public:
     struct CheckboxColorMatrixParameters
     {
         MEMBER(CheckboxColorMatrixParameters, std::string, name, "");
+        MEMBER(CheckboxColorMatrixParameters, std::optional<std::string>, label, std::nullopt);
+        MEMBER(CheckboxColorMatrixParameters, std::string, localizationKey, "");
         MEMBER(CheckboxColorMatrixParameters, float, textWidth, 100);
         MEMBER(CheckboxColorMatrixParameters, ColorVector<FloatColorRGB>, customizationColors, getDefaultCustomizationColorVector());
         MEMBER(CheckboxColorMatrixParameters, std::optional<std::vector<std::vector<bool>>>, defaultValue, std::nullopt);
@@ -544,6 +548,7 @@ public:
 
     static void VerticalSeparator(float height = 23.0f);
     static bool Button(std::string const& text, float size = 0);
+    static bool DisplayButton(std::string const& name, std::string const& label, ImVec2 size = ImVec2(0, 0));
     static bool CollapseButton(bool collapsed);
     static bool MaximizeButton(RealVector2D const& pos, float iconSize, bool maximized);
     static bool CloseButton(RealVector2D const& pos, float iconSize);
