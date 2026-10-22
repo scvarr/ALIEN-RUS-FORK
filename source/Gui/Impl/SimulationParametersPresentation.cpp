@@ -158,6 +158,69 @@ namespace
         if (references<FloatSpec>(spec, &SimulationParameters::layerPerlinNoiseForceFieldTemporalSize)) {
             return "parameters.forcefield.layerperlinnoiseforcefieldtemporalsize";
         }
+        if (references<FloatSpec>(spec, &SimulationParameters::timestepSize)) {
+            return "parameters.motion.timestepsize";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::smoothingLength)) {
+            return "parameters.motion.smoothinglength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::pressureStrength)) {
+            return "parameters.motion.pressurestrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::viscosityStrength)) {
+            return "parameters.motion.viscositystrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::friction)) {
+            return "parameters.motion.friction";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::innerFriction)) {
+            return "parameters.motion.innerfriction";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::rigidity)) {
+            return "parameters.motion.rigidity";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::maxVelocity)) {
+            return "parameters.thresholds.maxvelocity";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::maxForce)) {
+            return "parameters.thresholds.maxforce";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::minObjectDistance)) {
+            return "parameters.thresholds.minobjectdistance";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::maxBindingDistance)) {
+            return "parameters.thresholds.maxbindingdistance";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::objectFusionVelocity)) {
+            return "parameters.thresholds.objectfusionvelocity";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::relativeStrengthBasePin)) {
+            return "parameters.radiation.relativestrengthbasepin";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::disableRadiationSources)) {
+            return "parameters.radiation.disableradiationsources";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::radiationAbsorption)) {
+            return "parameters.radiation.radiationabsorption";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::radiationType1_strength)) {
+            return "parameters.radiation.radiationtype1strength";
+        }
+        if (references<IntSpec>(spec, &SimulationParameters::radiationType1_minimumAge)) {
+            return "parameters.radiation.radiationtype1minimumage";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::radiationType2_strength)) {
+            return "parameters.radiation.radiationtype2strength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::radiationType2_energyThreshold)) {
+            return "parameters.radiation.radiationtype2energythreshold";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::particleSplitEnergy)) {
+            return "parameters.radiation.particlesplitenergy";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::sourceRadiationAngle)) {
+            return "parameters.radiation.sourceradiationangle";
+        }
         return {};
     }
 
@@ -224,6 +287,15 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     }
     if (spec._name == "Guided energy supply") {
         return translated("parameters.energy.name", spec._name);
+    }
+    if (spec._name == "Physics: Motion") {
+        return translated("parameters.motion.name", spec._name);
+    }
+    if (spec._name == "Physics: Thresholds") {
+        return translated("parameters.thresholds.name", spec._name);
+    }
+    if (spec._name == "Radiation") {
+        return translated("parameters.radiation.name", spec._name);
     }
     return spec._name;
 }

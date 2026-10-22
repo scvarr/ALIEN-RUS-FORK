@@ -1209,7 +1209,7 @@ bool AlienGui::Checkbox(CheckboxParameters const& parameters, bool* value)
 
             // Label
             ImGui::SameLine();
-            AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
+            AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).truncate(parameters._label.has_value()).highlightedSubString(parameters._highlightedSubString));
 
             // Tooltip
             if (parameters._tooltip) {
@@ -3412,7 +3412,7 @@ bool AlienGui::BasicSlider(Parameter const& parameters, T* value, bool* enabled,
                 if (parameters._readOnly) {
                     ImGui::EndDisabled();
                 }
-                AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).highlightedSubString(parameters._highlightedSubString));
+                AlienGui::Text(TextParameters().text(parameters._label.value_or(parameters._name)).truncate(parameters._label.has_value()).highlightedSubString(parameters._highlightedSubString));
                 if (parameters._readOnly) {
                     ImGui::BeginDisabled();
                 }

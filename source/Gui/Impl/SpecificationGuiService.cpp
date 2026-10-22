@@ -250,6 +250,7 @@ void SpecificationGuiService::createWidgetsForIntSpec(
         AlienGui::SliderInt(
             AlienGui::SliderIntParameters()
                 .name(parameterSpec._name)
+                .label(SimulationParametersPresentation::label(parameterSpec))
                 .textWidth(TextColumnWidth)
                 .min(intSpec._min)
                 .max(intSpec._max)
@@ -259,7 +260,7 @@ void SpecificationGuiService::createWidgetsForIntSpec(
                 .defaultValue(origValue)
                 .defaultEnabledValue(origEnabledValue)
                 .highlightedSubString(filter.containedText)
-                .tooltip(parameterSpec._description)
+                .tooltip(SimulationParametersPresentation::description(parameterSpec))
                 .colorDependence(valueType == ColorDependence::ColorVector)
                 .customizationColors(parameters.customizationColors.value),
             value,
