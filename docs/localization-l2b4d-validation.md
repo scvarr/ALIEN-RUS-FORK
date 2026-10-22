@@ -7,7 +7,8 @@ Date: 2026-10-22 (Europe/Moscow).
 Base SHA: `03a3131ceac4d2f762d7de5e0ad510c7cae6b5d0`.
 After fetching origin, main, origin/main and HEAD matched this SHA. The working
 tree and index were clean. Work is isolated on `feat/ru-localization-l2b4d`.
-No merge into main and no L2-B4e work is included.
+The initial delivery did not merge main or begin L2-B4e. The subsequent
+user acceptance and integration review are recorded below.
 
 The user-provided AGENTS.md, normative terminology, L2-B3a/B3b/B3c and
 L2-B4a/B4b/B4c validation reports, canonical parameter declarations, presentation
@@ -265,3 +266,93 @@ or submodule update was run.
 7. Repeat narrow/wide editor and dialog sizes at 1.0/1.5/2.0. Inspect vertical
    axis readability, clipped-caption full-text hover, numeric labels, and lack
    of overlap with buttons. Close without loading or saving real user worlds.
+
+
+## User acceptance and integration review
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user explicitly accepts implementation commit
+`f69224414674deaaccb47d1be479cd66a3bdf79c` and reports completing all six
+items of the acceptance checklist supplied in the integration request:
+
+1. The four groups and their descriptions.
+2. Color-dependent parameters, language switching and reset.
+3. The numeric food-chain matrix, directed row/column relationships and diagonal.
+4. Apply, Cancel and language switching while the dialog is open.
+5. Layer overrides, synthetic save/load and the boolean-matrix regression.
+6. Layout under window-width and scale changes.
+
+Result reported by the user: no remarks. This records those six items only;
+it does not assert separate completion of all seven items in the earlier report
+instructions or validation of real biological dynamics. The user authorizes
+fast-forward integration into main, pushing main to origin and safe removal of
+the completed feature branch locally and remotely. L2-B4e remains outside scope.
+
+After fetching origin, main and origin/main both matched
+`03a3131ceac4d2f762d7de5e0ad510c7cae6b5d0`; both feature refs matched the
+user-reviewed implementation SHA. The index and working tree were clean, the
+feature was ahead one / behind zero, and no additional worktree was registered.
+
+Final review against main found no blocking issue. All four groups and twelve
+typed pointer bindings have separate complete EN/RU names and descriptions.
+Normative cell names and raw/usable energy distinctions are preserved, as are
+attacker attempt cost and successful injection cost. The numeric matrix remains
+10 by 10, row=attacker, column=target, floating coefficients 0..1, %.2f, default
+ones, editable diagonal, independent base/layer values and original canonical
+IDs. Open-dialog presentation updates preserve the draft, callback and instance;
+Apply, Cancel and Reset handlers are unchanged. The boolean matrix and generic
+matrix handlers retain their existing behavior. English fallback and prior
+substantive native/Python regressions remain active. Model, engine, CUDA,
+cellular algorithms, serialization, CLI, MCP, README, dependencies, upstream,
+submodule and normative glossary have no diff against the baseline.
+
+The injector's fixed `0.5f` coefficient in InjectorProcessor.cuh, instead of
+`defenderAntiInjectorStrength`, remains a known defect of the original project,
+unrelated to localization. The user has registered it separately and explicitly
+deferred any fix to a later experimental fork. No injector algorithm, coefficient,
+specification or related test is changed during integration. The existing Digestor
+mechanism/description discrepancies above also remain unchanged and outside scope.
+
+A fresh integration run confirms 593 passing C++ tests, zero failures and one
+previously disabled Persister test: Base 41, Data 247, EngineInterface 2,
+McpTools 40, Network 38, Persister 142 and GUI localization 83. All 45 Python
+checks pass again. EN/RU retain exactly 408 keys with identical key sets; previous
+catalog values and meaningful regression assertions are preserved. The production
+code and catalogs are identical to the reviewed SHA; this follow-up changes only
+this report. The successful Windows Release build remains valid. No rebuild or
+embedded-English catalog regeneration is required; the rerun includes the native
+missing-catalog English fallback checks. GPU/stress tests are not run.
+
+Integration logs and graph results are retained under `temp/l2b4d/integration`.
+User-data and final GitNexus verification details are recorded below before the
+documentation commit and fast-forward integration.
+
+
+The integration checks use synthetic parameters and the existing process-local
+SettingsTestScope; no real worlds, genomes or autosaves are opened or modified.
+The initial registry observation interval differed solely in one ImGui `Size`
+line (1115,26 versus 1115,1108) while an independent alien.exe was running.
+The exports alone cannot identify the writer; no registry restoration or user
+setting edit was performed. A separate repeat around all 16 localization service
+tests and all 83 GUI localization tests confirms byte-identical real profile
+exports, SHA-256
+`0A0E36DC9E206FF6095CD85305F5A48CE3930F0AE7662885F383A3D2A712780D`.
+The independently running application is left untouched. AGENTS.md retains its
+original bytes, SHA-256
+`090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`,
+and its original skip-worktree flag. All 74 prior GUI test definitions and their
+source are preserved; nine new tests supplement them.
+
+
+The integration GitNexus index refresh succeeds, with the existing full-text/BM25
+build warning and receiver/process coverage limitations. A fresh local backend
+compares the branch against main: 19 files, 75 listed symbols, LOW risk, no indexed
+affected processes, partial=false and truncated=false. The all-scope pre-commit
+check covers only this documentation follow-up: one file, two listed Markdown
+symbols, LOW risk, partial=false and truncated=false. Counts match their listings.
+The missing caller anchors for InputFloatColorMatrix/group presentation are
+supplemented by direct source inspection of SpecificationGuiService; absence
+of indexed callers/processes is not evidence that those paths are unused.
+`git diff --check` passes. This documentation commit is published on the feature
+branch before the separately verified fast-forward of main; history is preserved.
