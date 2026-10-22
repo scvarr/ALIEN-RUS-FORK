@@ -221,6 +221,10 @@ public:
     struct InputFloatColorMatrixParameters
     {
         MEMBER(InputFloatColorMatrixParameters, std::string, name, "");
+        MEMBER(InputFloatColorMatrixParameters, std::optional<std::string>, label, std::nullopt);
+        MEMBER(InputFloatColorMatrixParameters, std::string, localizationKey, "");
+        MEMBER(InputFloatColorMatrixParameters, std::string, rowLabel, "[cell color]");
+        MEMBER(InputFloatColorMatrixParameters, std::string, columnLabel, "[target cell color]");
         MEMBER(InputFloatColorMatrixParameters, float, min, 0);
         MEMBER(InputFloatColorMatrixParameters, float, max, 0);
         MEMBER(InputFloatColorMatrixParameters, bool, logarithmic, false);

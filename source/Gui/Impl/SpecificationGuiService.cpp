@@ -297,10 +297,16 @@ void SpecificationGuiService::createWidgetsForFloatSpec(
         }
     }();
 
+    auto member = std::get_if<std::shared_ptr<decltype(&SimulationParameters::attackerFoodChainColorMatrix)>>(&floatSpec._member);
+    auto localizedMatrix = member && *member && **member == &SimulationParameters::attackerFoodChainColorMatrix;
     if (valueType == ColorDependence::ColorMatrix) {
         AlienGui::InputFloatColorMatrix(
             AlienGui::InputFloatColorMatrixParameters()
                 .name(parameterSpec._name)
+                .label(localizedMatrix ? std::optional(SimulationParametersPresentation::label(parameterSpec)) : std::nullopt)
+                .localizationKey(localizedMatrix ? "parameters.attacker.attackerfoodchaincolormatrix" : "")
+                .rowLabel(localizedMatrix ? tr("parameters.matrix.attackerrow") : "[cell color]")
+                .columnLabel(localizedMatrix ? tr("parameters.matrix.targetcolumn") : "[target cell color]")
                 .min(min)
                 .max(max)
                 .logarithmic(floatSpec._logarithmic)
@@ -308,7 +314,7 @@ void SpecificationGuiService::createWidgetsForFloatSpec(
                 .textWidth(TextColumnWidth)
                 .customizationColors(parameters.customizationColors.value)
                 .highlightedSubString(filter.containedText)
-                .tooltip(parameterSpec._description)
+                .tooltip(localizedMatrix ? SimulationParametersPresentation::description(parameterSpec) : parameterSpec._description)
                 .defaultValue(toVector<MAX_COLORS, MAX_COLORS>(*reinterpret_cast<float(*)[MAX_COLORS][MAX_COLORS]>(origValue)))
                 .disabledValue(
                     disabledValue != nullptr

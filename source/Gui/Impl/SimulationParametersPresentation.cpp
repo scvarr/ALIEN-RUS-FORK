@@ -305,6 +305,42 @@ namespace
         if (references<FloatSpec>(spec, &SimulationParameters::swapGeneMetaMutationsSigma)) {
             return "parameters.metamgenome.swapgenemetamutationssigma";
         }
+        if (references<FloatSpec>(spec, &SimulationParameters::attackerEnergyCost)) {
+            return "parameters.attacker.attackerenergycost";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::attackerFoodChainColorMatrix)) {
+            return "parameters.attacker.attackerfoodchaincolormatrix";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::attackerStrength)) {
+            return "parameters.attacker.attackerstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::attackerRelatedLineageProtection)) {
+            return "parameters.attacker.attackerrelatedlineageprotection";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::attackerSizeProtection)) {
+            return "parameters.attacker.attackersizeprotection";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::attackerRadius)) {
+            return "parameters.attacker.attackerradius";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::maxRawEnergyConductivity)) {
+            return "parameters.digestor.maxrawenergyconductivity";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::maxRawEnergyConversion)) {
+            return "parameters.digestor.maxrawenergyconversion";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::defenderAntiAttackerStrength)) {
+            return "parameters.defender.defenderantiattackerstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::defenderAntiInjectorStrength)) {
+            return "parameters.defender.defenderantiinjectorstrength";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::injectorEnergyCost)) {
+            return "parameters.injector.injectorenergycost";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::injectorRadius)) {
+            return "parameters.injector.injectorradius";
+        }
         return {};
     }
 
@@ -401,6 +437,18 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     }
     if (spec._name == "Meta-mutations: Genome structure") {
         return translated("parameters.metamgenome.name", spec._name);
+    }
+    if (spec._name == "Cell type: Attacker") {
+        return translated("parameters.attacker.name", spec._name);
+    }
+    if (spec._name == "Cell type: Digestor") {
+        return translated("parameters.digestor.name", spec._name);
+    }
+    if (spec._name == "Cell type: Defender") {
+        return translated("parameters.defender.name", spec._name);
+    }
+    if (spec._name == "Cell type: Injector") {
+        return translated("parameters.injector.name", spec._name);
     }
     return spec._name;
 }

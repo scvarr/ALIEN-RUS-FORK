@@ -511,6 +511,10 @@ void AlienGui::InputFloatColorMatrix(
 {
     ExpandedColorMatrixParameters<float> matrixParameters;
     matrixParameters._name = parameters._name;
+    matrixParameters._label = parameters._label;
+    matrixParameters._localizationKey = parameters._localizationKey;
+    matrixParameters._rowLabel = parameters._rowLabel;
+    matrixParameters._columnLabel = parameters._columnLabel;
     matrixParameters._min = parameters._min;
     matrixParameters._max = parameters._max;
     matrixParameters._logarithmic = parameters._logarithmic;

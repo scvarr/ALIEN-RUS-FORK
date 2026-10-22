@@ -24,7 +24,7 @@ class L2b4cContracts(unittest.TestCase):
     def test_ten_typed_bindings_and_full_catalogs(self):
         en, ru = catalog('en'), catalog('ru')
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(378, len(en))
+        self.assertEqual(408, len(en))
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         blocks = declarations()
         for i, member in enumerate(MEMBERS):
@@ -76,7 +76,8 @@ class L2b4cContracts(unittest.TestCase):
                  'source/Gui/Impl/SpecificationGuiService.cpp', 'source/Gui/Impl/MutationRatesWidget.cpp',
                  'source/Gui/Impl/AlienGui.cpp', 'source/Gui/Impl/AlienGui.h', 'source/Gui/Impl/ColorMatrixDialog.cpp']
         for file in files:
-            self.assertEqual(original(file), read(ROOT / file), file)
+            from check_localization_l2b4d import legacy_float_matrix_text
+            self.assertEqual(original(file), legacy_float_matrix_text(file, read(ROOT / file)), file)
         changed = subprocess.check_output(['git', 'diff', BASE, '--name-only'], cwd=ROOT, text=True).splitlines()
         for file in changed:
             self.assertFalse(file.startswith(('source/Engine/', 'source/Data/', 'source/Apps/', 'source/McpTools/',

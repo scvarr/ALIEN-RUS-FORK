@@ -4444,3 +4444,846 @@ TEST_F(LocalizationGuiTests, l2b4cGroupExpansionAndCanonicalIdsSurviveLanguageCh
         }
     }
 }
+
+namespace
+{
+    std::vector<ParameterSpec const*> combatParameters()
+    {
+        std::vector<ParameterSpec const*> result;
+        for (auto name : {"Cell type: Attacker", "Cell type: Digestor", "Cell type: Defender", "Cell type: Injector"}) {
+            for (auto const& parameter : parameterGroup(SimulationParameters::getSpec(), name)._parameters) {
+                result.push_back(&parameter);
+            }
+        }
+        return result;
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b4dScalarAndColorFloatsEditResetAndRetainFocus)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    int count = 0;
+    for (auto parameter : combatParameters()) {
+        auto number = std::get_if<FloatSpec>(&parameter->_reference);
+        if (!number || number->_getterSetter || !parameter->_visible || parameter == combatParameters().at(1)) {
+            continue;
+        }
+        ++count;
+        auto constexpr order = 0;
+        auto ref = SpecificationEvaluationService::get().getRef(number->_member, *values, order);
+        auto original = SpecificationEvaluationService::get().getRef(number->_member, *defaults, order);
+        for (float edited : {std::get<float>(number->_min), (std::get<float>(number->_min) + std::get<float>(number->_max)) / 2}) {
+            ImVec2 slider, revert;
+            ImGuiID active = 0;
+            auto draw = [&] {
+                frame([&] {
+                    auto start = ImGui::GetCursorScreenPos();
+                    slider = {start.x + 100, start.y + ImGui::GetFrameHeight() / 2};
+                    auto width = ImGui::GetContentRegionAvail().x - scale(360);
+                    revert = {
+                        start.x + width + ImGui::GetStyle().ItemSpacing.x + (ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2) / 2,
+                        start.y + ImGui::GetFrameHeight() / 2};
+                    parametersGroup({*parameter}, *values, *defaults, order);
+                    ImGui::PushID(0);
+                    ImGui::PushID(parameter->_name.c_str());
+                    ImGui::PushID("");
+                    ImGui::PushID(0);
+                    auto id = ImGui::GetID("##slider");
+                    if (!active) {
+                        active = id;
+                    }
+                    EXPECT_EQ(active, id);
+                    ImGui::PopID();
+                    ImGui::PopID();
+                    ImGui::PopID();
+                    ImGui::PopID();
+                });
+            };
+            draw();
+            draw();
+            io.AddKeyEvent(ImGuiMod_Ctrl, true);
+            io.AddMousePosEvent(slider.x, slider.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            io.AddKeyEvent(ImGuiMod_Ctrl, false);
+            draw();
+            ASSERT_EQ(active, GImGui->ActiveId) << parameter->_name;
+            io.AddInputCharactersUTF8(std::to_string(edited).c_str());
+            draw();
+            for (auto const& language : {"en", "ru", "en"}) {
+                select(language);
+                draw();
+                EXPECT_EQ(active, GImGui->ActiveId);
+                EXPECT_FLOAT_EQ(edited, *ref.value);
+            }
+            io.AddKeyEvent(ImGuiKey_Enter, true);
+            draw();
+            io.AddKeyEvent(ImGuiKey_Enter, false);
+            draw();
+            io.AddMousePosEvent(revert.x, revert.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+            EXPECT_FLOAT_EQ(*original.value, *ref.value) << parameter->_name;
+        }
+    }
+    EXPECT_EQ(11, count);
+}
+
+
+TEST_F(LocalizationGuiTests, l2b4dNumericMatrixEditsAllCellsRetainsDraftIdsAppliesCancelsAndResets)
+{
+    static_assert(MAX_COLORS == 10);
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    auto& matrix = values->attackerFoodChainColorMatrix.baseValue.values;
+    auto const& spec = *combatParameters().at(1);
+    ColorMatrixDialog<float> dialog;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImGuiID activate = 0, editId = 0, resetId = 0, toggleId = 0;
+    auto draw = [&] {
+        frame([&] {
+            ImGui::PushID(spec._name.c_str());
+            editId = ImGui::GetID("Edit matrix");
+            toggleId = ImGui::GetID(ICON_FA_PLUS_SQUARE "##toggle");
+            resetId = ImGui::GetID((std::string(ICON_FA_UNDO) + "##" + spec._name).c_str());
+            ImGui::PopID();
+            if (activate) {
+                GImGui->NavActivateId = activate;
+                GImGui->NavActivateDownId = activate;
+                GImGui->NavActivatePressedId = activate;
+            }
+            std::vector<std::vector<float>> original;
+            for (auto const& row : defaults->attackerFoodChainColorMatrix.baseValue.values) {
+                original.emplace_back(std::begin(row), std::end(row));
+            }
+            AlienGui::InputFloatColorMatrix(
+                AlienGui::InputFloatColorMatrixParameters()
+                    .name(spec._name)
+                    .label(SimulationParametersPresentation::label(spec))
+                    .localizationKey("parameters.attacker.attackerfoodchaincolormatrix")
+                    .rowLabel(tr("parameters.matrix.attackerrow"))
+                    .columnLabel(tr("parameters.matrix.targetcolumn"))
+                    .textWidth(360)
+                    .min(0)
+                    .max(1)
+                    .format("%.2f")
+                    .defaultValue(original),
+                matrix,
+                dialog);
+        });
+        activate = 0;
+    };
+    auto press = [&](ImGuiID id) {
+        activate = id;
+        draw();
+        draw();
+    };
+    draw();
+    draw();
+    auto originalEdit = editId;
+    auto expandedTable = [&] {
+        for (int i = 0; i < GImGui->Tables.GetBufSize(); ++i) {
+            auto table = GImGui->Tables.GetByIndex(i);
+            if (table->OuterWindow == ImGui::FindWindowByName("Host") && table->LastFrameActive == GImGui->FrameCount) {
+                return true;
+            }
+        }
+        return false;
+    };
+    EXPECT_FALSE(expandedTable());
+    press(toggleId);
+    EXPECT_TRUE(expandedTable());
+    press(editId);
+    auto popup = ImGui::FindWindowByName(spec._name.c_str());
+    ImGui::SetWindowSize(popup, {900, 1100});
+    draw();
+    draw();
+    ASSERT_NE(nullptr, popup);
+    EXPECT_EQ(ImHashStr(spec._name.c_str()), popup->ID);
+    auto buttonId = [&](char const* name) {
+        auto seed = ImHashStr(spec._name.c_str(), 0, popup->ID);
+        return ImHashStr(name, 0, seed);
+    };
+    auto cellId = [&](int row, int col) {
+        for (int i = 0; i < GImGui->Tables.GetBufSize(); ++i) {
+            auto table = GImGui->Tables.GetByIndex(i);
+            if (table->OuterWindow && table->OuterWindow->ParentWindow == popup) {
+                EXPECT_EQ(11, table->ColumnsCount);
+                ++row;
+                ++col;
+                auto seed = ImHashData(&row, sizeof(row), table->ID);
+                seed = ImHashData(&col, sizeof(col), seed);
+                seed = ImHashStr("", 0, seed);
+                seed = ImHashStr("", 0, seed);
+                int color = 0;
+                seed = ImHashData(&color, sizeof(color), seed);
+                return ImHashStr("##slider", 0, seed);
+            }
+        }
+        ADD_FAILURE() << "Missing production matrix table";
+        return ImGuiID(0);
+    };
+    auto snapshot = std::make_unique<SimulationParameters>(*values);
+    auto directedId = cellId(2, 7);
+    auto input = [&](int row, int col, float value) {
+        auto id = cellId(row, col);
+        ImVec2 pos;
+        for (int i = 0; i < GImGui->Tables.GetBufSize(); ++i) {
+            auto table = GImGui->Tables.GetByIndex(i);
+            if (table->OuterWindow && table->OuterWindow->ParentWindow == popup) {
+                auto child = table->OuterWindow;
+                auto height = ImGui::GetFrameHeight() + ImGui::GetStyle().CellPadding.y * 2;
+                pos = {table->Columns[col + 1].MinX + 8, table->OuterRect.Min.y + height * (row + 1) + height / 2};
+                if (pos.y > child->InnerRect.Max.y) {
+                    ImGui::SetScrollY(child, child->Scroll.y + pos.y - child->InnerRect.Max.y + height);
+                    draw();
+                    draw();
+                    pos.y -= child->Scroll.y;
+                }
+            }
+        }
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddMousePosEvent(pos.x, pos.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        draw();
+        EXPECT_EQ(id, GImGui->ActiveId) << row << "," << col;
+        io.AddInputCharactersUTF8(std::to_string(value).c_str());
+        draw();
+        io.AddKeyEvent(ImGuiKey_Enter, true);
+        draw();
+        io.AddKeyEvent(ImGuiKey_Enter, false);
+        draw();
+    };
+    for (int row = 0; row < MAX_COLORS; ++row) {
+        for (int col = 0; col < MAX_COLORS; ++col) {
+            auto value = row == 9 && col == 9 ? 1.0f : row == 2 && col == 7 ? 0.25f : row == 7 && col == 2 ? 0.75f : float((row * 7 + col * 3) % 101) / 100;
+            input(row, col, value);
+        }
+    }
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        EXPECT_EQ(originalEdit, editId);
+        EXPECT_TRUE(expandedTable());
+        EXPECT_EQ(popup, ImGui::FindWindowByName(spec._name.c_str()));
+        EXPECT_EQ(directedId, cellId(2, 7));
+        EXPECT_EQ(*snapshot, *values);
+    }
+    press(buttonId("Adopt"));
+    for (int row = 0; row < MAX_COLORS; ++row) {
+        for (int col = 0; col < MAX_COLORS; ++col) {
+            auto expected = row == 9 && col == 9 ? 1.0f : row == 2 && col == 7 ? 0.25f : row == 7 && col == 2 ? 0.75f : float((row * 7 + col * 3) % 101) / 100;
+            EXPECT_FLOAT_EQ(expected, matrix[row][col]) << row << "," << col;
+        }
+    }
+    auto adopted = std::make_unique<SimulationParameters>(*values);
+    press(editId);
+    input(7, 2, 0.5f);
+    press(buttonId("Cancel"));
+    EXPECT_EQ(*adopted, *values);
+    press(resetId);
+    EXPECT_EQ(defaults->customizationTransitionMatrix, values->customizationTransitionMatrix);
+}
+
+TEST_F(LocalizationGuiTests, l2b4dTypedBindingsCompleteDescriptionsGroupsSearchFallbackAndLayerPersistence)
+{
+    auto all = combatParameters();
+    ASSERT_EQ(12, all.size());
+    std::vector<std::string> prefixes = {
+        "parameters.attacker.attackerenergycost",
+        "parameters.attacker.attackerfoodchaincolormatrix",
+        "parameters.attacker.attackerstrength",
+        "parameters.attacker.attackerrelatedlineageprotection",
+        "parameters.attacker.attackersizeprotection",
+        "parameters.attacker.attackerradius",
+        "parameters.digestor.maxrawenergyconductivity",
+        "parameters.digestor.maxrawenergyconversion",
+        "parameters.defender.defenderantiattackerstrength",
+        "parameters.defender.defenderantiinjectorstrength",
+        "parameters.injector.injectorenergycost",
+        "parameters.injector.injectorradius"};
+    auto checkMember = [&]<typename T>(size_t index, T member) {
+        auto pointer = std::get_if<std::shared_ptr<T>>(&std::get<FloatSpec>(all.at(index)->_reference)._member);
+        ASSERT_NE(nullptr, pointer);
+        ASSERT_TRUE(*pointer);
+        EXPECT_EQ(member, **pointer);
+    };
+    checkMember(0, &SimulationParameters::attackerEnergyCost);
+    checkMember(1, &SimulationParameters::attackerFoodChainColorMatrix);
+    checkMember(2, &SimulationParameters::attackerStrength);
+    checkMember(3, &SimulationParameters::attackerRelatedLineageProtection);
+    checkMember(4, &SimulationParameters::attackerSizeProtection);
+    checkMember(5, &SimulationParameters::attackerRadius);
+    checkMember(6, &SimulationParameters::maxRawEnergyConductivity);
+    checkMember(7, &SimulationParameters::maxRawEnergyConversion);
+    checkMember(8, &SimulationParameters::defenderAntiAttackerStrength);
+    checkMember(9, &SimulationParameters::defenderAntiInjectorStrength);
+    checkMember(10, &SimulationParameters::injectorEnergyCost);
+    checkMember(11, &SimulationParameters::injectorRadius);
+
+    auto values = std::make_unique<SimulationParameters>();
+    values->numLayers = 1;
+    values->layerOrderNumbers[0] = 1;
+    values->attackerEnergyCost.layerValues[0].enabled = true;
+    values->attackerFoodChainColorMatrix.layerValues[0].enabled = true;
+    values->attackerSizeProtection.layerValues[0].enabled = true;
+    for (size_t i = 0; i < all.size(); ++i) {
+        auto const& number = std::get<FloatSpec>(all.at(i)->_reference);
+        for (int order : {0, 1}) {
+            if (order == 1 && !std::holds_alternative<FloatBaseLayerMember>(number._member)
+                && !std::holds_alternative<ColorVectorFloatBaseLayerMember>(number._member)
+                && !std::holds_alternative<ColorMatrixFloatBaseLayerMember>(number._member)) {
+                continue;
+            }
+            auto ref = SpecificationEvaluationService::get().getRef(number._member, *values, order);
+            if (!ref.value) {
+                continue;
+            }
+            auto count = ref.colorDependence == ColorDependence::ColorMatrix ? 100 : ref.colorDependence == ColorDependence::ColorVector ? 10 : 1;
+            for (int k = 0; k < count; ++k) {
+                ref.value[k] = std::get<float>(number._min) + (std::get<float>(number._max) - std::get<float>(number._min)) * ((k + order) % 9) / 10;
+            }
+        }
+    }
+    values->attackerFoodChainColorMatrix.baseValue[2][7] = 0.25f;
+    values->attackerFoodChainColorMatrix.baseValue[7][2] = 0.75f;
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (size_t i = 0; i < all.size(); ++i) {
+            auto parameter = all.at(i);
+            auto prefix = prefixes.at(i);
+            EXPECT_EQ(tr(prefix + ".name"), SimulationParametersPresentation::label(*parameter));
+            EXPECT_EQ(tr(prefix + ".description"), SimulationParametersPresentation::description(*parameter));
+            if (std::string(language) == "en") {
+                EXPECT_EQ(parameter->_name, SimulationParametersPresentation::label(*parameter));
+                EXPECT_EQ(parameter->_description, SimulationParametersPresentation::description(*parameter));
+            }
+            auto renamed = *parameter;
+            renamed._name = "Not a typed identity";
+            EXPECT_EQ(SimulationParametersPresentation::label(*parameter), SimulationParametersPresentation::label(renamed));
+            EXPECT_EQ(SimulationParametersPresentation::description(*parameter), SimulationParametersPresentation::description(renamed));
+            auto const& number = std::get<FloatSpec>(parameter->_reference);
+            for (int order : {0, 1}) {
+                if (order == 1 && !std::holds_alternative<FloatBaseLayerMember>(number._member)
+                    && !std::holds_alternative<ColorVectorFloatBaseLayerMember>(number._member)
+                    && !std::holds_alternative<ColorMatrixFloatBaseLayerMember>(number._member)) {
+                    continue;
+                }
+                frame([&] { parametersGroup({*parameter}, *values, *defaults, order); });
+                EXPECT_EQ(*defaults, *values);
+            }
+        }
+        for (auto const& name : {"Attacker", "Digestor", "Defender", "Injector"}) {
+            auto group = parameterGroup(SimulationParameters::getSpec(), std::string("Cell type: ") + name);
+            auto key = std::string(name);
+            std::ranges::transform(key, key.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+            EXPECT_EQ(tr("parameters." + key + ".name"), SimulationParametersPresentation::label(group));
+        }
+    }
+    select("ru");
+    for (auto const& [query, group, count] : std::vector<std::tuple<std::string, std::string, int>>{
+             {"Attacker", "Attacker", 6},      {"аТАКУЮЩАЯ", "Attacker", 6},     {"Digestor", "Digestor", 2},         {"Конвертер", "Digestor", 2},
+             {"Defender", "Defender", 2},      {"Защитник", "Defender", 2},      {"Injector", "Injector", 2},         {"Инжектор", "Injector", 2},
+             {"Пищевая цепь", "Attacker", 0},  {"Сырая энергия", "Digestor", 0}, {"Food chain", "Attacker", 1},       {"пищев", "Attacker", 1},
+             {"Raw energy", "Digestor", 2},    {"сырой энергии", "Digestor", 2}, {"Energy cost", "Attacker", 1},      {"Расход энергии", "Injector", 1},
+             {"Attack radius", "Attacker", 1}, {"Радиус атаки", "Attacker", 1},  {"Injection radius", "Injector", 1}, {"Радиус инъекции", "Injector", 1}}) {
+        auto filtered = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = query});
+        EXPECT_EQ(count, visibleParameters(parameterGroup(filtered, "Cell type: " + group))) << query;
+    }
+    auto cleared = SimulationParametersPresentation::filter(SimulationParameters::getSpec(), {.containedText = ""});
+    for (auto name : {"Attacker", "Digestor", "Defender", "Injector"}) {
+        auto canonical = std::string("Cell type: ") + name;
+        auto const& group = parameterGroup(cleared, canonical);
+        auto const& original = parameterGroup(SimulationParameters::getSpec(), canonical);
+        ASSERT_EQ(original._parameters.size(), group._parameters.size());
+        for (size_t i = 0; i < group._parameters.size(); ++i) {
+            EXPECT_TRUE(group._parameters.at(i)._visible);
+            EXPECT_EQ(original._parameters.at(i)._name, group._parameters.at(i)._name);
+        }
+    }
+    auto file = std::filesystem::temp_directory_path()
+        / ("alien-l2b4d-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".settings.json");
+    ASSERT_TRUE(SerializerService::get().serializeSimulationParametersToFile(file, *values));
+    auto restored = std::make_unique<SimulationParameters>();
+    ASSERT_TRUE(SerializerService::get().deserializeSimulationParametersFromFile(*restored, file));
+    std::filesystem::remove(file);
+    for (auto parameter : all) {
+        auto const& number = std::get<FloatSpec>(parameter->_reference);
+        for (int order : {0, 1}) {
+            if (order == 1 && !std::holds_alternative<FloatBaseLayerMember>(number._member)
+                && !std::holds_alternative<ColorVectorFloatBaseLayerMember>(number._member)
+                && !std::holds_alternative<ColorMatrixFloatBaseLayerMember>(number._member)) {
+                continue;
+            }
+            auto before = SpecificationEvaluationService::get().getRef(number._member, *values, order);
+            auto after = SpecificationEvaluationService::get().getRef(number._member, *restored, order);
+            if (!before.value) {
+                continue;
+            }
+            ASSERT_NE(nullptr, after.value);
+            auto count = before.colorDependence == ColorDependence::ColorMatrix ? 100 : before.colorDependence == ColorDependence::ColorVector ? 10 : 1;
+            for (int i = 0; i < count; ++i) {
+                EXPECT_NEAR(before.value[i], after.value[i], 0.0001f);
+            }
+            if (before.enabled) {
+                EXPECT_EQ(*before.enabled, *after.enabled);
+            }
+        }
+    }
+    LocalizationService::get().load("resources/locales/missing-l2b4d");
+    select("ru");
+    for (auto parameter : all) {
+        EXPECT_EQ(parameter->_name, SimulationParametersPresentation::label(*parameter));
+        EXPECT_EQ(parameter->_description, SimulationParametersPresentation::description(*parameter));
+    }
+    for (auto name : {"Attacker", "Digestor", "Defender", "Injector"}) {
+        auto canonical = std::string("Cell type: ") + name;
+        EXPECT_EQ(canonical, SimulationParametersPresentation::label(parameterGroup(SimulationParameters::getSpec(), canonical)));
+    }
+    LocalizationService::get().load("resources/locales");
+}
+
+TEST_F(LocalizationGuiTests, l2b4dCombatCaptionsKeepControlsClearAndFullTextOnHover)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    select("ru");
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto spec : combatParameters()) {
+            auto const& parameter = *spec;
+            auto text = SimulationParametersPresentation::label(parameter);
+            ImVec2 labelPosition;
+            float available = 0;
+            bool tooltip = false;
+            std::string logged;
+            auto draw = [&] {
+                switcherFrame(650 * factor, [&] {
+                    auto start = ImGui::GetCursorScreenPos();
+                    auto sliderRight = start.x + ImGui::GetContentRegionAvail().x - scale(360);
+                    auto undoWidth = ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2;
+                    labelPosition = {sliderRight + ImGui::GetStyle().ItemSpacing.x * 2 + undoWidth, start.y};
+                    available = start.x + ImGui::GetContentRegionAvail().x - labelPosition.x;
+                    EXPECT_GT(labelPosition.x, sliderRight + undoWidth);
+                    ImGui::LogToBuffer();
+                    parametersGroup({parameter}, *values, *defaults, 0);
+                    logged = GImGui->LogBuffer.c_str();
+                    ImGui::LogFinish();
+                    tooltip = false;
+                    for (auto window : GImGui->Windows) {
+                        tooltip |= (window->Flags & ImGuiWindowFlags_Tooltip) && window->Active && !window->Hidden;
+                    }
+                });
+            };
+            io.AddMousePosEvent(-100, -100);
+            draw();
+            draw();
+            io.AddMousePosEvent(labelPosition.x + 4, labelPosition.y + ImGui::GetFontSize() / 2);
+            draw();
+            draw();
+            if (ImGui::CalcTextSize(text.c_str()).x > available) {
+                EXPECT_TRUE(tooltip) << text << ": " << factor;
+                EXPECT_NE(std::string::npos, logged.find(text));
+            }
+            EXPECT_EQ(*defaults, *values);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b4dNumericMatrixCaptionsAxesButtonsAndPrecisionAtAllScales)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    auto spec = *combatParameters().at(1);
+    select("ru");
+    for (auto factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (float width : {650.0f, 950.0f}) {
+            std::string logged;
+            auto render = [&] {
+                switcherFrame(scale(width), [&] {
+                    ImGui::LogToBuffer();
+                    parametersGroup({spec}, *values, *defaults, 0);
+                    ColorMatrixDialog<float> dialog;
+                    auto parameters = AlienGui::ExpandedColorMatrixParameters<float>()
+                                          .name(spec._name)
+                                          .label(SimulationParametersPresentation::label(spec))
+                                          .localizationKey("parameters.attacker.attackerfoodchaincolormatrix")
+                                          .rowLabel(tr("parameters.matrix.attackerrow"))
+                                          .columnLabel(tr("parameters.matrix.targetcolumn"))
+                                          .min(0)
+                                          .max(1)
+                                          .format("%.2f");
+                    dialog.open(parameters, values->attackerFoodChainColorMatrix.baseValue.values, [](auto const&) {});
+                    if (auto popup = ImGui::FindWindowByName(spec._name.c_str())) {
+                        ImGui::SetWindowSize(popup, {scale(width == 650.0f ? 350.0f : 700.0f), scale(500.0f)});
+                    }
+                    dialog.process();
+                    auto popup = ImGui::FindWindowByName(spec._name.c_str());
+                    ASSERT_NE(nullptr, popup);
+                    EXPECT_LE(GImGui->LastItemData.Rect.Max.x, popup->Pos.x + popup->Size.x);
+                    EXPECT_LE(GImGui->LastItemData.Rect.Max.y, popup->Pos.y + popup->Size.y);
+                    logged = GImGui->LogBuffer.c_str();
+                    ImGui::LogFinish();
+                });
+            };
+            render();
+            render();
+            for (auto text : {"Цвет цели", "Применить", "Отмена", "1.00"}) {
+                EXPECT_NE(std::string::npos, logged.find(text)) << text << ": " << factor << ", " << width;
+            }
+            EXPECT_EQ(defaults->customizationTransitionMatrix, values->customizationTransitionMatrix);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b4dCombatColorVectorsExpandEditResetAndRetainState)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>(*values);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (size_t index : {0u, 3u, 5u, 6u, 7u, 8u, 9u, 10u, 11u}) {
+        auto const& parameter = *combatParameters().at(index);
+        auto const& number = std::get<FloatSpec>(parameter._reference);
+        auto ref = SpecificationEvaluationService::get().getRef(number._member, *values, 0);
+        auto original = SpecificationEvaluationService::get().getRef(number._member, *defaults, 0);
+        ASSERT_EQ(ColorDependence::ColorVector, ref.colorDependence);
+        for (int color = 0; color < MAX_COLORS; ++color) {
+            ref.value[color] = std::get<float>(number._min) + (std::get<float>(number._max) - std::get<float>(number._min)) * color / 11;
+        }
+        ImVec2 expand, slider, revert;
+        ImGuiID active = 0;
+        auto draw = [&] {
+            frame([&] {
+                auto start = ImGui::GetCursorScreenPos();
+                expand = {start.x + 8, start.y + ImGui::GetFrameHeight() / 2};
+                slider = {start.x + 100, start.y + ImGui::GetFrameHeight() / 2 + 2 * (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y)};
+                auto width = ImGui::GetContentRegionAvail().x - scale(360);
+                revert = {
+                    start.x + width + ImGui::GetStyle().ItemSpacing.x + (ImGui::CalcTextSize(ICON_FA_UNDO).x + ImGui::GetStyle().FramePadding.x * 2) / 2,
+                    expand.y};
+                parametersGroup({parameter}, *values, *defaults, 0);
+                ImGui::PushID(0);
+                ImGui::PushID(parameter._name.c_str());
+                ImGui::PushID("");
+                ImGui::PushID(2);
+                auto current = ImGui::GetID("##slider");
+                if (!active) {
+                    active = current;
+                }
+                EXPECT_EQ(active, current);
+                ImGui::PopID();
+                ImGui::PopID();
+                ImGui::PopID();
+                ImGui::PopID();
+            });
+        };
+        auto click = [&](ImVec2 position) {
+            io.AddMousePosEvent(position.x, position.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+        };
+        draw();
+        draw();
+        click(expand);
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        click(slider);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        draw();
+        ASSERT_EQ(active, GImGui->ActiveId);
+        float edited = (std::get<float>(number._min) + std::get<float>(number._max)) / 2;
+        io.AddInputCharactersUTF8(std::to_string(edited).c_str());
+        draw();
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_EQ(active, GImGui->ActiveId);
+            for (int color = 0; color < MAX_COLORS; ++color) {
+                EXPECT_FLOAT_EQ(
+                    color == 2 ? edited : std::get<float>(number._min) + (std::get<float>(number._max) - std::get<float>(number._min)) * color / 11,
+                    ref.value[color]);
+            }
+        }
+        io.AddKeyEvent(ImGuiKey_Enter, true);
+        draw();
+        io.AddKeyEvent(ImGuiKey_Enter, false);
+        draw();
+        click(revert);
+        for (int color = 0; color < MAX_COLORS; ++color) {
+            EXPECT_FLOAT_EQ(original.value[color], ref.value[color]);
+        }
+        click(expand);
+    }
+}
+TEST_F(LocalizationGuiTests, l2b4dCombatGroupsRetainExpansionAndCanonicalIds)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (auto name : {"Cell type: Attacker", "Cell type: Digestor", "Cell type: Defender", "Cell type: Injector"}) {
+        auto const& group = parameterGroup(SimulationParameters::getSpec(), name);
+        ImGuiID originalId = 0;
+        ImVec2 header;
+        bool open = false;
+        auto draw = [&] {
+            frame([&] {
+                ImGui::PushID(name);
+                open = AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name(name).label(SimulationParametersPresentation::label(group)));
+                auto id = ImGui::GetItemID();
+                if (!originalId) {
+                    originalId = id;
+                }
+                EXPECT_EQ(originalId, id);
+                header = GImGui->LastItemData.Rect.GetCenter();
+                if (open) {
+                    parametersGroup(group._parameters, *values, *defaults, 0);
+                }
+                AlienGui::EndTreeNode();
+                ImGui::PopID();
+            });
+        };
+        auto click = [&] {
+            io.AddMousePosEvent(header.x, header.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+        };
+        select("en");
+        draw();
+        draw();
+        ASSERT_TRUE(open);
+        click();
+        ASSERT_FALSE(open);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_FALSE(open);
+            EXPECT_EQ(*defaults, *values);
+        }
+        click();
+        ASSERT_TRUE(open);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            draw();
+            EXPECT_TRUE(open);
+            EXPECT_EQ(*defaults, *values);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l2b4dLayerMatrixUsesProductionDispatcherAndRetainsBaseValues)
+{
+    static_assert(MAX_COLORS == 10);
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    values->numLayers = defaults->numLayers = 1;
+    values->layerOrderNumbers[0] = defaults->layerOrderNumbers[0] = 1;
+    values->attackerFoodChainColorMatrix.layerValues[0].enabled = true;
+    defaults->attackerFoodChainColorMatrix.layerValues[0].enabled = true;
+    auto& matrix = values->attackerFoodChainColorMatrix.layerValues[0].value.values;
+    auto const& spec = *combatParameters().at(1);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImGuiID activate = 0, editId = 0, resetId = 0, toggleId = 0;
+    auto draw = [&] {
+        frame([&] {
+            ImGui::PushID(0);
+            ImGui::PushID(spec._name.c_str());
+            editId = ImGui::GetID("Edit matrix");
+            toggleId = ImGui::GetID(ICON_FA_PLUS_SQUARE "##toggle");
+            resetId = ImGui::GetID((std::string(ICON_FA_UNDO) + "##" + spec._name).c_str());
+            ImGui::PopID();
+            ImGui::PopID();
+            if (activate) {
+                GImGui->NavActivateId = activate;
+                GImGui->NavActivateDownId = activate;
+                GImGui->NavActivatePressedId = activate;
+            }
+            parametersGroup({spec}, *values, *defaults, 1);
+        });
+        activate = 0;
+    };
+    auto press = [&](ImGuiID id) {
+        activate = id;
+        draw();
+        draw();
+    };
+    draw();
+    draw();
+    auto originalEdit = editId;
+    auto expandedTable = [&] {
+        for (int i = 0; i < GImGui->Tables.GetBufSize(); ++i) {
+            auto table = GImGui->Tables.GetByIndex(i);
+            if (table->OuterWindow == ImGui::FindWindowByName("Host") && table->LastFrameActive == GImGui->FrameCount) {
+                return true;
+            }
+        }
+        return false;
+    };
+    EXPECT_FALSE(expandedTable());
+    press(toggleId);
+    EXPECT_TRUE(expandedTable());
+    press(editId);
+    auto popup = ImGui::FindWindowByName(spec._name.c_str());
+    ImGui::SetWindowSize(popup, {900, 1100});
+    draw();
+    draw();
+    ASSERT_NE(nullptr, popup);
+    EXPECT_EQ(ImHashStr(spec._name.c_str()), popup->ID);
+    auto buttonId = [&](char const* name) {
+        auto seed = ImHashStr(spec._name.c_str(), 0, popup->ID);
+        return ImHashStr(name, 0, seed);
+    };
+    auto cellId = [&](int row, int col) {
+        for (int i = 0; i < GImGui->Tables.GetBufSize(); ++i) {
+            auto table = GImGui->Tables.GetByIndex(i);
+            if (table->OuterWindow && table->OuterWindow->ParentWindow == popup) {
+                EXPECT_EQ(11, table->ColumnsCount);
+                ++row;
+                ++col;
+                auto seed = ImHashData(&row, sizeof(row), table->ID);
+                seed = ImHashData(&col, sizeof(col), seed);
+                seed = ImHashStr("", 0, seed);
+                seed = ImHashStr("", 0, seed);
+                int color = 0;
+                seed = ImHashData(&color, sizeof(color), seed);
+                return ImHashStr("##slider", 0, seed);
+            }
+        }
+        ADD_FAILURE() << "Missing production matrix table";
+        return ImGuiID(0);
+    };
+    auto snapshot = std::make_unique<SimulationParameters>(*values);
+    auto directedId = cellId(2, 7);
+    auto input = [&](int row, int col, float value) {
+        auto id = cellId(row, col);
+        ImVec2 pos;
+        for (int i = 0; i < GImGui->Tables.GetBufSize(); ++i) {
+            auto table = GImGui->Tables.GetByIndex(i);
+            if (table->OuterWindow && table->OuterWindow->ParentWindow == popup) {
+                auto child = table->OuterWindow;
+                auto height = ImGui::GetFrameHeight() + ImGui::GetStyle().CellPadding.y * 2;
+                pos = {table->Columns[col + 1].MinX + 8, table->OuterRect.Min.y + height * (row + 1) + height / 2};
+                if (pos.y > child->InnerRect.Max.y) {
+                    ImGui::SetScrollY(child, child->Scroll.y + pos.y - child->InnerRect.Max.y + height);
+                    draw();
+                    draw();
+                    pos.y -= child->Scroll.y;
+                }
+            }
+        }
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddMousePosEvent(pos.x, pos.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        draw();
+        EXPECT_EQ(id, GImGui->ActiveId) << row << "," << col;
+        io.AddInputCharactersUTF8(std::to_string(value).c_str());
+        draw();
+        io.AddKeyEvent(ImGuiKey_Enter, true);
+        draw();
+        io.AddKeyEvent(ImGuiKey_Enter, false);
+        draw();
+    };
+    for (int row = 0; row < MAX_COLORS; ++row) {
+        for (int col = 0; col < MAX_COLORS; ++col) {
+            auto value = row == 9 && col == 9 ? 1.0f : row == 2 && col == 7 ? 0.25f : row == 7 && col == 2 ? 0.75f : float((row * 7 + col * 3) % 101) / 100;
+            input(row, col, value);
+        }
+    }
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        draw();
+        EXPECT_EQ(originalEdit, editId);
+        EXPECT_TRUE(expandedTable());
+        EXPECT_EQ(popup, ImGui::FindWindowByName(spec._name.c_str()));
+        EXPECT_EQ(directedId, cellId(2, 7));
+        EXPECT_EQ(*snapshot, *values);
+    }
+    press(buttonId("Adopt"));
+    for (int row = 0; row < MAX_COLORS; ++row) {
+        for (int col = 0; col < MAX_COLORS; ++col) {
+            auto expected = row == 9 && col == 9 ? 1.0f : row == 2 && col == 7 ? 0.25f : row == 7 && col == 2 ? 0.75f : float((row * 7 + col * 3) % 101) / 100;
+            EXPECT_FLOAT_EQ(expected, matrix[row][col]) << row << "," << col;
+        }
+    }
+    auto adopted = std::make_unique<SimulationParameters>(*values);
+    press(editId);
+    input(7, 2, 0.5f);
+    press(buttonId("Cancel"));
+    EXPECT_EQ(*adopted, *values);
+    press(resetId);
+    EXPECT_EQ(defaults->customizationTransitionMatrix, values->customizationTransitionMatrix);
+}
+TEST_F(LocalizationGuiTests, l2b4dProductionHelpMarkersShowCompleteDescriptionsInBothLanguages)
+{
+    auto values = std::make_unique<SimulationParameters>();
+    auto defaults = std::make_unique<SimulationParameters>();
+    auto& io = ImGui::GetIO();
+    for (auto factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru"}) {
+            select(language);
+            for (float width : {650.0f, 950.0f}) {
+                for (auto parameter : combatParameters()) {
+                    ImVec2 marker;
+                    std::string logged;
+                    auto draw = [&] {
+                        switcherFrame(width * factor, [&] {
+                            ImGui::LogToBuffer();
+                            parametersGroup({*parameter}, *values, *defaults, 0);
+                            marker = GImGui->LastItemData.Rect.GetCenter();
+                            logged = GImGui->LogBuffer.c_str();
+                            ImGui::LogFinish();
+                        });
+                    };
+                    io.AddMousePosEvent(-100, -100);
+                    draw();
+                    draw();
+                    io.AddMousePosEvent(marker.x, marker.y);
+                    draw();
+                    draw();
+                    auto description = *SimulationParametersPresentation::description(*parameter);
+                    size_t start = 0;
+                    while (start < description.size()) {
+                        auto end = description.find('\n', start);
+                        auto line = description.substr(start, end == std::string::npos ? end : end - start);
+                        if (!line.empty()) {
+                            EXPECT_NE(std::string::npos, logged.find(line)) << parameter->_name << ": " << language << ": " << width;
+                        }
+                        if (end == std::string::npos) {
+                            break;
+                        }
+                        start = end + 1;
+                    }
+                }
+            }
+        }
+    }
+    EXPECT_EQ(*defaults, *values);
+}

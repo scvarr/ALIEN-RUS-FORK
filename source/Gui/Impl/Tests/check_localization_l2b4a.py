@@ -24,7 +24,7 @@ class L2b4aContracts(unittest.TestCase):
     def test_eight_unique_typed_bindings_and_complete_descriptions(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(378, len(en))
+        self.assertEqual(408, len(en))
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         blocks = declarations()
         for typ, member, group, russian in MEMBERS:
