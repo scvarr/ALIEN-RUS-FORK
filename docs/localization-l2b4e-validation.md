@@ -6,7 +6,9 @@ Date: 2026-10-22 (Europe/Moscow).
 
 Base SHA: `80f106a6485a0caedc5d77849f221e12db671790`. After fetching origin,
 HEAD, main and origin/main matched this SHA. The index and working tree were
-clean. Work is on `feat/ru-localization-l2b4e`; main is not merged or changed.
+clean. The implementation was delivered on `feat/ru-localization-l2b4e` without
+changing main. Subsequent user acceptance and integration authorization are
+recorded below.
 
 AGENTS.md, the normative glossary, all four L2-B4a/B4b/B4c/B4d reports,
 SimulationParameters.cpp/.h, SimulationParametersSpecification.h,
@@ -183,8 +185,9 @@ successfully and defaults to 1.5:
 ```
 
 The review launcher/executable and raw logs are ignored local acceptance
-artifacts, rather than a tracked alternate application. Interactive visual
-acceptance remains for the user; headless layout and input checks are automated.
+artifacts, rather than a tracked alternate application. At initial delivery,
+interactive visual acceptance remained for the user; headless layout and input
+checks were automated. Successful user acceptance is recorded below.
 
 ## GitNexus and limitations
 
@@ -245,3 +248,47 @@ tests exercise an independently enabled override and verify its stored flag.
 6. Repeat at 1.0 and 2.0, with narrow/wide parameter windows. Check full captions
    or their hover text, help markers, row controls, ten-row ordering and absence
    of overlap. Close without opening or saving real user worlds.
+
+## User acceptance and integration review
+
+Date: 2026-10-22 (Europe/Moscow).
+
+The user confirms successful visual acceptance of implementation commit
+`30e6afa39c18b72190212d095d1b54f6c7edfa59` across all six manual acceptance
+scenarios above:
+
+1. All five group headings, nine captions and complete descriptions.
+2. English/Russian search, expert headings and original ordering.
+3. Color-dependent numeric editing, language switching, focus and reset.
+4. The ten-row transition editor, target colors, durations, Infinity and row reset.
+5. Independent layer overrides, expert off/on retention, synthetic save/load
+   and both prior matrix dialogs.
+6. Narrow/wide window layouts and scales 1.0, 1.5 and 2.0.
+
+Result reported by the user: successful acceptance of all six scenarios. This
+records the user's visual verification; no new GPU or biological-dynamics
+validation is claimed. The user authorizes closing L2-B4e, fast-forward
+integration into main, pushing main to origin and removing the integrated
+feature branch locally and remotely. L3 remains outside scope.
+
+After fetching origin, main and origin/main both match
+`80f106a6485a0caedc5d77849f221e12db671790`; the feature branch and its origin
+tracking ref both match the accepted implementation SHA. The index and working
+tree are clean, the feature is ahead one / behind zero, and there is no other
+worktree. The baseline is an ancestor of the feature, allowing fast-forward.
+The reviewed diff contains only the documented L2-B4e implementation, catalogs,
+tests and validation report; it has no unrelated changes. `git diff --check`
+passes.
+
+This follow-up changes only this report. Implementation code and catalogs remain
+identical to the accepted SHA. The successful Release build, 602 passing C++
+tests, 49 passing Python checks and one previously disabled test remain the
+validation evidence; no new implementation change justifies repeating them.
+No full build or test suite is rerun during integration.
+
+AGENTS.md retains its original bytes (SHA-256
+`090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`)
+and skip-worktree flag. Integration does not run the application or touch user
+worlds, genomes, profiles, settings, dependencies or submodules. No CodeQL,
+submodule update or L3 work is performed. This documentation commit is published
+on the feature branch before the authorized fast-forward integration.
