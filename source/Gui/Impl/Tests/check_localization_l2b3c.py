@@ -35,7 +35,7 @@ class L2b3cContracts(unittest.TestCase):
     def test_all_twenty_one_typed_bindings_and_exact_english(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(306, len(en))
+        self.assertEqual(325, len(en))
         blocks = declarations()
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         self.assertEqual(21, len(MEMBERS))

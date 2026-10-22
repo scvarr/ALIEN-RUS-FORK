@@ -221,6 +221,30 @@ namespace
         if (references<FloatSpec>(spec, &SimulationParameters::sourceRadiationAngle)) {
             return "parameters.radiation.sourceradiationangle";
         }
+        if (references<IntSpec>(spec, &SimulationParameters::maxCellAge)) {
+            return "parameters.lifecycle.maxcellage";
+        }
+        if (references<IntSpec>(spec, &SimulationParameters::freeCellMaxAge)) {
+            return "parameters.lifecycle.freecellmaxage";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::minCellEnergy)) {
+            return "parameters.lifecycle.mincellenergy";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::normalCellEnergy)) {
+            return "parameters.lifecycle.normalcellenergy";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::cellDeathProbability)) {
+            return "parameters.lifecycle.celldeathprobability";
+        }
+        if (references<BoolSpec>(spec, &SimulationParameters::particleTransformationAllowed)) {
+            return "parameters.lifecycle.particletransformationallowed";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::constructorConnectingCellDistance)) {
+            return "parameters.construction.constructorconnectingcelldistance";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::newLineageThreshold)) {
+            return "parameters.mutations.newlineagethreshold";
+        }
         return {};
     }
 
@@ -296,6 +320,15 @@ std::string SimulationParametersPresentation::label(ParameterGroupSpec const& sp
     }
     if (spec._name == "Radiation") {
         return translated("parameters.radiation.name", spec._name);
+    }
+    if (spec._name == "Cell life cycle") {
+        return translated("parameters.lifecycle.name", spec._name);
+    }
+    if (spec._name == "Cell construction") {
+        return translated("parameters.construction.name", spec._name);
+    }
+    if (spec._name == "Mutations") {
+        return translated("parameters.mutations.name", spec._name);
     }
     return spec._name;
 }
