@@ -39,9 +39,9 @@ class L4a2Contracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {k: values[k] for k in old})
-            self.assertEqual(66, sum(not k.startswith("node.") for k in values) - len(old))
+            self.assertEqual(66, sum(not k.startswith(("node.", "mutation.")) for k in values) - len(old))
             for k in values.keys() - old.keys():
-                if k.startswith("node."):
+                if k.startswith(("node.", "mutation.")):
                     continue
                 self.assertTrue(k.startswith('neural.'))
                 self.assertTrue(values[k])
@@ -81,8 +81,7 @@ class L4a2Contracts(unittest.TestCase):
     def test_later_node_modes_and_shared_data_contracts_are_unchanged(self):
         # Node properties are covered by the L4-A3 state and source contracts.
         for path in ['source/Data/GenomeDesc.h', 'source/Data/CellTypeConstants.h',
-                     'source/Persister/Interface/SerializerService.cpp', 'source/Gui/Impl/MutationRatesWidget.cpp',
-                     'source/Gui/Impl/MutationRatesDialog.cpp', 'source/Gui/Impl/GenomeIssueDescription.cpp',
+                     'source/Persister/Interface/SerializerService.cpp', 'source/Gui/Impl/GenomeIssueDescription.cpp',
                      'source/Gui/Impl/SignalsBufferDialog.cpp', 'source/Gui/Impl/GeneGraphWidget.cpp']:
             self.assertEqual(original(path), read(ROOT / path), path)
 

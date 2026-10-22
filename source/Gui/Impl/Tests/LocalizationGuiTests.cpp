@@ -40,6 +40,9 @@
 #include <Gui/Impl/GenomeWindowEditData.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
+#include <Gui/Impl/MutationRatesDialog.h>
+#include <Gui/Impl/MutationRatesPresentation.h>
+#include <Gui/Impl/MutationRatesWidget.h>
 #include <Gui/Impl/NeuralNetEditorPresentation.h>
 #include <Gui/Impl/NeuralNetEditorWidget.h>
 #include <Gui/Impl/NewSimulationDialog.h>
@@ -332,6 +335,12 @@ protected:
     }
 
     void drawActivity(CreaturePreviewWidget const& editor, bool& changed, ContentDesc& phenotype) { editor->processNeuralActivityEditor(changed, phenotype); }
+
+    MutationRatesDesc& mutationDraft(MutationRatesDialog& dialog) { return dialog._mutation; }
+    bool mutationOpen(MutationRatesDialog& dialog) { return dialog._modalWindow.isOpen(); }
+    void mutationContent(MutationRatesDialog& dialog) { dialog.processContent(); }
+    void mutationButtons(MutationRatesDialog& dialog) { dialog.processButtons(); }
+    void clearMutationClipboard() { MutationRatesDialog::_clipboard.reset(); }
 
     float _originalScale = 1;
     std::string _language;
@@ -7169,4 +7178,269 @@ TEST_F(LocalizationGuiTests, l4a3ColorAndChannelMasksKeepLegacyIdsAndBitOrder)
     EXPECT_TRUE(bits[1]);
     EXPECT_FALSE(bits[2]);
     EXPECT_TRUE(bits[3]);
+}
+
+TEST_F(LocalizationGuiTests, l4a4MutationDescriptionsAndMissingCatalogFallback)
+{
+    std::vector<EntityAttribute> attributes = {
+        EntityAttribute::GenomeMutationRatesEdit,
+        EntityAttribute::GenomeMutationRatesSummary,
+        EntityAttribute::MutationConnectionProbability,
+        EntityAttribute::MutationConnectionValueChangeSigma,
+        EntityAttribute::MutationNeuronProbability,
+        EntityAttribute::MutationNeuronWeightChangeSigma,
+        EntityAttribute::MutationNeuronBiasChangeSigma,
+        EntityAttribute::MutationNeuronActfnChangeProbability,
+        EntityAttribute::MutationCellTypePropertiesProbability,
+        EntityAttribute::MutationCellTypePropertiesValueChangeSigma,
+        EntityAttribute::MutationCellTypePropertiesEnumChangeProbability,
+        EntityAttribute::MutationGeometryProbability,
+        EntityAttribute::MutationGeometryValueChangeSigma,
+        EntityAttribute::MutationGeometryEnumChangeProbability,
+        EntityAttribute::MutationCellTypeModeProbability,
+        EntityAttribute::MutationCellTypeProbability,
+        EntityAttribute::MutationCustomizationProbability,
+        EntityAttribute::MutationVoidProbability,
+        EntityAttribute::MutationExtendGeneProbability,
+        EntityAttribute::MutationAddNodeProbability,
+        EntityAttribute::MutationTrimGeneProbability,
+        EntityAttribute::MutationDeleteNodeProbability,
+        EntityAttribute::MutationAddGeneProbability,
+        EntityAttribute::MutationDuplicateGeneProbability,
+        EntityAttribute::MutationDeleteGeneProbability,
+        EntityAttribute::MutationSwapGeneProbability,
+        EntityAttribute::MutationCopyNodeSectionProbability,
+        EntityAttribute::MutationMoveNodeSectionProbability,
+        EntityAttribute::MutationConstructorProbability,
+        EntityAttribute::MutationConstructorValueChangeSigma,
+        EntityAttribute::MutationConstructorEnumChangeProbability,
+        EntityAttribute::MutationConstructorToggleProbability};
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        for (auto attribute : attributes) {
+            auto description = GenomeEditorPresentation::attributeDescription(attribute);
+            EXPECT_FALSE(description.empty());
+            EXPECT_EQ(std::string(language) == "en", description == EntityAttributeHelp::get(attribute));
+        }
+    }
+    LocalizationService::get().load("missing-l4a4-catalogs");
+    select("ru");
+    for (auto attribute : attributes) {
+        EXPECT_EQ(EntityAttributeHelp::get(attribute), GenomeEditorPresentation::attributeDescription(attribute));
+    }
+}
+
+TEST_F(LocalizationGuiTests, l4a4MutationDialogAndSummariesRetainAllValuesAtEveryScale)
+{
+    auto genome = syntheticEditorGenome();
+    auto& rates = genome._mutationRates;
+    rates._connectionMutations.at(0)._nodeProbability = 0.00017f;
+    rates._connectionMutations.at(1)._nodeProbability = 0.31f;
+    rates._neuronMutations.at(0)._nodeProbability = 0.25f;
+    rates._neuronMutations.at(1)._nodeProbability = 0.5f;
+    rates._cellTypePropertiesMutations.at(0)._nodeProbability = 0.3f;
+    rates._geometryMutations.at(1)._geneProbability = 0.4f;
+    rates._constructorMutations.at(1)._nodeProbability = 0.7f;
+    rates._cellTypeModeMutation._nodeProbability = 0.03125f;
+    rates._cellTypeMutation._nodeProbability = 0.03125f;
+    rates._customizationMutation._genomeProbability = 0.03125f;
+    rates._voidMutation._nodeProbability = 0.03125f;
+    rates._extendGeneMutation._geneProbability = 0.03125f;
+    rates._addNodeMutation._nodeProbability = 0.03125f;
+    rates._trimGeneMutation._geneProbability = 0.03125f;
+    rates._deleteNodeMutation._nodeProbability = 0.03125f;
+    rates._addGeneMutation._geneProbability = 0.03125f;
+    rates._duplicateGeneMutation._geneProbability = 0.03125f;
+    rates._deleteGeneMutation._geneProbability = 0.03125f;
+    rates._swapGeneMutation._geneProbability = 0.03125f;
+    rates._copyNodeSectionMutation._geneProbability = 0.03125f;
+    rates._moveNodeSectionMutation._geneProbability = 0.03125f;
+    auto original = genome;
+    MutationRatesWidget widget;
+    MutationRatesDialog dialog;
+    dialog.open(rates, [&](auto const& adopted) { rates = adopted; });
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (float width : {700.0f, 1800.0f}) {
+                switcherFrame(width * factor, [&] {
+                    widget.process(rates, 360, true);
+                    widget.processAsSingleRow(rates, 360);
+                    ImGui::SetNextWindowSize({width * factor, 900 * factor});
+                    dialog.process();
+                    for (auto name :
+                         {"Node probability",
+                          "Gene probability",
+                          "Genome probability",
+                          "Value change sigma",
+                          "Weight change sigma",
+                          "Bias change sigma",
+                          "ActFn change probability",
+                          "Enum change probability",
+                          "Constructor toggle probability"}) {
+                        auto text = MutationRatesPresentation::label(name);
+                        EXPECT_LE(ImGui::CalcTextSize(text.c_str()).x + scale(35), scale(MutationRatesPresentation::parameterLabelWidth()) + 0.01f);
+                    }
+                });
+                EXPECT_TRUE(mutationOpen(dialog));
+                EXPECT_EQ(original._mutationRates, mutationDraft(dialog));
+                EXPECT_EQ(original, genome);
+                EXPECT_GT(MutationRatesPresentation::parameterLabelWidth(), 0);
+            }
+        }
+    }
+    auto directory = std::filesystem::temp_directory_path() / ("alien-l4a4-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(directory);
+    auto file = directory / "synthetic.genome";
+    ASSERT_TRUE(SerializerService::get().serializeGenomeToFile(file, genome));
+    GenomeDesc loaded;
+    ASSERT_TRUE(SerializerService::get().deserializeGenomeFromFile(loaded, file));
+    EXPECT_TRUE(genome.equalWithoutId(loaded));
+    EXPECT_EQ(rates, loaded._mutationRates);
+    std::filesystem::remove_all(directory);
+}
+
+TEST_F(LocalizationGuiTests, l4a4ActiveProbabilityInputKeepsItsIdAndIndependentPartner)
+{
+    MutationRatesDialog dialog;
+    MutationRatesDesc rates;
+    rates._connectionMutations.at(0)._nodeProbability = 0.125f;
+    rates._connectionMutations.at(1)._nodeProbability = 0.875f;
+    dialog.open(rates, [](auto const&) {});
+    auto draw = [&] { frame([&] { mutationContent(dialog); }); };
+    draw();
+    draw();
+    ImGuiWindow* child = nullptr;
+    for (auto window : GImGui->Windows) {
+        if (std::string(window->Name).find("MutationRateContent") != std::string::npos) {
+            child = window;
+            break;
+        }
+    }
+    ASSERT_NE(nullptr, child);
+    auto start = child->DC.CursorStartPos;
+    auto const& style = ImGui::GetStyle();
+    auto headerHeight = StyleService::get().getSmallBoldFont()->FontSize + 2 * style.FramePadding.y + style.ItemSpacing.y;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    io.AddMousePosEvent(start.x + 2 * style.IndentSpacing + 40, start.y + 2 * headerHeight + 2 * style.CellPadding.y + ImGui::GetFrameHeight() / 2);
+    draw();
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    io.AddMouseButtonEvent(0, true);
+    draw();
+    auto active = GImGui->ActiveId;
+    ASSERT_NE(0u, active);
+    io.AddMouseButtonEvent(0, false);
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    draw();
+    select("ru");
+    draw();
+    EXPECT_EQ(active, GImGui->ActiveId);
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    io.AddKeyEvent(ImGuiKey_A, true);
+    draw();
+    io.AddKeyEvent(ImGuiKey_A, false);
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    io.AddInputCharactersUTF8("0.375");
+    draw();
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    draw();
+    io.AddKeyEvent(ImGuiKey_Enter, false);
+    draw();
+    EXPECT_FLOAT_EQ(0.375f, mutationDraft(dialog)._connectionMutations.at(0)._nodeProbability);
+    EXPECT_FLOAT_EQ(0.875f, mutationDraft(dialog)._connectionMutations.at(1)._nodeProbability);
+    EXPECT_EQ(rates._neuronMutations, mutationDraft(dialog)._neuronMutations);
+    auto genome = syntheticEditorGenome();
+    genome._mutationRates = mutationDraft(dialog);
+    auto file = std::filesystem::temp_directory_path()
+        / ("alien-l4a4-edited-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".genome");
+    ASSERT_TRUE(SerializerService::get().serializeGenomeToFile(file, genome));
+    GenomeDesc loaded;
+    ASSERT_TRUE(SerializerService::get().deserializeGenomeFromFile(loaded, file));
+    EXPECT_TRUE(genome.equalWithoutId(loaded));
+    EXPECT_FLOAT_EQ(0.375f, loaded._mutationRates._connectionMutations.at(0)._nodeProbability);
+    std::filesystem::remove(file);
+}
+
+TEST_F(LocalizationGuiTests, l4a4MutationCopyResetPasteAdoptAndCancelUseProductionButtons)
+{
+    clearMutationClipboard();
+    MutationRatesDesc original;
+    original._connectionMutations.at(0)._nodeProbability = 0.125f;
+    original._connectionMutations.at(1)._nodeProbability = 0.875f;
+    original._neuronMutations.at(1)._biasChangeSigma = 1.375f;
+    auto adopted = original;
+    int adopts = 0;
+    MutationRatesDialog dialog;
+    dialog.open(original, [&](auto const& value) {
+        adopted = value;
+        ++adopts;
+    });
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    ImVec2 target;
+    ImGuiID expected = 0;
+    auto draw = [&](std::string const& button) {
+        frame([&] {
+            auto start = ImGui::GetCursorScreenPos();
+            auto const& style = ImGui::GetStyle();
+            float x = start.x;
+            for (auto const& [canonical, key] :
+                 std::vector<std::pair<std::string, std::string>>{{"Adopt", "mutation.adopt"}, {"Cancel", "mutation.cancel"}, {"Reset", "mutation.reset"}}) {
+                auto width = ImGui::CalcTextSize(tr(key).c_str()).x + style.FramePadding.x * 2;
+                if (canonical == button) {
+                    target = {x + width / 2, start.y + ImGui::GetFrameHeight() / 2};
+                }
+                x += width + style.ItemSpacing.x;
+            }
+            auto copyWidth = ImGui::CalcTextSize(tr("mutation.copy").c_str()).x + style.FramePadding.x * 2;
+            auto pasteWidth = ImGui::CalcTextSize(tr("mutation.paste").c_str()).x + style.FramePadding.x * 2;
+            auto right = start.x + ImGui::GetContentRegionAvail().x;
+            if (button == "Copy")
+                target = {right - pasteWidth - style.ItemSpacing.x - copyWidth / 2, start.y + ImGui::GetFrameHeight() / 2};
+            if (button == "Paste")
+                target = {right - pasteWidth / 2, start.y + ImGui::GetFrameHeight() / 2};
+            expected = ImGui::GetID(button.c_str());
+            mutationButtons(dialog);
+        });
+    };
+    auto click = [&](std::string const& button, bool switchWhileHeld = false) {
+        draw(button);
+        draw(button);
+        io.AddMousePosEvent(target.x, target.y);
+        draw(button);
+        io.AddMouseButtonEvent(0, true);
+        draw(button);
+        EXPECT_EQ(expected, GImGui->ActiveId);
+        if (switchWhileHeld) {
+            select("ru");
+            draw(button);
+            EXPECT_EQ(expected, GImGui->ActiveId);
+            io.AddMousePosEvent(target.x, target.y);
+            draw(button);
+        }
+        io.AddMouseButtonEvent(0, false);
+        draw(button);
+    };
+    click("Copy", true);
+    EXPECT_EQ(tr("mutation.copied"), overlayMessage());
+    click("Reset");
+    EXPECT_EQ(MutationRatesDesc(), mutationDraft(dialog));
+    EXPECT_EQ(original, adopted);
+    EXPECT_EQ(0, adopts);
+    EXPECT_EQ(tr("mutation.resetmessage"), overlayMessage());
+    click("Paste");
+    EXPECT_EQ(original, mutationDraft(dialog));
+    EXPECT_EQ(tr("mutation.pasted"), overlayMessage());
+    mutationDraft(dialog)._connectionMutations.at(0)._nodeProbability = 0.625f;
+    click("Adopt");
+    EXPECT_EQ(1, adopts);
+    EXPECT_FLOAT_EQ(0.625f, adopted._connectionMutations.at(0)._nodeProbability);
+    EXPECT_FLOAT_EQ(0.875f, adopted._connectionMutations.at(1)._nodeProbability);
+    dialog.open(adopted, [&](auto const&) { ++adopts; });
+    click("Reset");
+    click("Cancel");
+    EXPECT_EQ(1, adopts);
+    EXPECT_FALSE(mutationOpen(dialog));
 }

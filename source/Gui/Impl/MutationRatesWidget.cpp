@@ -13,6 +13,8 @@
 
 #include "AlienGui.h"
 #include "EntityAttributeHelp.h"
+#include "GenomeEditorPresentation.h"
+#include "MutationRatesPresentation.h"
 #include "StyleService.h"
 
 namespace
@@ -119,19 +121,31 @@ void MutationRatesWidget::process(MutationRatesDesc& mutationRates, float rightC
 {
     ImGui::BeginDisabled(disabled);
     ImGui::BeginGroup();
+    rightColumnWidth = MutationRatesPresentation::labelWidth(rightColumnWidth, {"Click to edit"});
+    for (auto const& entry : getActiveMutationTypes(mutationRates)) {
+        rightColumnWidth = std::max(rightColumnWidth, scaleInverse(ImGui::CalcTextSize(MutationRatesPresentation::label(entry.name).c_str()).x) + 35.0f);
+    }
 
     if (AlienGui::Button(AlienGui::ButtonParameters()
                              .buttonText("Edit")
+                             .buttonLabel(tr("mutation.edit"))
                              .name("Click to edit")
+                             .label(tr("mutation.clicktoedit"))
                              .textWidth(rightColumnWidth)
-                             .tooltip(EntityAttributeHelp::get(EntityAttribute::GenomeMutationRatesEdit)))) {
+                             .tooltip(GenomeEditorPresentation::attributeDescription(EntityAttribute::GenomeMutationRatesEdit)))) {
         _dialog.open(mutationRates, [&mutationRates](MutationRatesDesc const& adoptedRates) { mutationRates = adoptedRates; });
     }
 
     for (auto const& [name, probabilities, attribute] : getActiveMutationTypes(mutationRates)) {
         auto value = probabilities;
         AlienGui::InputText(
-            AlienGui::InputTextParameters().name(name).readOnly(true).textWidth(rightColumnWidth).tooltip(EntityAttributeHelp::get(attribute)), value);
+            AlienGui::InputTextParameters()
+                .name(name)
+                .label(MutationRatesPresentation::label(name))
+                .readOnly(true)
+                .textWidth(rightColumnWidth)
+                .tooltip(GenomeEditorPresentation::attributeDescription(attribute)),
+            value);
     }
     ImGui::EndGroup();
     ImGui::EndDisabled();
@@ -143,18 +157,21 @@ void MutationRatesWidget::process(MutationRatesDesc& mutationRates, float rightC
 
 void MutationRatesWidget::processAsSingleRow(MutationRatesDesc& mutationRates, float rightColumnWidth)
 {
+    rightColumnWidth = MutationRatesPresentation::labelWidth(rightColumnWidth, {"Mutation rates"});
     auto activeMutationTypes = getActiveMutationTypes(mutationRates);
-    auto tooltip = EntityAttributeHelp::get(EntityAttribute::GenomeMutationRatesSummary);
+    auto tooltip = GenomeEditorPresentation::attributeDescription(EntityAttribute::GenomeMutationRatesSummary);
     if (!activeMutationTypes.empty()) {
-        tooltip += "\n\nActive mutation types:";
+        tooltip += "\n\n" + tr("mutation.active");
         for (auto const& [name, probabilities, attribute] : activeMutationTypes) {
-            tooltip += "\n" + name + ": " + probabilities;
+            tooltip += "\n" + MutationRatesPresentation::label(name) + ": " + probabilities;
         }
     }
 
     if (AlienGui::Button(AlienGui::ButtonParameters()
                              .buttonText("Edit (" + std::to_string(activeMutationTypes.size()) + " active)")
+                             .buttonLabel(GenomeEditorPresentation::format("mutation.editsummary", {{"count", std::to_string(activeMutationTypes.size())}}))
                              .name("Mutation rates")
+                             .label(tr("mutation.title"))
                              .textWidth(rightColumnWidth)
                              .tooltip(tooltip))) {
         _dialog.open(mutationRates, [&mutationRates](MutationRatesDesc const& adoptedRates) { mutationRates = adoptedRates; });

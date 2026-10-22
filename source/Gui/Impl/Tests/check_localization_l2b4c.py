@@ -24,7 +24,7 @@ class L2b4cContracts(unittest.TestCase):
     def test_ten_typed_bindings_and_full_catalogs(self):
         en, ru = catalog('en'), catalog('ru')
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.")) for key in en))
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         blocks = declarations()
         for i, member in enumerate(MEMBERS):
@@ -73,7 +73,7 @@ class L2b4cContracts(unittest.TestCase):
                  'source/Data/SimulationParametersSpecification.h', 'source/Data/ParametersValidationService.cpp',
                  'source/Data/SpecificationEvaluationService.cpp', 'source/Engine/Impl/Kernels/MutationProcessor.cuh',
                  'source/Persister/Interface/SerializerService.cpp', 'docs/localization-terminology.md',
-                 'source/Gui/Impl/SpecificationGuiService.cpp', 'source/Gui/Impl/MutationRatesWidget.cpp',
+                 'source/Gui/Impl/SpecificationGuiService.cpp',
                  'source/Gui/Impl/AlienGui.cpp', 'source/Gui/Impl/AlienGui.h', 'source/Gui/Impl/ColorMatrixDialog.cpp']
         for file in files:
             from check_localization_l2b4d import legacy_float_matrix_text

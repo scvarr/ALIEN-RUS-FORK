@@ -155,6 +155,7 @@ add_library(GuiImpl
     MultiplierWidget.h
     MutationRatesDialog.cpp
     MutationRatesDialog.h
+    MutationRatesPresentation.h
     MutationRatesWidget.cpp
     MutationRatesWidget.h
     NetworkSettingsDialog.cpp

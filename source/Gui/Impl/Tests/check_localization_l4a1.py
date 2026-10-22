@@ -40,7 +40,7 @@ class L4a1Contracts(unittest.TestCase):
         for language, values in [("en", en), ("ru", ru)]:
             old = json.loads(original(f"resources/locales/{language}.json"))
             self.assertEqual(old, {key: values[key] for key in old})
-            self.assertEqual(134, sum(not k.startswith(("neural.", "node.")) for k in values) - len(old))
+            self.assertEqual(134, sum(not k.startswith(("neural.", "node.", "mutation.")) for k in values) - len(old))
             for key, text in values.items():
                 self.assertRegex(key, r"^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$")
                 self.assertTrue(text)
@@ -108,8 +108,7 @@ class L4a1Contracts(unittest.TestCase):
         self.assertIn("static_assert(keys.size() == CellType_Count)", adapter)
 
     def test_later_editors_and_data_contracts_remain_byte_identical(self):
-        for name in ("MutationRatesWidget.cpp", "MutationRatesDialog.cpp",
-                     "GenomeIssueDescription.cpp", "GeneGraphWidget.cpp"):
+        for name in ("GenomeIssueDescription.cpp", "GeneGraphWidget.cpp"):
             self.assertEqual(original("source/Gui/Impl/" + name), read(GUI / name))
         for path in ("source/Data/GenomeDesc.h", "source/Data/CellTypeConstants.h",
                      "source/Data/ShapeGenerator.h", "source/Persister/Interface/SerializerService.cpp"):

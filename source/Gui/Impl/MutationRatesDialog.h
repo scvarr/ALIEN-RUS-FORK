@@ -13,6 +13,8 @@
 // another dialog as well.
 class MutationRatesDialog
 {
+    friend class LocalizationGuiTests;
+
 public:
     MutationRatesDialog();
 

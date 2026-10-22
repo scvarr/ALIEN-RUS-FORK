@@ -304,6 +304,70 @@ namespace GenomeEditorPresentation
             return tr("node.attribute.communicatorrestricttocolors");
         case EntityAttribute::CommunicatorRestrictToLineage:
             return tr("node.attribute.communicatorrestricttolineage");
+        case EntityAttribute::GenomeMutationRatesEdit:
+            return tr("mutation.attribute.genomemutationratesedit");
+        case EntityAttribute::GenomeMutationRatesSummary:
+            return tr("mutation.attribute.genomemutationratessummary");
+        case EntityAttribute::MutationConnectionProbability:
+            return tr("mutation.attribute.mutationconnectionprobability");
+        case EntityAttribute::MutationConnectionValueChangeSigma:
+            return tr("mutation.attribute.mutationconnectionvaluechangesigma");
+        case EntityAttribute::MutationNeuronProbability:
+            return tr("mutation.attribute.mutationneuronprobability");
+        case EntityAttribute::MutationNeuronWeightChangeSigma:
+            return tr("mutation.attribute.mutationneuronweightchangesigma");
+        case EntityAttribute::MutationNeuronBiasChangeSigma:
+            return tr("mutation.attribute.mutationneuronbiaschangesigma");
+        case EntityAttribute::MutationNeuronActfnChangeProbability:
+            return tr("mutation.attribute.mutationneuronactfnchangeprobability");
+        case EntityAttribute::MutationCellTypePropertiesProbability:
+            return tr("mutation.attribute.mutationcelltypepropertiesprobability");
+        case EntityAttribute::MutationCellTypePropertiesValueChangeSigma:
+            return tr("mutation.attribute.mutationcelltypepropertiesvaluechangesigma");
+        case EntityAttribute::MutationCellTypePropertiesEnumChangeProbability:
+            return tr("mutation.attribute.mutationcelltypepropertiesenumchangeprobability");
+        case EntityAttribute::MutationGeometryProbability:
+            return tr("mutation.attribute.mutationgeometryprobability");
+        case EntityAttribute::MutationGeometryValueChangeSigma:
+            return tr("mutation.attribute.mutationgeometryvaluechangesigma");
+        case EntityAttribute::MutationGeometryEnumChangeProbability:
+            return tr("mutation.attribute.mutationgeometryenumchangeprobability");
+        case EntityAttribute::MutationCellTypeModeProbability:
+            return tr("mutation.attribute.mutationcelltypemodeprobability");
+        case EntityAttribute::MutationCellTypeProbability:
+            return tr("mutation.attribute.mutationcelltypeprobability");
+        case EntityAttribute::MutationCustomizationProbability:
+            return tr("mutation.attribute.mutationcustomizationprobability");
+        case EntityAttribute::MutationVoidProbability:
+            return tr("mutation.attribute.mutationvoidprobability");
+        case EntityAttribute::MutationExtendGeneProbability:
+            return tr("mutation.attribute.mutationextendgeneprobability");
+        case EntityAttribute::MutationAddNodeProbability:
+            return tr("mutation.attribute.mutationaddnodeprobability");
+        case EntityAttribute::MutationTrimGeneProbability:
+            return tr("mutation.attribute.mutationtrimgeneprobability");
+        case EntityAttribute::MutationDeleteNodeProbability:
+            return tr("mutation.attribute.mutationdeletenodeprobability");
+        case EntityAttribute::MutationAddGeneProbability:
+            return tr("mutation.attribute.mutationaddgeneprobability");
+        case EntityAttribute::MutationDuplicateGeneProbability:
+            return tr("mutation.attribute.mutationduplicategeneprobability");
+        case EntityAttribute::MutationDeleteGeneProbability:
+            return tr("mutation.attribute.mutationdeletegeneprobability");
+        case EntityAttribute::MutationSwapGeneProbability:
+            return tr("mutation.attribute.mutationswapgeneprobability");
+        case EntityAttribute::MutationCopyNodeSectionProbability:
+            return tr("mutation.attribute.mutationcopynodesectionprobability");
+        case EntityAttribute::MutationMoveNodeSectionProbability:
+            return tr("mutation.attribute.mutationmovenodesectionprobability");
+        case EntityAttribute::MutationConstructorProbability:
+            return tr("mutation.attribute.mutationconstructorprobability");
+        case EntityAttribute::MutationConstructorValueChangeSigma:
+            return tr("mutation.attribute.mutationconstructorvaluechangesigma");
+        case EntityAttribute::MutationConstructorEnumChangeProbability:
+            return tr("mutation.attribute.mutationconstructorenumchangeprobability");
+        case EntityAttribute::MutationConstructorToggleProbability:
+            return tr("mutation.attribute.mutationconstructortoggleprobability");
         default:
             return EntityAttributeHelp::get(attribute);
         }
