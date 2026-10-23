@@ -12,6 +12,8 @@
 
 class _InspectionWindow
 {
+    friend class LocalizationGuiTests;
+
 public:
     _InspectionWindow(uint64_t entityId, RealVector2D const& initialPos, bool creatureMode);
     ~_InspectionWindow();
@@ -24,6 +26,8 @@ public:
 private:
     bool isExtendedObject() const;
     std::string generateTitle() const;
+    std::string generateTitleLabel() const;
+    bool beginWindow();
 
     void processObject(ExtendedObjectDesc& extendedObject);
     void processCreature(ExtendedObjectDesc& extendedObject);

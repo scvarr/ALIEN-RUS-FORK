@@ -443,7 +443,7 @@ void AlienGui::InputFloat2(InputFloat2Parameters const& parameters, float& value
         ImGui::EndDisabled();
     }
     ImGui::SameLine();
-    AlienGui::Text(AlienGui::TextParameters().text(parameters._name.c_str()));
+    AlienGui::Text(AlienGui::TextParameters().text(parameters._label.value_or(parameters._name)));
 
     if (parameters._tooltip) {
         HelpMarker(*parameters._tooltip);

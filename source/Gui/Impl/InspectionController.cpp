@@ -15,6 +15,7 @@
 #include "EditorModel.h"
 #include "GenericMessageDialog.h"
 #include "GenomeEditorWindow.h"
+#include "InspectionPresentation.h"
 #include "InspectionWindow.h"
 #include "OverlayController.h"
 #include "Viewport.h"
@@ -53,10 +54,8 @@ void InspectionController::onInspectSelectedObjects()
 {
     ContentDesc selectedData = _SimulationFacade::get()->getSelectedSimulationData(false);
     if (!inspectObjects(DescEditService::get().getObjects(selectedData), false)) {
-        std::string message = "Too many objects are selected for inspection. A maximum of ";
-        message += std::to_string(Const::MaxInspectedObjects);
-        message += " objects are allowed.";
-        showMessage("Inspection not possible", message);
+        GenericMessageDialog::get().localizedInformation(
+            "Inspection not possible", "inspection.impossible", "inspection.limit.objects", {{"count", std::to_string(Const::MaxInspectedObjects)}});
     }
 }
 
@@ -101,10 +100,8 @@ void InspectionController::onInspectSelectedGenomes()
     }
 
     if (uniqueGenomes.size() > MaxInspectedGenomes) {
-        std::string message = "Too many genomes are selected for inspection. A maximum of ";
-        message += std::to_string(MaxInspectedGenomes);
-        message += " genomes are allowed.";
-        showMessage("Inspection not possible", message);
+        GenericMessageDialog::get().localizedInformation(
+            "Inspection not possible", "inspection.impossible", "inspection.limit.genomes", {{"count", std::to_string(MaxInspectedGenomes)}});
         return;
     }
 
@@ -112,7 +109,7 @@ void InspectionController::onInspectSelectedGenomes()
         GenomeEditorWindow::get().openTab(uniqueGenome.genome, false, true, uniqueGenome.lineageId);
     }
 
-    printOverlayMessage(std::to_string(uniqueGenomes.size()) + (uniqueGenomes.size() == 1 ? " genome" : " genomes") + " inspected");
+    printOverlayMessage(GenomeEditorPresentation::count("inspection.genomes", static_cast<int>(uniqueGenomes.size())));
 }
 
 void InspectionController::onInspectSelectedCreatures()
@@ -165,10 +162,8 @@ void InspectionController::onInspectSelectedCreatures()
     }
 
     if (!inspectObjects(headCells, true)) {
-        std::string message = "Too many creatures are selected for inspection. A maximum of ";
-        message += std::to_string(Const::MaxInspectedObjects);
-        message += " creatures are allowed.";
-        showMessage("Inspection not possible", message);
+        GenericMessageDialog::get().localizedInformation(
+            "Inspection not possible", "inspection.impossible", "inspection.limit.creatures", {{"count", std::to_string(Const::MaxInspectedObjects)}});
     }
 }
 

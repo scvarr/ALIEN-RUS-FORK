@@ -34,10 +34,10 @@ class L4a3Contracts(unittest.TestCase):
         for language, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{language}.json'))
             self.assertEqual(old, {key: values[key] for key in old})
-            self.assertEqual(138, sum(not k.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.")) for k in values) - len(old))
+            self.assertEqual(138, sum(not k.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.")) for k in values) - len(old))
             source = read(GUI / 'NodeEditorWidget.cpp') + read(GUI / 'GenomeEditorPresentation.cpp')
             for key in values.keys() - old.keys():
-                if key.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.")):
+                if key.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.")):
                     continue
                 self.assertTrue(key.startswith('node.'))
                 self.assertRegex(key, r'^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$')
@@ -102,7 +102,7 @@ class L4a3Contracts(unittest.TestCase):
 
     def test_mutation_editor_engine_genomes_and_serialization_remain_unchanged(self):
         for path in ['source/Gui/Impl/EntityAttributeHelp.cpp',
-                     'source/Gui/Impl/InspectionWindow.cpp', 'source/Data/GenomeDesc.h',
+                     'source/Data/GenomeDesc.h',
                      'source/Persister/Interface/SerializerService.cpp', 'source/Data/ShapeGenerator.h']:
             self.assertEqual(original(path), read(ROOT / path), path)
 

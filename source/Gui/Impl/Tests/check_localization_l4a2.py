@@ -39,9 +39,9 @@ class L4a2Contracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {k: values[k] for k in old})
-            self.assertEqual(66, sum(not k.startswith(("node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.")) for k in values) - len(old))
+            self.assertEqual(66, sum(not k.startswith(("node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.")) for k in values) - len(old))
             for k in values.keys() - old.keys():
-                if k.startswith(("node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.")):
+                if k.startswith(("node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.")):
                     continue
                 self.assertTrue(k.startswith('neural.'))
                 self.assertTrue(values[k])

@@ -151,6 +151,7 @@ public:
     struct InputFloat2Parameters
     {
         MEMBER(InputFloat2Parameters, std::string, name, "");
+        MEMBER(InputFloat2Parameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(InputFloat2Parameters, std::string, format, "%.3f");
         MEMBER(InputFloat2Parameters, float, textWidth, 100);
         MEMBER(InputFloat2Parameters, std::optional<float>, defaultValue1, std::nullopt);

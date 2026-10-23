@@ -27,6 +27,7 @@
 #include <Gui/Impl/ChangeColorDialog.h>
 #include <Gui/Impl/CreaturePreviewWidget.h>
 #include <Gui/Impl/DelayedExecutionController.h>
+#include <Gui/Impl/EditorModel.h>
 #include <Gui/Impl/EntityAttributeHelp.h>
 #include <Gui/Impl/ExitDialog.h>
 #include <Gui/Impl/GeneEditorWidget.h>
@@ -40,6 +41,8 @@
 #include <Gui/Impl/GenomeTabLayoutData.h>
 #include <Gui/Impl/GenomeTabWidget.h>
 #include <Gui/Impl/GenomeWindowEditData.h>
+#include <Gui/Impl/InspectionPresentation.h>
+#include <Gui/Impl/InspectionWindow.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/MutationRatesDialog.h>
@@ -99,6 +102,34 @@ protected:
         ImGui::DestroyContext();
         GlobalSettings::get().setValue("settings.language", _language);
     }
+
+    std::string inspectionTitle(_InspectionWindow const& window) { return window.generateTitle(); }
+    bool beginInspection(_InspectionWindow& window) { return window.beginWindow(); }
+    float inspectionWidth(_InspectionWindow const& window) { return window.calcWindowWidth(); }
+    void drawInspectionObject(_InspectionWindow& window, ObjectDesc& object)
+    {
+        window.processObjectNode(object);
+        switch (object.getObjectType()) {
+        case ObjectType_Solid:
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            window.processSolidNode(object);
+            break;
+        case ObjectType_Fluid:
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            window.processFluidNode(object);
+            break;
+        case ObjectType_FreeCell:
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            window.processFreeCellNode(object);
+            break;
+        case ObjectType_Cell:
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+            window.processCellNode(object, GenomeDesc().name("User / Геном {id}"));
+            break;
+        }
+    }
+    void drawInspectionCreature(_InspectionWindow& window, ExtendedObjectDesc& object) { window.processCreatureProperties(object); }
+    void drawInspectionParticle(_InspectionWindow& window, EnergyDesc energy) { window.processParticle(energy); }
 
     void select(std::string const& language)
     {
@@ -7784,4 +7815,226 @@ TEST_F(LocalizationGuiTests, l4a5PreviewSettingsOpenModalKeepsDraftAcrossLanguag
     }
     closeImmediately(dialog);
     EXPECT_FALSE(tabData->showNodeIndex);
+}
+
+TEST_F(LocalizationGuiTests, l5aInspectorWindowsRetainIdentityDataAndPanelsAtAllScales)
+{
+    GenomeShellWorldScope world;
+    std::vector<ObjectTypeDesc> types{SolidDesc(), FluidDesc(), FreeCellDesc(), CellDesc()};
+    std::vector<CellTypeDesc> cells{
+        BaseDesc(),
+        DepotDesc(),
+        SensorDesc(),
+        GeneratorDesc(),
+        AttackerDesc(),
+        InjectorDesc(),
+        MuscleDesc(),
+        DefenderDesc(),
+        ReconnectorDesc(),
+        DetonatorDesc(),
+        DigestorDesc(),
+        MemoryDesc(),
+        CommunicatorDesc(),
+        VoidDesc()};
+    for (auto mode :
+         {SensorModeDesc(DetectEnergyDesc()), SensorModeDesc(DetectSolidDesc()), SensorModeDesc(DetectFreeCellDesc()), SensorModeDesc(DetectCreatureDesc())}) {
+        cells.emplace_back(SensorDesc().mode(mode));
+    }
+    for (auto mode :
+         {MuscleModeDesc(AutoBendingDesc()),
+          MuscleModeDesc(ManualBendingDesc()),
+          MuscleModeDesc(AngleBendingDesc()),
+          MuscleModeDesc(AutoCrawlingDesc()),
+          MuscleModeDesc(ManualCrawlingDesc()),
+          MuscleModeDesc(DirectMovementDesc())}) {
+        cells.emplace_back(MuscleDesc().mode(mode));
+    }
+    for (auto mode :
+         {MemoryModeDesc(SignalDelayDesc()),
+          MemoryModeDesc(SignalRecorderDesc()),
+          MemoryModeDesc(SignalStorageDesc()),
+          MemoryModeDesc(SignalIntegratorDesc())}) {
+        cells.emplace_back(MemoryDesc().mode(mode));
+    }
+    cells.emplace_back(DefenderDesc().mode(DefenderMode_DefendAgainstInjector));
+    cells.emplace_back(DetonatorDesc().state(DetonatorState_Activated));
+    cells.emplace_back(DetonatorDesc().state(DetonatorState_Exploded));
+    cells.emplace_back(GeneratorDesc().mode(SawtoothSignalDesc()));
+    cells.emplace_back(AttackerDesc().mode(AttackFreeCellDesc()));
+    cells.emplace_back(ReconnectorDesc().mode(ReconnectSolidDesc()));
+    cells.emplace_back(ReconnectorDesc().mode(ReconnectFreeCellDesc()));
+    cells.emplace_back(CommunicatorDesc().mode(SenderDesc()));
+    cells.emplace_back(CommunicatorDesc().mode(ReceiverDesc()));
+    for (auto const& cell : cells) {
+        types.emplace_back(CellDesc().cellType(cell).constructor(ConstructorDesc().provideEnergy(ProvideEnergy_Free)));
+    }
+    for (int state = 0; state < CellState_Count; ++state) {
+        types.emplace_back(CellDesc().cellState(state));
+    }
+    uint64_t id = 800;
+    for (auto const& type : types) {
+        auto object = ObjectDesc().id(++id).type(type);
+        object._connections.emplace_back(ConnectionDesc().objectId(1234).distance(1.25f));
+        if (object.getObjectType() == ObjectType_Cell && object.getCellRef().getCellType() == CellType_Memory) {
+            std::get<MemoryDesc>(object.getCellRef()._cellType)._channelBitMask = (1 << STANDARD_NEURONS_PER_CELL) - 1;
+        }
+        EditorModel::get().setInspectedEntities({ExtendedObjectDesc{object}});
+        _InspectionWindow inspector(id, {0, 0}, false);
+        ImGuiWindow* originalWindow = nullptr;
+        auto original = object;
+        for (float factor : {1.0f, 1.5f, 2.0f}) {
+            setTestScale(factor);
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                auto title = inspectionTitle(inspector);
+                EXPECT_EQ(ImHashStr(("Cell with id " + std::to_string(id)).c_str()), ImHashStr(title.c_str()));
+                ImGui::GetIO().DisplaySize = {3000, 2200};
+                for (int pass = 0; pass < 2; ++pass) {
+                    ImGui::NewFrame();
+                    ImGui::SetNextWindowPos({0, 0});
+                    ImGui::SetNextWindowSize({inspectionWidth(inspector), 1800});
+                    beginInspection(inspector);
+                    for (auto key : InspectionPresentation::labelKeys) {
+                        EXPECT_LE(ImGui::CalcTextSize(tr(key).c_str()).x + scale(12), inspectionWidth(inspector) - scale(170));
+                    }
+                    auto current = ImGui::GetCurrentWindow();
+                    if (!originalWindow) {
+                        originalWindow = current;
+                    }
+                    EXPECT_EQ(originalWindow, current);
+                    ImGui::LogToBuffer();
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+                    drawInspectionObject(inspector, object);
+                    auto log = std::string(GImGui->LogBuffer.c_str());
+                    ImGui::LogFinish();
+                    EXPECT_NE(std::string::npos, log.find(tr("inspection.label.objectid")));
+                    EXPECT_GT(current->ContentSize.x + current->Size.x, 0);
+                    ImGui::End();
+                    ImGui::Render();
+                }
+                EXPECT_EQ(original, object);
+                EXPECT_EQ(id, inspector.getId());
+                EXPECT_FALSE(inspector.isClosed());
+                EXPECT_TRUE(EditorModel::get().existsInspectedEntity(id));
+            }
+        }
+    }
+    EditorModel::get().setInspectedEntities({});
+}
+
+TEST_F(LocalizationGuiTests, l5aDescriptionsStatesCountsNamesAndLongRussianText)
+{
+    GenomeShellWorldScope world;
+    auto object = ObjectDesc().id(990).type(CellDesc());
+    auto creature = CreatureDesc().id(991);
+    auto genome = GenomeDesc().name("User / Геном {id}");
+    ExtendedObjectDesc extended{object, creature, genome};
+    EditorModel::get().setInspectedEntities({extended, EnergyDesc().id(992).energy(123.25f)});
+    _InspectionWindow inspector(990, {0, 0}, true);
+    _InspectionWindow particle(992, {0, 0}, false);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            EXPECT_EQ(ImHashStr("Creature with id 991"), ImHashStr(inspectionTitle(inspector).c_str()));
+            EXPECT_EQ(ImHashStr("Energy particle with id 992"), ImHashStr(inspectionTitle(particle).c_str()));
+            auto original = extended;
+            std::string log;
+            switcherFrame(800 * factor, [&] {
+                ImGui::LogToBuffer();
+                drawInspectionCreature(inspector, extended);
+                ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+                drawInspectionParticle(particle, EnergyDesc().id(992).energy(123.25f));
+                log = GImGui->LogBuffer.c_str();
+                ImGui::LogFinish();
+            });
+            EXPECT_EQ(original.object, extended.object);
+            EXPECT_EQ(original.creature, extended.creature);
+            EXPECT_EQ(original.genome, extended.genome);
+            EXPECT_NE(std::string::npos, log.find(genome._name));
+            EXPECT_EQ(5, InspectionPresentation::cellStates().size());
+            EXPECT_EQ(3, InspectionPresentation::detonatorStates().size());
+            EXPECT_EQ("Free", InspectionPresentation::provideEnergy().at(2));
+            for (int value : {0, 1, 2, 5, 11, 14, 21}) {
+                auto text = GenomeEditorPresentation::count("inspection.genomes", value);
+                EXPECT_NE(std::string::npos, text.find(std::to_string(value)));
+                EXPECT_EQ(std::string::npos, text.find('{'));
+            }
+            for (auto attribute :
+                 {EntityAttribute::ObjectType, EntityAttribute::CellState, EntityAttribute::CellType, EntityAttribute::ConstructorProvideEnergy}) {
+                auto help = InspectionPresentation::attributeDescription(attribute);
+                EXPECT_FALSE(help.empty());
+                if (std::string(language) == "en") {
+                    EXPECT_EQ(EntityAttributeHelp::get(attribute), help);
+                }
+                auto wrapped = ImGui::CalcTextSize(help.c_str(), nullptr, false, 500 * factor);
+                EXPECT_LE(wrapped.x, 500 * factor + 1);
+                EXPECT_GT(wrapped.y, ImGui::GetTextLineHeight());
+            }
+        }
+    }
+    EditorModel::get().setInspectedEntities({});
+}
+
+TEST_F(LocalizationGuiTests, l5aInputFloat2LabelsKeepFocusedInputAndValues)
+{
+    float x = 12.25f, y = -3.5f;
+    ImGuiID active = 0;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        bool focus = true;
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (int pass = 0; pass < 3; ++pass) {
+                switcherFrame(700 * factor, [&] {
+                    if (focus) {
+                        ImGui::SetKeyboardFocusHere();
+                    }
+                    AlienGui::InputFloat2(AlienGui::InputFloat2Parameters().name("Position").label(tr("inspection.label.position")).textWidth(250), x, y);
+                    focus = false;
+                });
+            }
+            EXPECT_FLOAT_EQ(12.25f, x);
+            EXPECT_FLOAT_EQ(-3.5f, y);
+            if (std::string(language) == "en" && !active) {
+                active = GImGui->ActiveId;
+            }
+            EXPECT_NE(0, active);
+            EXPECT_EQ(active, GImGui->ActiveId);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5aOpenLimitMessagesResolveLanguageAtDisplayTime)
+{
+    auto& dialog = GenericMessageDialog::get();
+    for (auto kind : {"objects", "genomes", "creatures"}) {
+        auto key = std::string("inspection.limit.") + kind;
+        dialog.localizedInformation("Inspection not possible", "inspection.impossible", key, {{"count", "20"}});
+        ImGuiWindow* original = nullptr;
+        for (float factor : {1.0f, 1.5f, 2.0f}) {
+            setTestScale(factor);
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                std::string log;
+                for (int pass = 0; pass < 2; ++pass) {
+                    frame([&] {
+                        ImGui::LogToBuffer();
+                        static_cast<MainLoopEntity&>(dialog).process();
+                        log = GImGui->LogBuffer.c_str();
+                        ImGui::LogFinish();
+                    });
+                }
+                auto current = ImGui::FindWindowByName("###Inspection not possible");
+                ASSERT_NE(nullptr, current);
+                if (!original) {
+                    original = current;
+                }
+                EXPECT_EQ(original, current);
+                EXPECT_TRUE(dialog.isOpen());
+                EXPECT_NE(std::string::npos, log.find(InspectionPresentation::format(key, {{"count", "20"}})));
+            }
+        }
+        closeImmediately(dialog);
+    }
 }

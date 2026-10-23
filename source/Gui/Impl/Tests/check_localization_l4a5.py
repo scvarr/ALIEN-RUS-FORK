@@ -35,8 +35,10 @@ class L4a5Contracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {key: values[key] for key in old})
-            self.assertEqual(78, len(values) - len(old))
+            self.assertEqual(78, sum(not key.startswith("inspection.") for key in values) - len(old))
             for key in values.keys() - old.keys():
+                if key.startswith("inspection."):
+                    continue
                 self.assertTrue(key.startswith(PREFIXES))
                 self.assertTrue(values[key])
                 self.assertNotIn('##', values[key])
