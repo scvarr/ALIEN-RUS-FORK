@@ -180,8 +180,34 @@ picture/preview/MCP diagnostic text remains canonical English by design, after
 checking its consumers. This report does not claim localization of those raw
 technical payloads or completion of L8-B.
 
-`main` remains at the requested baseline. Only the feature branch is to be
-committed/pushed. `AGENTS.md` retains skip-worktree and SHA-256
+At implementation delivery, `main` remained at the requested baseline and only
+the feature branch was committed/pushed. `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 User data, dependencies and pinned vcpkg are unchanged. No CodeQL, submodule update
 or IDE-tree build was run. Manual visual acceptance is not claimed.
+
+## Acceptance and L6-A closure
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L6-A implementation
+`a5748740d395c90d0c6198c0a0f4993ed39b1bcb` based on the recorded automated
+checks and review of this validation report. **L6-A is complete.** Manual visual
+acceptance was not performed and is not claimed.
+
+Acceptance retains the recorded limitations: final desktop composition, hovered
+tooltips, vendor controls and unusually narrow saved windows still need visual
+verification during ordinary use. Real asynchronous disk/network failures were
+not injected through a running GUI. Shared picture/preview/MCP diagnostics remain
+canonical English after their consumers were checked. File chooser open-time and
+overlay emit-time language policies remain unchanged. The GitNexus full-text/BM25
+index limitation remains; successful graph analysis is separate evidence.
+
+Closure changes documentation only. No code, catalogs or behavior changed, so
+builds and tests are not rerun; the implementation validation above remains
+applicable. The user authorizes a documentation commit and push, fast-forward-only
+integration into `main`, pushing `main`, synchronization/cleanliness verification
+and deletion of the integrated feature branch locally and remotely.
+
+The existing `AGENTS.md`, skip-worktree flags, user data and dependencies are
+preserved. L6-B is not started or authorized; L6-C and L6-D remain pending.

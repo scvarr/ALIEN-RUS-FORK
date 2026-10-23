@@ -3,7 +3,7 @@
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
 Original L3 planning baseline; completion status updated on 2026-10-23.
-L4-A1–A5 and L5-A–C are complete. L4 and L5 are closed; L6 and later stages remain pending.
+L4-A1–A5, L5-A–C and L6-A are complete. L4 and L5 are closed; L6-B–D and later stages remain pending.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
@@ -87,7 +87,31 @@ Closure changes documentation only. Builds and tests are not rerun; the accepted
 implementation evidence remains applicable. The user authorizes a documentation
 commit and push, fast-forward-only integration into `main`, pushing `main`,
 synchronization verification and deletion of the integrated feature branch.
-L6 is not started or authorized.
+At L5 closure, L6 had not been started or authorized; subsequent L6-A acceptance
+is recorded below.
+
+## L6-A completion record
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L6-A implementation
+`a5748740d395c90d0c6198c0a0f4993ed39b1bcb` based on automated checks and review
+of the [L6-A validation report](localization-l6a-validation.md). **L6-A is complete.**
+Manual visual acceptance was not performed and is not claimed.
+
+Acceptance retains the report's limitations: final desktop composition, hovered
+tooltips, vendor controls and unusually narrow saved windows need ordinary-use
+visual verification. Real asynchronous disk/network failures were not injected
+through a running GUI. Shared picture/preview/MCP diagnostic text remains
+canonical English; file chooser open-time and overlay emit-time language policies
+and the GitNexus full-text/BM25 index limitation remain documented.
+
+Closure changes documentation only. Builds and tests are not rerun; the recorded
+implementation evidence remains applicable. The user authorizes a documentation
+commit and push, fast-forward-only integration into `main`, pushing `main`,
+synchronization/cleanliness verification and deletion of the integrated feature
+branch locally and remotely. L6-B is not started or authorized; L6-C and L6-D
+remain pending. The entire L6 stage is not yet closed.
 
 ## Scope and sequencing
 
@@ -119,7 +143,7 @@ days; translation review effort can exceed code effort.
 | 6 / **Completed: L5-A** Object inspector | `InspectionWindow`, remaining object/cell `EntityAttributeHelp` | High | Shared modes/help from L4. Particle, solid, fluid, free cell and organism-cell inspectors, lifecycle/connections and neural panels; dynamic IDs and live data retained on switch |
 | 7 / **Completed: L5-B** World/selection tools | `EditorWidget`, `SelectionWidget`, `CreatorWidget`, `MultiplierWidget`, `ResizeWorldDialog`, `MassEditDialog`, `ChangeColorDialog`, image conversion and interaction hints | Medium–high | L4 display adapters and L5-A names. HUD focus and repeated controls stable; create/copy/undo/filter/world resize semantics unchanged; no translation of user names or file filters' syntax |
 | 8 / **Completed: L5-C** Controls and statistics | Temporal/spatial/location windows; `EvolutionDashboardWindow` metric labels, table and plots | High | Stable ImPlot series/card IDs and L5 terminology. Preserve selected lineage, plot visibility/ranges and history mode; long captions at multiple DPI levels; computation/CSV contracts stay canonical |
-| 9 / L6-A Remaining local dialogs and messages | About/network settings, autosave/log, file/preview errors and startup/application notices; remaining HelpStrings | Medium | L4–L5 shared controls. Trace callback producers to generic messages; open/queued message language policy documented; test autosave status without changing directory/peak identifiers |
+| 9 / **Completed: L6-A** Remaining local dialogs and messages | About/network settings, autosave/log, file/preview errors and startup/application notices; remaining HelpStrings | Medium | L4–L5 shared controls. Trace callback producers to generic messages; open/queued message language policy documented; test autosave status without changing directory/peak identifiers |
 | 10 / L6-B Browser presentation | BrowserWindow/gallery/table/user list/login invitation, edit/upload/replace dialogs and related hints | High | L6-A message conventions. Use full simulation/genome sentence variants; preserve workspace/resource/folder IDs, sorting/reactions and user text. Test private/public/featured views, ownership, empty states and pagination |
 | 11 / L6-C Account flows and browser Unicode search | Login/create/activate/reset/new-password/delete dialogs, LoginController, NetworkTransferController; NetworkResourceRawTO filtering | High | L6-A/B; explicit UTF-8 search adapter, no global parser changes. Test mixed-case Cyrillic metadata and Yo, rejected input, resend/error callbacks and switch while forms open; credentials unchanged |
 | 12 / L6-D MCP desktop UI | McpWindow, McpSettingsDialog, GUI connection instructions/status | Medium | L6-A errors. Commands/endpoint/schema keys remain literal; GUI translation does not change network tool contracts or command log payloads |
