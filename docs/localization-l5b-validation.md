@@ -157,9 +157,32 @@ The existing L5-A inspector-title visual-verification limitation is unchanged.
 The untranslated construction-energy service option `Free` remains unchanged;
 this stage introduces no new exposure or terminology decision for it.
 
-`main` remains at the specified baseline; only the feature branch is committed
-and pushed. `AGENTS.md` retains skip-worktree and SHA-256
+At implementation delivery, `main` remained at the specified baseline; only the
+feature branch was committed and pushed. `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 User worlds, genomes, autosaves, dependencies and pinned-vcpkg state are unchanged.
 Tests use the existing isolated settings scope; no production GUI was launched.
 No CodeQL scan, submodule update or IDE-tree build was run.
+
+## Acceptance and L5-B closure
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L5-B implementation
+`ddae7b6cbf869c3fe634708f74ccc245885727cc` based on the recorded automated
+checks and review of this report. L5-B is complete. Manual visual acceptance was
+not performed and is not claimed by this closure.
+
+The automated 100/150/200% evidence remains applicable. Visual verification during
+ordinary use remains outstanding for manually narrowed windows, hovered tooltip
+appearance, vendor file-dialog controls and final desktop composition. The existing
+L5-A inspector-title limitation is unchanged. Acceptance on automated evidence does
+not resolve these visual limitations. The emit-time overlay/file-dialog caption
+policy, vendor-UI scope, untranslated service option `Free` and GitNexus full-text
+index limitation recorded above also remain unchanged.
+
+This closure updates only this report and the roadmap. Builds and tests are not
+rerun. The user authorizes a documentation commit and push, fast-forward-only
+integration into `main`, pushing `main`, synchronization verification and deletion
+of the integrated feature branch. `AGENTS.md`, skip-worktree flags, user data and
+dependencies are preserved. L5-C is not started or authorized.
