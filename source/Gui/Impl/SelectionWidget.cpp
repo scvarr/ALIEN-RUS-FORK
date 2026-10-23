@@ -22,6 +22,7 @@
 #include "SimulationView.h"
 #include "StyleService.h"
 #include "Viewport.h"
+#include "WorldToolPresentation.h"
 
 namespace
 {
@@ -42,7 +43,6 @@ namespace
     auto constexpr ColorFieldSize = 24.0f;
     auto constexpr MultiplyPopupWidth = 470.0f;
     auto constexpr MorePopupWidth = 360.0f;
-    auto constexpr TransformTextWidth = 130.0f;
 }
 
 void SelectionWidget::process()
@@ -149,7 +149,7 @@ void SelectionWidget::processRotationHandle(ViewBounds const& bounds)
     ImGui::GetBackgroundDrawList()->AddLine(
         {frameTop.x, frameTop.y}, {handlePos.x, handlePos.y + scale(HandleRadius)}, Const::SelectionFrameColor, scale(FrameThickness));
 
-    auto state = processHandle("##selectionRotationHandle", handlePos, "Drag to rotate the selection");
+    auto state = processHandle("##selectionRotationHandle", handlePos, tr("worldtools.dragtorotatetheselection"));
     drawHandle(handlePos, state, Const::SelectionHandleColor);
 
     if (!state.active) {
@@ -174,15 +174,13 @@ void SelectionWidget::processSummary(ViewBounds const& bounds) const
 
     std::vector<std::string> parts;
     if (numObjects > 0) {
-        parts.emplace_back(StringHelper::format(static_cast<uint64_t>(numObjects)) + (numObjects == 1 ? " object" : " objects"));
+        parts.emplace_back(WorldToolPresentation::selectionCount("worldtools.count.objects", numObjects));
     }
     if (selection.numCreatures > 0) {
-        parts.emplace_back(StringHelper::format(static_cast<uint64_t>(selection.numCreatures)) + (selection.numCreatures == 1 ? " creature" : " creatures"));
+        parts.emplace_back(WorldToolPresentation::selectionCount("worldtools.count.creatures", selection.numCreatures));
     }
     if (selection.numEnergyParticles > 0) {
-        parts.emplace_back(
-            StringHelper::format(static_cast<uint64_t>(selection.numEnergyParticles))
-            + (selection.numEnergyParticles == 1 ? " energy particle" : " energy particles"));
+        parts.emplace_back(WorldToolPresentation::selectionCount("worldtools.count.particles", selection.numEnergyParticles));
     }
     std::string text;
     for (auto const& part : parts) {
@@ -213,27 +211,27 @@ void SelectionWidget::processActionBar(ViewBounds const& bounds)
         return AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(icon).name(name).disabled(disabled).action(action));
     };
     std::vector<AlienGui::ToolbarItem> items = {
-        popupButton(ICON_COLOR, "Color", "##hudColor"),
-        popupButton(ICON_STICKY, "Stickiness", "##hudSticky"),
-        popupButton(ICON_FIXED, "Static", "##hudStatic"),
+        popupButton(ICON_COLOR, tr("parameters.color.color"), "##hudColor"),
+        popupButton(ICON_STICKY, tr("worldtools.stickiness"), "##hudSticky"),
+        popupButton(ICON_FIXED, tr("inspection.label.static"), "##hudStatic"),
         AlienGui::ToolbarItem::createSeparator(),
-        actionButton(ICON_UNIFORM_VELOCITY, "Make uniform velocities", [&controller] { controller.onUniformVelocities(); }),
+        actionButton(ICON_UNIFORM_VELOCITY, tr("worldtools.makeuniformvelocities"), [&controller] { controller.onUniformVelocities(); }),
         actionButton(
-            ICON_RELEASE_STRESSES, "Release stresses", [&controller] { controller.onReleaseStresses(); }, model.isCellSelectionEmpty()),
+            ICON_RELEASE_STRESSES, tr("worldtools.releasestresses"), [&controller] { controller.onReleaseStresses(); }, model.isCellSelectionEmpty()),
         actionButton(
             ICON_GLUE_SELECTION,
-            "Glue selection: connects neighboring objects within the selection",
+            tr("worldtools.glueselectionconnectsneighboringobjectswithintheselection"),
             [&controller] { controller.onGlueSelectedObjects(); },
             model.isCellSelectionEmpty()),
         AlienGui::ToolbarItem::createSeparator(),
-        popupButton(ICON_MULTIPLY, "Multiply", "##hudMultiply"),
+        popupButton(ICON_MULTIPLY, tr("worldtools.multiply"), "##hudMultiply"),
         AlienGui::ToolbarItem::createSeparator(),
-        actionButton(ICON_FA_COPY, "Copy (CTRL+C)", [&controller] { controller.onCopy(); }),
+        actionButton(ICON_FA_COPY, tr("worldtools.copyctrlc"), [&controller] { controller.onCopy(); }),
         actionButton(
-            ICON_FA_TRASH, "Delete (DEL)", [&controller] { controller.onDelete(); }, !controller.isDeletingPossible()),
+            ICON_FA_TRASH, tr("worldtools.deletedel"), [&controller] { controller.onDelete(); }, !controller.isDeletingPossible()),
         AlienGui::ToolbarItem::createSeparator(),
-        popupButton(ICON_INSPECT, "Inspect", "##hudInspect"),
-        popupButton(ICON_MORE, "Transform: position, velocity and rotation", "##hudMore"),
+        popupButton(ICON_INSPECT, tr("worldtools.inspect"), "##hudInspect"),
+        popupButton(ICON_MORE, tr("worldtools.transformpositionvelocityandrotation"), "##hudMore"),
     };
 
     auto viewport = ImGui::GetMainViewport();
@@ -255,7 +253,7 @@ void SelectionWidget::processActionBar(ViewBounds const& bounds)
         | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoFocusOnAppearing;
     if (ImGui::Begin("##selectionActionBar", nullptr, flags)) {
         AlienGui::PopFloatingCardStyle();
-        AlienGui::Toolbar(AlienGui::ToolbarParameters().id("SelectionActions").bottomSeparator(false), items);
+        AlienGui::Toolbar(AlienGui::ToolbarParameters().id("SelectionActions").bottomSeparator(false).overflowTooltip(tr("parameters.overflow")), items);
         processColorPopup();
         processStickyPopup();
         processStaticPopup();
@@ -293,10 +291,10 @@ void SelectionWidget::processStickyPopup()
     if (!ImGui::BeginPopup("##hudSticky")) {
         return;
     }
-    if (ImGui::Selectable("Make sticky")) {
+    if (WorldToolPresentation::selectable("Make sticky", tr("worldtools.makesticky"))) {
         EditorController::get().onSetSticky(true);
     }
-    if (ImGui::Selectable("Make unsticky")) {
+    if (WorldToolPresentation::selectable("Make unsticky", tr("worldtools.makeunsticky"))) {
         EditorController::get().onSetSticky(false);
     }
     ImGui::EndPopup();
@@ -307,10 +305,10 @@ void SelectionWidget::processStaticPopup()
     if (!ImGui::BeginPopup("##hudStatic")) {
         return;
     }
-    if (ImGui::Selectable("Make static")) {
+    if (WorldToolPresentation::selectable("Make static", tr("worldtools.makestatic"))) {
         EditorController::get().onSetStatic(true);
     }
-    if (ImGui::Selectable("Make non-static")) {
+    if (WorldToolPresentation::selectable("Make non-static", tr("worldtools.makenonstatic"))) {
         EditorController::get().onSetStatic(false);
     }
     ImGui::EndPopup();
@@ -318,7 +316,8 @@ void SelectionWidget::processStaticPopup()
 
 void SelectionWidget::processMultiplyPopup()
 {
-    ImGui::SetNextWindowSize({scale(MultiplyPopupWidth), 0.0f});
+    ImGui::SetNextWindowSize(
+        {scale(std::max({MultiplyPopupWidth, WorldToolPresentation::randomTextWidth() + 190.0f, WorldToolPresentation::gridTextWidth() + 260.0f})), 0.0f});
     if (!ImGui::BeginPopup("##hudMultiply")) {
         return;
     }
@@ -332,13 +331,16 @@ void SelectionWidget::processInspectPopup()
         return;
     }
     auto& controller = InspectionController::get();
-    if (ImGui::Selectable("Objects (ALT+N)", false, controller.isObjectInspectionPossible() ? 0 : ImGuiSelectableFlags_Disabled)) {
+    if (WorldToolPresentation::selectable(
+            "Objects (ALT+N)", tr("worldtools.objectsaltn"), controller.isObjectInspectionPossible() ? 0 : ImGuiSelectableFlags_Disabled)) {
         controller.onInspectSelectedObjects();
     }
-    if (ImGui::Selectable("Genomes (ALT+F)", false, controller.isGenomeInspectionPossible() ? 0 : ImGuiSelectableFlags_Disabled)) {
+    if (WorldToolPresentation::selectable(
+            "Genomes (ALT+F)", tr("worldtools.genomesaltf"), controller.isGenomeInspectionPossible() ? 0 : ImGuiSelectableFlags_Disabled)) {
         controller.onInspectSelectedGenomes();
     }
-    if (ImGui::Selectable("Creatures (ALT+P)", false, controller.isCreatureInspectionPossible() ? 0 : ImGuiSelectableFlags_Disabled)) {
+    if (WorldToolPresentation::selectable(
+            "Creatures (ALT+P)", tr("worldtools.creaturesaltp"), controller.isCreatureInspectionPossible() ? 0 : ImGuiSelectableFlags_Disabled)) {
         controller.onInspectSelectedCreatures();
     }
     ImGui::EndPopup();
@@ -355,38 +357,79 @@ void SelectionWidget::processMorePopup()
     }
     _lastSelection = selection;
 
-    ImGui::SetNextWindowSize({scale(MorePopupWidth), 0.0f});
+    ImGui::SetNextWindowSize({scale(std::max(MorePopupWidth, WorldToolPresentation::transformTextWidth() + 170.0f)), 0.0f});
     if (!ImGui::BeginPopup("##hudMore")) {
         return;
     }
     auto& controller = EditorController::get();
     auto bounds = model.getSelectionBounds(model.isApplyToNetworks());
 
-    AlienGui::Group(AlienGui::GroupParameters().text("Center position and velocity"));
+    AlienGui::Group(AlienGui::GroupParameters().text("Center position and velocity").label(tr("worldtools.centerpositionandvelocity")));
     auto position = bounds.center;
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Position X").textWidth(TransformTextWidth).format("%.3f"), position.x);
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Position Y").textWidth(TransformTextWidth).format("%.3f"), position.y);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Position X")
+            .label(tr("worldtools.positionx"))
+            .textWidth(WorldToolPresentation::transformTextWidth())
+            .format("%.3f"),
+        position.x);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Position Y")
+            .label(tr("worldtools.positiony"))
+            .textWidth(WorldToolPresentation::transformTextWidth())
+            .format("%.3f"),
+        position.y);
     if (position != bounds.center) {
         controller.onMoveSelectedObjectsBy(position - bounds.center);
     }
 
     auto velocity = bounds.velocity;
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Velocity X").textWidth(TransformTextWidth).step(0.1f).format("%.3f"), velocity.x);
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Velocity Y").textWidth(TransformTextWidth).step(0.1f).format("%.3f"), velocity.y);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Velocity X")
+            .label(tr("worldtools.velocityx"))
+            .textWidth(WorldToolPresentation::transformTextWidth())
+            .step(0.1f)
+            .format("%.3f"),
+        velocity.x);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Velocity Y")
+            .label(tr("worldtools.velocityy"))
+            .textWidth(WorldToolPresentation::transformTextWidth())
+            .step(0.1f)
+            .format("%.3f"),
+        velocity.y);
     if (velocity != bounds.velocity) {
         controller.onSetVelocityOfSelectedObjects(velocity);
     }
 
-    AlienGui::Group(AlienGui::GroupParameters().text("Center rotation"));
+    AlienGui::Group(AlienGui::GroupParameters().text("Center rotation").label(tr("worldtools.centerrotation")));
     auto origAngle = _angle;
     AlienGui::SliderInputFloat(
-        AlienGui::SliderInputFloatParameters().name("Angle").textWidth(TransformTextWidth).inputWidth(50.0f).min(-180.0f).max(180.0f).format("%.1f"), _angle);
+        AlienGui::SliderInputFloatParameters()
+            .name("Angle")
+            .label(tr("parameters.forcefield.layerlinearforcefieldangle.name"))
+            .textWidth(WorldToolPresentation::transformTextWidth())
+            .inputWidth(50.0f)
+            .min(-180.0f)
+            .max(180.0f)
+            .format("%.1f"),
+        _angle);
     if (_angle != origAngle) {
         controller.onRotateSelectedObjects(_angle - origAngle);
     }
 
     auto origAngularVelocity = _angularVelocity;
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Angular velocity").textWidth(TransformTextWidth).step(0.01f).format("%.2f"), _angularVelocity);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Angular velocity")
+            .label(tr("worldtools.angularvelocity"))
+            .textWidth(WorldToolPresentation::transformTextWidth())
+            .step(0.01f)
+            .format("%.2f"),
+        _angularVelocity);
     if (_angularVelocity != origAngularVelocity) {
         controller.onSetAngularVelocityOfSelectedObjects(_angularVelocity);
     }

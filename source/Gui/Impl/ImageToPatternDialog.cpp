@@ -5,6 +5,7 @@
 #include <Base/Definitions.h>
 #include <Base/GlobalSettings.h>
 #include <Base/ImageFileService.h>
+#include <Base/LocalizationService.h>
 
 #include <Data/CreatorService.h>
 
@@ -34,19 +35,20 @@ void ImageToPatternDialog::shutdown()
 
 void ImageToPatternDialog::show()
 {
-    GenericFileDialog::get().showOpenFileDialog("Open image", "Image (*.png){.png},.*", _startingPath, [&](std::filesystem::path const& path) {
-        auto firstFilename = ifd::FileDialog::Instance().GetResult();
-        auto firstFilenameCopy = firstFilename;
-        _startingPath = firstFilenameCopy.remove_filename().string();
+    GenericFileDialog::get().showOpenFileDialog(
+        tr("worldtools.openimage"), tr("worldtools.imagepng") + "{.png},.*", _startingPath, [&](std::filesystem::path const& path) {
+            auto firstFilename = ifd::FileDialog::Instance().GetResult();
+            auto firstFilenameCopy = firstFilename;
+            _startingPath = firstFilenameCopy.remove_filename().string();
 
-        auto image = ImageFileService::get().loadRgbImage(firstFilename);
-        if (!image) {
-            GenericMessageDialog::get().information("Error", "The image could not be read.");
-            return;
-        }
-        auto customizationColors = _SimulationFacade::get()->getSimulationParameters().customizationColors.value;
-        _SimulationFacade::get()->addAndSelectSimulationData(
-            CreatorService::get().createPatternFromImage(*image, Viewport::get().getCenterInWorldPos(), customizationColors));
-        // TODO: update pattern editor
-    });
+            auto image = ImageFileService::get().loadRgbImage(firstFilename);
+            if (!image) {
+                GenericMessageDialog::get().localizedInformation("Error", "common.error", "worldtools.theimagecouldnotberead");
+                return;
+            }
+            auto customizationColors = _SimulationFacade::get()->getSimulationParameters().customizationColors.value;
+            _SimulationFacade::get()->addAndSelectSimulationData(
+                CreatorService::get().createPatternFromImage(*image, Viewport::get().getCenterInWorldPos(), customizationColors));
+            // TODO: update pattern editor
+        });
 }

@@ -7,6 +7,8 @@
 
 class CreatorWidget
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON(CreatorWidget);
 
 public:

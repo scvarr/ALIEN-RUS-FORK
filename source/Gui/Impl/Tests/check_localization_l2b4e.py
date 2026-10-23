@@ -58,7 +58,7 @@ class L2b4eContracts(unittest.TestCase):
         for lang in ('en', 'ru'):
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(408, len(old))
-            self.assertEqual(NEW_KEYS, {key for key in catalog(lang) if not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection."))} - set(old))
+            self.assertEqual(NEW_KEYS, {key for key in catalog(lang) if not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools."))} - set(old))
             self.assertEqual(old, {k: catalog(lang)[k] for k in old})
         for field, group in zip(FIELDS, GROUPS):
             typ = 'ColorTransitionRulesSpec' if field == 'colorTransitionRules' else 'FloatSpec'

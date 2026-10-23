@@ -9,6 +9,7 @@
 
 #include <Base/GlobalSettings.h>
 
+#include <Base/LocalizationService.h>
 #include "AlienGui.h"
 #include "CreatorController.h"
 #include "EditorController.h"
@@ -97,7 +98,8 @@ namespace
 {
     void drawEditToggleLabel(ImDrawList* drawList, ImVec2 const& leftCenterPos)
     {
-        auto text = "Edit mode";
+        auto const label = tr("worldtools.editmode");
+        auto text = label.c_str();
         auto shortcut = "ALT+E";
         auto textSize = ImGui::CalcTextSize(text);
         auto shortcutSize = ImGui::CalcTextSize(shortcut);
@@ -168,7 +170,7 @@ void SimulationInteractionController::processEditWidget()
 
     if (hovered) {
         if (_modes.editMode) {
-            AlienGui::Tooltip(AlienGui::TooltipParameters().text("Leave edit mode (ALT+E)").delay(false));
+            AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("worldtools.leaveeditmodealte")).delay(false));
         } else {
             drawEditToggleLabel(drawList, {pos.x + size + scale(EditToggleLabelSpacing), center.y});
         }

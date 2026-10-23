@@ -14,6 +14,7 @@
 #include "GenericMessageDialog.h"
 #include "StyleService.h"
 #include "Viewport.h"
+#include "WorldToolPresentation.h"
 
 namespace
 {
@@ -21,8 +22,6 @@ namespace
         {MultiplierMode_Grid, "Grid multiplier"},
         {MultiplierMode_Random, "Random multiplier"},
     };
-    auto constexpr RightColumnWidth = 170.0f;
-    auto constexpr GridLabelColumnWidth = 130.0f;
     auto constexpr PreviewFrameThickness = 1.0f;
     auto constexpr PreviewFramePadding = 3.0f;
     auto constexpr MaxNumPreviewFrames = 2500;
@@ -90,17 +89,19 @@ void MultiplierWidget::process() {}
 void MultiplierWidget::processContent()
 {
     AlienGui::Toolbar(
-        AlienGui::ToolbarParameters().id("Multiplier").bottomSeparator(false),
-        {AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_GRID).name(ModeText.at(MultiplierMode_Grid)).selected(_mode == MultiplierMode_Grid).action([&] {
-                 _mode = MultiplierMode_Grid;
-             })),
-         AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_RANDOM).name(ModeText.at(MultiplierMode_Random)).selected(_mode == MultiplierMode_Random).action([&] {
-                 _mode = MultiplierMode_Random;
-             }))});
+        AlienGui::ToolbarParameters().id("Multiplier").bottomSeparator(false).overflowTooltip(tr("parameters.overflow")),
+        {AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                 .icon(ICON_GRID)
+                                                 .name(WorldToolPresentation::text(ModeText.at(MultiplierMode_Grid)))
+                                                 .selected(_mode == MultiplierMode_Grid)
+                                                 .action([&] { _mode = MultiplierMode_Grid; })),
+         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                 .icon(ICON_RANDOM)
+                                                 .name(WorldToolPresentation::text(ModeText.at(MultiplierMode_Random)))
+                                                 .selected(_mode == MultiplierMode_Random)
+                                                 .action([&] { _mode = MultiplierMode_Random; }))});
 
-    AlienGui::Group(AlienGui::GroupParameters().text(ModeText.at(_mode)));
+    AlienGui::Group(AlienGui::GroupParameters().text(ModeText.at(_mode)).label(WorldToolPresentation::text(ModeText.at(_mode))));
     if (_mode == MultiplierMode_Grid) {
         processGridPanel();
         processGridPreview();
@@ -112,14 +113,14 @@ void MultiplierWidget::processContent()
     auto const& selection = EditorModel::get().getSelectionShallowData();
     auto multiplied = _selectionDataAfterMultiplication.has_value() && _selectionDataAfterMultiplication->compareSizes(selection);
     ImGui::BeginDisabled(multiplied);
-    if (AlienGui::Button("Build")) {
+    if (AlienGui::DisplayButton("Build", tr("worldtools.build"))) {
         onBuild();
     }
     ImGui::EndDisabled();
 
     ImGui::SameLine();
     ImGui::BeginDisabled(!multiplied);
-    if (AlienGui::Button("Undo")) {
+    if (AlienGui::DisplayButton("Undo", tr("worldtools.undo"))) {
         onUndo();
     }
     ImGui::EndDisabled();
@@ -132,16 +133,16 @@ void MultiplierWidget::processGridPanel()
     if (!ImGui::BeginTable("##grid", 3, ImGuiTableFlags_SizingStretchSame)) {
         return;
     }
-    ImGui::TableSetupColumn("##label", ImGuiTableColumnFlags_WidthFixed, scale(GridLabelColumnWidth));
-    ImGui::TableSetupColumn(ICON_FA_ARROW_RIGHT "  Horizontal");
-    ImGui::TableSetupColumn(ICON_FA_ARROW_DOWN "  Vertical");
+    ImGui::TableSetupColumn("##label", ImGuiTableColumnFlags_WidthFixed, scale(WorldToolPresentation::gridTextWidth()));
+    ImGui::TableSetupColumn((std::string(ICON_FA_ARROW_RIGHT "  ") + tr("worldtools.horizontal") + "###" ICON_FA_ARROW_RIGHT "  Horizontal").c_str());
+    ImGui::TableSetupColumn((std::string(ICON_FA_ARROW_DOWN "  ") + tr("worldtools.vertical") + "###" ICON_FA_ARROW_DOWN "  Vertical").c_str());
     ImGui::TableHeadersRow();
 
     auto intRow = [](char const* label, int& horizontal, int& vertical) {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(label);
+        ImGui::TextUnformatted(WorldToolPresentation::text(label).c_str());
         ImGui::PushID(label);
         ImGui::TableSetColumnIndex(1);
         ImGui::SetNextItemWidth(-1);
@@ -155,7 +156,7 @@ void MultiplierWidget::processGridPanel()
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(label);
+        ImGui::TextUnformatted(WorldToolPresentation::text(label).c_str());
         ImGui::PushID(label);
         ImGui::TableSetColumnIndex(1);
         ImGui::SetNextItemWidth(-1);
@@ -178,22 +179,66 @@ void MultiplierWidget::processGridPanel()
 
 void MultiplierWidget::processRandomPanel()
 {
-    AlienGui::InputInt(AlienGui::InputIntParameters().name("Number of copies").textWidth(RightColumnWidth), _randomParameters._number);
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Min angle").textWidth(RightColumnWidth).format("%.1f"), _randomParameters._minAngle);
-    AlienGui::InputFloat(AlienGui::InputFloatParameters().name("Max angle").textWidth(RightColumnWidth).format("%.1f"), _randomParameters._maxAngle);
+    AlienGui::InputInt(
+        AlienGui::InputIntParameters().name("Number of copies").label(tr("worldtools.numberofcopies")).textWidth(WorldToolPresentation::randomTextWidth()),
+        _randomParameters._number);
     AlienGui::InputFloat(
-        AlienGui::InputFloatParameters().name("Min velocity X").textWidth(RightColumnWidth).format("%.2f").step(0.05f), _randomParameters._minVelX);
+        AlienGui::InputFloatParameters().name("Min angle").label(tr("worldtools.minangle")).textWidth(WorldToolPresentation::randomTextWidth()).format("%.1f"),
+        _randomParameters._minAngle);
     AlienGui::InputFloat(
-        AlienGui::InputFloatParameters().name("Max velocity X").textWidth(RightColumnWidth).format("%.2f").step(0.05f), _randomParameters._maxVelX);
+        AlienGui::InputFloatParameters().name("Max angle").label(tr("worldtools.maxangle")).textWidth(WorldToolPresentation::randomTextWidth()).format("%.1f"),
+        _randomParameters._maxAngle);
     AlienGui::InputFloat(
-        AlienGui::InputFloatParameters().name("Min velocity Y").textWidth(RightColumnWidth).format("%.2f").step(0.05f), _randomParameters._minVelY);
+        AlienGui::InputFloatParameters()
+            .name("Min velocity X")
+            .label(tr("worldtools.minvelocityx"))
+            .textWidth(WorldToolPresentation::randomTextWidth())
+            .format("%.2f")
+            .step(0.05f),
+        _randomParameters._minVelX);
     AlienGui::InputFloat(
-        AlienGui::InputFloatParameters().name("Max velocity Y").textWidth(RightColumnWidth).format("%.2f").step(0.05f), _randomParameters._maxVelY);
+        AlienGui::InputFloatParameters()
+            .name("Max velocity X")
+            .label(tr("worldtools.maxvelocityx"))
+            .textWidth(WorldToolPresentation::randomTextWidth())
+            .format("%.2f")
+            .step(0.05f),
+        _randomParameters._maxVelX);
     AlienGui::InputFloat(
-        AlienGui::InputFloatParameters().name("Min angular velocity").textWidth(RightColumnWidth).format("%.1f").step(0.1f), _randomParameters._minAngularVel);
+        AlienGui::InputFloatParameters()
+            .name("Min velocity Y")
+            .label(tr("worldtools.minvelocityy"))
+            .textWidth(WorldToolPresentation::randomTextWidth())
+            .format("%.2f")
+            .step(0.05f),
+        _randomParameters._minVelY);
     AlienGui::InputFloat(
-        AlienGui::InputFloatParameters().name("Max angular velocity").textWidth(RightColumnWidth).format("%.1f").step(0.1f), _randomParameters._maxAngularVel);
-    AlienGui::Checkbox(AlienGui::CheckboxParameters().name("Overlapping check").textWidth(RightColumnWidth), &_randomParameters._overlappingCheck);
+        AlienGui::InputFloatParameters()
+            .name("Max velocity Y")
+            .label(tr("worldtools.maxvelocityy"))
+            .textWidth(WorldToolPresentation::randomTextWidth())
+            .format("%.2f")
+            .step(0.05f),
+        _randomParameters._maxVelY);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Min angular velocity")
+            .label(tr("worldtools.minangularvelocity"))
+            .textWidth(WorldToolPresentation::randomTextWidth())
+            .format("%.1f")
+            .step(0.1f),
+        _randomParameters._minAngularVel);
+    AlienGui::InputFloat(
+        AlienGui::InputFloatParameters()
+            .name("Max angular velocity")
+            .label(tr("worldtools.maxangularvelocity"))
+            .textWidth(WorldToolPresentation::randomTextWidth())
+            .format("%.1f")
+            .step(0.1f),
+        _randomParameters._maxAngularVel);
+    AlienGui::Checkbox(
+        AlienGui::CheckboxParameters().name("Overlapping check").label(tr("worldtools.overlappingcheck")).textWidth(WorldToolPresentation::randomTextWidth()),
+        &_randomParameters._overlappingCheck);
 }
 
 void MultiplierWidget::processGridPreview() const
@@ -259,7 +304,8 @@ void MultiplierWidget::onBuild()
         auto multiplication = MultiplierService::get().multiplyRandomly(_origSelection, parameters);
         replaceSelection(std::move(multiplication.content));
         if (!multiplication.overlappingCheckSuccessful) {
-            GenericMessageDialog::get().information("Random multiplication", "Non-overlapping copies could not be created.");
+            GenericMessageDialog::get().localizedInformation(
+                "Random multiplication", "worldtools.randommultiplication", "worldtools.nonoverlappingcopiescouldnotbecreated");
         }
     }
     EditorModel::get().update();

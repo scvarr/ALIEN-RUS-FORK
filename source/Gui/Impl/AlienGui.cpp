@@ -222,7 +222,7 @@ void AlienGui::SliderInputFloat(SliderInputFloatParameters const& parameters, fl
     ImGui::SetNextItemWidth(inputWidth);
     ImGui::InputFloat(("##input" + parameters._name).c_str(), &value, 0, 0, parameters._format.c_str());
     ImGui::SameLine();
-    AlienGui::Text(AlienGui::TextParameters().text(parameters._name.c_str()));
+    AlienGui::Text(AlienGui::TextParameters().text(parameters._label.value_or(parameters._name)));
     ImGui::PopID();
 }
 

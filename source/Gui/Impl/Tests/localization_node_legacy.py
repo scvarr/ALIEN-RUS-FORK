@@ -4,7 +4,7 @@ Current behavior, IDs and fallback paths are tested by L4-A3 production ImGui te
 """
 def legacy_node_widget_text(file, text):
     if file.endswith("AlienGui.h"):
-        for struct in ("InputFloat2Parameters", "ComboColorParameters", "MultiCheckboxesParameters", "ColorCheckboxesParameters", "ButtonParameters"):
+        for struct in ("SliderInputFloatParameters", "InputFloat2Parameters", "ComboColorParameters", "MultiCheckboxesParameters", "ColorCheckboxesParameters", "ButtonParameters"):
             text = text.replace(f'        MEMBER({struct}, std::optional<std::string>, label, std::nullopt);\n', '')
         text = text.replace('        MEMBER(ButtonParameters, std::optional<std::string>, buttonLabel, std::nullopt);\n', '')
         text = text.replace('        MEMBER(ComboParameters, std::vector<std::string>, displayValues, std::vector<std::string>());\n', '')
@@ -20,7 +20,7 @@ def legacy_node_widget_text(file, text):
         text = re.sub(pattern, lambda _: original, text, flags=re.S)
         text = text.replace('#include "LocalizationGuiText.h"\n', '')
         text = text.replace('std::string text = parameters._label ? tr("common.infinity") : "Infinity";', 'std::string text = "Infinity";')
-        for name in ("InputFloat2", "ComboColor", "MultiCheckboxes", "ColorCheckboxes", "Button"):
+        for name in ("SliderInputFloat", "InputFloat2", "ComboColor", "MultiCheckboxes", "ColorCheckboxes", "Button"):
             import re
             match = re.search(r'(?:bool|void) AlienGui::' + name + r'\(' + name + r'Parameters[^\n]*\n\{.*?\n\}', text, re.S)
             if match:

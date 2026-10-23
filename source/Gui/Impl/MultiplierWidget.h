@@ -18,6 +18,8 @@ enum MultiplierMode_
 
 class MultiplierWidget : public MainLoopEntity
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON(MultiplierWidget);
 
 public:

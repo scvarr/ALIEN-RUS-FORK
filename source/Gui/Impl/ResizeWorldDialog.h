@@ -9,6 +9,8 @@
 
 class ResizeWorldDialog : public AlienDialog
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(ResizeWorldDialog);
 
 public:

@@ -16,10 +16,10 @@
 #include "MutationRatesDialog.h"
 #include "MutationRatesWidget.h"
 #include "StyleService.h"
+#include "WorldToolPresentation.h"
 
 namespace
 {
-    auto constexpr RightColumnWidth = 140.0f;
     auto constexpr MinColumnWidth = 300.0f;
     auto constexpr SettingsPrefix = "dialogs.mass operations.";
 }
@@ -107,18 +107,18 @@ void MassEditDialog::processIntern()
 {
     auto const& customizationColors = _SimulationFacade::get()->getSimulationParameters().customizationColors.value;
 
-    AlienGui::Group(AlienGui::GroupParameters().text("Filter").highlighted(true));
+    AlienGui::Group(AlienGui::GroupParameters().text("Filter").label(tr("genome.colors.filter")).highlighted(true));
     ImGui::Checkbox("##restrictToSelection", &_restrictToSelectedCreatures);
     ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
-    AlienGui::Text("Restrict to selection");
+    AlienGui::Text(tr("worldtools.restricttoselection"));
 
-    AlienGui::Group(AlienGui::GroupParameters().text("Operations").highlighted(true));
+    AlienGui::Group(AlienGui::GroupParameters().text("Operations").label(tr("worldtools.operations")).highlighted(true));
 
     if (ImGui::BeginChild("##content", ImVec2(0, -scale(50.0f)), 0)) {
-        AlienGui::DynamicTableLayout table(MinColumnWidth);
+        AlienGui::DynamicTableLayout table(std::max(MinColumnWidth, WorldToolPresentation::massTextWidth() + 160.0f));
         if (table.begin()) {
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize object colors"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize object colors").label(tr("worldtools.randomizeobjectcolors")));
             ImGui::PushID("cell");
             ImGui::Checkbox("##colors", &_randomizeCellColors);
             ImGui::BeginDisabled(!_randomizeCellColors);
@@ -135,7 +135,7 @@ void MassEditDialog::processIntern()
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize genome colors"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize genome colors").label(tr("worldtools.randomizegenomecolors")));
             ImGui::PushID("genome");
             ImGui::Checkbox("##colors", &_randomizeGenomeColors);
             ImGui::BeginDisabled(!_randomizeGenomeColors);
@@ -152,65 +152,104 @@ void MassEditDialog::processIntern()
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize energies"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize energies").label(tr("worldtools.randomizeenergies")));
             ImGui::Checkbox("##energies", &_randomizeEnergies);
             ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
             auto posX = ImGui::GetCursorPos().x;
             ImGui::BeginDisabled(!_randomizeEnergies);
-            AlienGui::InputFloat(AlienGui::InputFloatParameters().format("%.1f").name("Minimum energy").textWidth(RightColumnWidth), _minEnergy);
+            AlienGui::InputFloat(
+                AlienGui::InputFloatParameters()
+                    .format("%.1f")
+                    .name("Minimum energy")
+                    .label(tr("parameters.lifecycle.mincellenergy.name"))
+                    .textWidth(WorldToolPresentation::massTextWidth()),
+                _minEnergy);
             ImGui::SetCursorPosX(posX);
-            AlienGui::InputFloat(AlienGui::InputFloatParameters().format("%.1f").name("Maximum energy").textWidth(RightColumnWidth), _maxEnergy);
+            AlienGui::InputFloat(
+                AlienGui::InputFloatParameters()
+                    .format("%.1f")
+                    .name("Maximum energy")
+                    .label(tr("worldtools.maximumenergy"))
+                    .textWidth(WorldToolPresentation::massTextWidth()),
+                _maxEnergy);
             ImGui::EndDisabled();
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize cell ages"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize cell ages").label(tr("worldtools.randomizecellages")));
             ImGui::Checkbox("##ages", &_randomizeAges);
             ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
             posX = ImGui::GetCursorPos().x;
             ImGui::BeginDisabled(!_randomizeAges);
-            AlienGui::InputInt(AlienGui::InputIntParameters().name("Minimum age").textWidth(RightColumnWidth), _minAge);
+            AlienGui::InputInt(
+                AlienGui::InputIntParameters().name("Minimum age").label(tr("worldtools.minimumage")).textWidth(WorldToolPresentation::massTextWidth()),
+                _minAge);
             ImGui::SetCursorPosX(posX);
-            AlienGui::InputInt(AlienGui::InputIntParameters().name("Maximum age").textWidth(RightColumnWidth), _maxAge);
+            AlienGui::InputInt(
+                AlienGui::InputIntParameters()
+                    .name("Maximum age")
+                    .label(tr("parameters.lifecycle.maxcellage.name"))
+                    .textWidth(WorldToolPresentation::massTextWidth()),
+                _maxAge);
             ImGui::EndDisabled();
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize detonation countdown"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize detonation countdown").label(tr("worldtools.randomizedetonationcountdown")));
             ImGui::Checkbox("##countdown", &_randomizeCountdowns);
             ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
             posX = ImGui::GetCursorPos().x;
             ImGui::BeginDisabled(!_randomizeCountdowns);
-            AlienGui::InputInt(AlienGui::InputIntParameters().name("Minimum value").textWidth(RightColumnWidth), _minCountdown);
+            AlienGui::InputInt(
+                AlienGui::InputIntParameters().name("Minimum value").label(tr("worldtools.minimumvalue")).textWidth(WorldToolPresentation::massTextWidth()),
+                _minCountdown);
             ImGui::SetCursorPosX(posX);
-            AlienGui::InputInt(AlienGui::InputIntParameters().name("Maximum value").textWidth(RightColumnWidth), _maxCountdown);
+            AlienGui::InputInt(
+                AlienGui::InputIntParameters().name("Maximum value").label(tr("worldtools.maximumvalue")).textWidth(WorldToolPresentation::massTextWidth()),
+                _maxCountdown);
             ImGui::EndDisabled();
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize mutants"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize mutants").label(tr("worldtools.randomizemutants")));
             ImGui::Checkbox("##lineageId", &_randomizeLineageId);
             ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
-            AlienGui::Text("Randomize lineage ids");
+            AlienGui::Text(tr("worldtools.randomizelineageids"));
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Randomize fluid glow"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Randomize fluid glow").label(tr("worldtools.randomizefluidglow")));
             ImGui::Checkbox("##glow", &_randomizeGlow);
             ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
             posX = ImGui::GetCursorPos().x;
             ImGui::BeginDisabled(!_randomizeGlow);
-            AlienGui::SliderFloat(AlienGui::SliderFloatParameters().format("%.2f").name("Minimum glow").min(0).max(1).textWidth(RightColumnWidth), &_minGlow);
+            AlienGui::SliderFloat(
+                AlienGui::SliderFloatParameters()
+                    .format("%.2f")
+                    .name("Minimum glow")
+                    .label(tr("worldtools.minimumglow"))
+                    .min(0)
+                    .max(1)
+                    .textWidth(WorldToolPresentation::massTextWidth()),
+                &_minGlow);
             ImGui::SetCursorPosX(posX);
-            AlienGui::SliderFloat(AlienGui::SliderFloatParameters().format("%.2f").name("Maximum glow").min(0).max(1).textWidth(RightColumnWidth), &_maxGlow);
+            AlienGui::SliderFloat(
+                AlienGui::SliderFloatParameters()
+                    .format("%.2f")
+                    .name("Maximum glow")
+                    .label(tr("worldtools.maximumglow"))
+                    .min(0)
+                    .max(1)
+                    .textWidth(WorldToolPresentation::massTextWidth()),
+                &_maxGlow);
             ImGui::EndDisabled();
 
             table.next();
 
-            AlienGui::Group(AlienGui::GroupParameters().text("Mutation rates"));
+            AlienGui::Group(AlienGui::GroupParameters().text("Mutation rates").label(tr("mutation.title")));
             ImGui::Checkbox("##mutationRates", &_randomizeMutationRates);
             ImGui::SameLine(0, ImGui::GetStyle().FramePadding.x * 4);
-            _mutationRatesWidget.process(_mutationRates, RightColumnWidth, !_randomizeMutationRates);
+            _mutationRatesWidget.process(_mutationRates, WorldToolPresentation::massTextWidth(), !_randomizeMutationRates);
 
             table.next();
 
@@ -222,7 +261,7 @@ void MassEditDialog::processIntern()
     AlienGui::Separator();
 
     ImGui::BeginDisabled(!isOkEnabled());
-    if (AlienGui::Button("OK")) {
+    if (AlienGui::DisplayButton("OK", tr("common.ok"))) {
         onExecute();
         close();
     }
@@ -230,7 +269,7 @@ void MassEditDialog::processIntern()
 
     ImGui::SameLine();
     ImGui::SetItemDefaultFocus();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::DisplayButton("Cancel", tr("common.cancel"))) {
         close();
     }
 
@@ -238,8 +277,10 @@ void MassEditDialog::processIntern()
 }
 
 MassEditDialog::MassEditDialog()
-    : AlienDialog("Mass operations")
-{}
+    : AlienDialog("Mass operations", {850.0f, 650.0f})
+{
+    setTitleKey("menu.mass");
+}
 
 void MassEditDialog::colorCheckbox(std::string id, uint32_t cellColor, bool& check)
 {

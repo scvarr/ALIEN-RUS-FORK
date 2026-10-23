@@ -108,6 +108,7 @@ public:
     struct SliderInputFloatParameters
     {
         MEMBER(SliderInputFloatParameters, std::string, name, "");
+        MEMBER(SliderInputFloatParameters, std::optional<std::string>, label, std::nullopt);
         MEMBER(SliderInputFloatParameters, std::string, id, "");
         MEMBER(SliderInputFloatParameters, float, min, 0);
         MEMBER(SliderInputFloatParameters, float, max, 0);

@@ -9,6 +9,8 @@
 
 class SelectionWidget : public MainLoopEntity
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON(SelectionWidget);
 
 private:

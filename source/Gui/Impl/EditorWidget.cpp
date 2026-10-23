@@ -17,6 +17,7 @@
 #include "SimulationInteractionController.h"
 #include "SimulationView.h"
 #include "StyleService.h"
+#include "WorldToolPresentation.h"
 
 namespace
 {
@@ -77,11 +78,11 @@ void EditorWidget::processDock()
         for (auto const& definition : group) {
             auto parameters = AlienGui::ToolbarItemParameters()
                                   .icon(definition.icon)
-                                  .name(definition.name)
+                                  .name(WorldToolPresentation::text(definition.name))
                                   .selected(model.getTool() == definition.tool)
                                   .action([this, tool = definition.tool] { selectTool(tool); });
             if (definition.tool == EditTool_Force) {
-                parameters.disabled(!simulationRunning).tooltip("Apply forces (available while the simulation is running)");
+                parameters.disabled(!simulationRunning).tooltip(tr("worldtools.applyforcesavailablewhilethesimulationisrunning"));
             }
             items.emplace_back(AlienGui::ToolbarItem::createButton(parameters));
         }
@@ -89,44 +90,40 @@ void EditorWidget::processDock()
     }
     items.emplace_back(AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                                .icon(ICON_AGENT)
-                                                               .name("MCP server")
-                                                               .tooltip("Connect your AI agent to ALIEN")
+                                                               .name(tr("menu.mcp"))
+                                                               .tooltip(tr("worldtools.connectyouraiagenttoalien"))
                                                                .selected(McpWindow::get().isOn())
                                                                .action([] { McpWindow::get().setOn(!McpWindow::get().isOn()); })));
-    items.emplace_back(AlienGui::ToolbarItem::createButton(
-        AlienGui::ToolbarItemParameters().icon(ICON_IMAGE_PATTERN).name("Pattern from image").tooltip("Create a pattern from an image").action([] {
-            ImageToPatternDialog::get().show();
-        })));
+    items.emplace_back(AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                               .icon(ICON_IMAGE_PATTERN)
+                                                               .name(tr("worldtools.patternfromimage"))
+                                                               .tooltip(tr("worldtools.createapatternfromanimage"))
+                                                               .action([] { ImageToPatternDialog::get().show(); })));
     items.emplace_back(AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                                .icon(ICON_FA_PASTE)
-                                                               .name("Paste")
-                                                               .tooltip("Paste the copied selection (CTRL+V)")
+                                                               .name(tr("menu.paste"))
+                                                               .tooltip(tr("worldtools.pastethecopiedselectionctrlv"))
                                                                .disabled(!EditorController::get().isPastingPossible())
                                                                .action([] { EditorController::get().onPaste(); })));
     items.emplace_back(AlienGui::ToolbarItem::createSeparator());
-    items.emplace_back(AlienGui::ToolbarItem::createButton(
-        AlienGui::ToolbarItemParameters()
-            .icon(ICON_SCOPE_OBJECTS)
-            .name("Apply to selected objects")
-            .tooltip("Apply to selected objects\n\nEdits only affect the selected objects. When they are moved, their connections to unselected "
-                     "objects may tear.\nHold SHIFT to switch to entire networks temporarily.")
-            .selected(!model.isApplyToNetworks())
-            .action([&model] { model.setApplyToNetworks(false); })));
-    items.emplace_back(AlienGui::ToolbarItem::createButton(
-        AlienGui::ToolbarItemParameters()
-            .icon(ICON_SCOPE_NETWORKS)
-            .name("Apply to entire networks")
-            .tooltip("Apply to entire networks\n\nEdits affect the whole object networks of the selected objects.\nHold SHIFT to switch to selected "
-                     "objects temporarily.")
-            .selected(model.isApplyToNetworks())
-            .action([&model] { model.setApplyToNetworks(true); })));
-    items.emplace_back(
-        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
-                                                .icon(ICON_GLUE)
-                                                .name("Glue on contact")
-                                                .tooltip("Glue on contact\n\nIf enabled, moved or rotated objects connect to the objects they touch.")
-                                                .selected(model.isGlueOnContact())
-                                                .action([&model] { model.setGlueOnContact(!model.isGlueOnContact()); })));
+    items.emplace_back(AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                               .icon(ICON_SCOPE_OBJECTS)
+                                                               .name(tr("worldtools.applytoselectedobjects"))
+                                                               .tooltip(tr("worldtools.scopehelp0"))
+                                                               .selected(!model.isApplyToNetworks())
+                                                               .action([&model] { model.setApplyToNetworks(false); })));
+    items.emplace_back(AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                               .icon(ICON_SCOPE_NETWORKS)
+                                                               .name(tr("worldtools.applytoentirenetworks"))
+                                                               .tooltip(tr("worldtools.scopehelp1"))
+                                                               .selected(model.isApplyToNetworks())
+                                                               .action([&model] { model.setApplyToNetworks(true); })));
+    items.emplace_back(AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                               .icon(ICON_GLUE)
+                                                               .name(tr("worldtools.glueoncontact"))
+                                                               .tooltip(tr("worldtools.scopehelp2"))
+                                                               .selected(model.isGlueOnContact())
+                                                               .action([&model] { model.setGlueOnContact(!model.isGlueOnContact()); })));
 
     auto anchor = SimulationInteractionController::get().getEditToggleAnchor();
     auto width = AlienGui::CalcToolbarWidth(items) + 2 * scale(DockPadding) + 1.0f;
@@ -137,7 +134,7 @@ void EditorWidget::processDock()
     ImGui::SetNextWindowSize({width, height}, ImGuiCond_Always);
     AlienGui::PushFloatingCardStyle(DockPadding);
     if (ImGui::Begin("##editDock", nullptr, FloatingCardFlags)) {
-        AlienGui::Toolbar(AlienGui::ToolbarParameters().id("EditDock").bottomSeparator(false), items);
+        AlienGui::Toolbar(AlienGui::ToolbarParameters().id("EditDock").bottomSeparator(false).overflowTooltip(tr("parameters.overflow")), items);
     }
     ImGui::End();
     AlienGui::PopFloatingCardStyle();
@@ -168,10 +165,12 @@ void EditorWidget::processToolOptions()
 
     auto anchor = SimulationInteractionController::get().getEditToggleAnchor();
     ImGui::SetNextWindowPos({anchor.x + scale(DockSpacing), _dockTop - scale(OptionsSpacing)}, ImGuiCond_Always, {0.0f, 1.0f});
-    ImGui::SetNextWindowSizeConstraints({scale(OptionsWidth), 0.0f}, {scale(OptionsWidth), FLT_MAX});
+    ImGui::SetNextWindowSizeConstraints(
+        {scale(std::max(OptionsWidth, WorldToolPresentation::creatorTextWidth() + 190.0f)), 0.0f},
+        {scale(std::max(OptionsWidth, WorldToolPresentation::creatorTextWidth() + 190.0f)), FLT_MAX});
     AlienGui::PushFloatingCardStyle(OptionsPadding);
     if (ImGui::Begin("##editToolOptions", nullptr, FloatingCardFlags | ImGuiWindowFlags_AlwaysAutoResize)) {
-        AlienGui::Group(AlienGui::GroupParameters().text(getToolDefinition(tool).name));
+        AlienGui::Group(AlienGui::GroupParameters().text(getToolDefinition(tool).name).label(WorldToolPresentation::text(getToolDefinition(tool).name)));
 
         std::string hint;
         if (tool == EditTool_Scissors) {
@@ -180,21 +179,22 @@ void EditorWidget::processToolOptions()
             AlienGui::Checkbox(
                 AlienGui::CheckboxParameters()
                     .name("Only in selection")
-                    .textWidth(OptionsTextWidth)
-                    .tooltip("If enabled, only connections between selected objects are cut."),
+                    .label(tr("worldtools.onlyinselection"))
+                    .textWidth(WorldToolPresentation::textWidth(OptionsTextWidth, {"worldtools.onlyinselection"}))
+                    .tooltip(tr("worldtools.ifenabledonlyconnectionsbetweenselectedobjectsarecut")),
                 &cutOnlyInSelection);
             scissorsController.setCutOnlyInSelection(cutOnlyInSelection);
-            hint = "Hold the left mouse button and drag across connections to cut them.";
+            hint = tr("worldtools.holdtheleftmousebuttonanddragacrossconnectionstocutthem");
         } else if (tool == EditTool_Force) {
-            hint = "Hold the left mouse button and drag to push the objects under the cursor.";
+            hint = tr("worldtools.holdtheleftmousebuttonanddragtopushtheobjectsunderthecursor");
         } else {
             CreatorWidget::get().process();
             if (tool == EditTool_Line || tool == EditTool_Curve || tool == EditTool_Polygon) {
-                hint = "Left click: add point, right click: remove last point, ENTER: finish, ESC: abort";
+                hint = tr("worldtools.leftclickaddpointrightclickremovelastpointenterfinishescabort");
             } else if (tool == EditTool_Freehand) {
-                hint = "Hold the left mouse button to draw.";
+                hint = tr("worldtools.holdtheleftmousebuttontodraw");
             } else {
-                hint = "Left click in the simulation to place.";
+                hint = tr("worldtools.leftclickinthesimulationtoplace");
             }
         }
         ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDecentColor.Value);

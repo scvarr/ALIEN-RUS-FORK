@@ -8,6 +8,8 @@
 
 class EditorWidget : public MainLoopEntity
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON(EditorWidget);
 
 private:

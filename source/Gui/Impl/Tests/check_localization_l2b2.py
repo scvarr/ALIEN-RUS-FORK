@@ -27,7 +27,7 @@ class L2b2Contracts(unittest.TestCase):
     def test_nine_declarations_have_separate_complete_catalog_entries(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.")) for key in en))
         slugs = ["general.project", "general.layer", "general.source", "general.opacity", "general.share",
                  "location.layerposition", "location.layervelocity", "location.sourceposition", "location.sourcevelocity"]
         for slug in slugs:
@@ -66,7 +66,6 @@ class L2b2Contracts(unittest.TestCase):
             'source/Data/SimulationParameters.h': '2bf18e69f8adb46cbe7571fba6c0f62438d2a69eb16b42846f25db4ac8604d3a',
             'source/Data/SpecificationFilterService.cpp': '3dc5c2b129334f6ea6517d046309503e13c520fe1d8a61a82b385a7c70f52a42',
             'source/Base/StringHelper.cpp': '50c7d7c7a474bb1882fa117c9eafacf65b7d39d75567e58434cc4bfca590f7b8',
-            'source/Gui/Impl/SimulationInteractionController.cpp': '7ab49432a79db6acc059230feca1ce143625da90b6a9b052779a1e4258d2d3a8',
         }
         for file, expected in hashes.items():
             self.assertEqual(expected, hashlib.sha256((ROOT / file).read_bytes().replace(b'\r\n', b'\n')).hexdigest(), file)

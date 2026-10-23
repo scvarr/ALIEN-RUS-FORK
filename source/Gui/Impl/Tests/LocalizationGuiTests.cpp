@@ -25,9 +25,11 @@
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
 #include <Gui/Impl/ChangeColorDialog.h>
+#include <Gui/Impl/CreatorWidget.h>
 #include <Gui/Impl/CreaturePreviewWidget.h>
 #include <Gui/Impl/DelayedExecutionController.h>
 #include <Gui/Impl/EditorModel.h>
+#include <Gui/Impl/EditorWidget.h>
 #include <Gui/Impl/EntityAttributeHelp.h>
 #include <Gui/Impl/ExitDialog.h>
 #include <Gui/Impl/GeneEditorWidget.h>
@@ -44,7 +46,9 @@
 #include <Gui/Impl/InspectionPresentation.h>
 #include <Gui/Impl/InspectionWindow.h>
 #include <Gui/Impl/LocalizationGui.h>
+#include <Gui/Impl/MassEditDialog.h>
 #include <Gui/Impl/ModalWindow.h>
+#include <Gui/Impl/MultiplierWidget.h>
 #include <Gui/Impl/MutationRatesDialog.h>
 #include <Gui/Impl/MutationRatesPresentation.h>
 #include <Gui/Impl/MutationRatesWidget.h>
@@ -54,8 +58,11 @@
 #include <Gui/Impl/NodeEditorWidget.h>
 #include <Gui/Impl/OverlayController.h>
 #include <Gui/Impl/PreviewSettingsDialog.h>
+#include <Gui/Impl/ResizeWorldDialog.h>
 #include <Gui/Impl/SavePictureDialog.h>
+#include <Gui/Impl/SelectionWidget.h>
 #include <Gui/Impl/SignalsBufferDialog.h>
+#include <Gui/Impl/SimulationInteractionController.h>
 #include <Gui/Impl/SimulationParametersBaseWidget.h>
 #include <Gui/Impl/SimulationParametersGuiText.h>
 #include <Gui/Impl/SimulationParametersMainWindow.h>
@@ -64,6 +71,7 @@
 #include <Gui/Impl/StyleService.h>
 #include <Gui/Impl/Utf8Search.h>
 #include <Gui/Impl/WindowController.h>
+#include <Gui/Impl/WorldToolPresentation.h>
 
 namespace
 {
@@ -101,6 +109,92 @@ protected:
         OverlayController::get()._messageStartTimepoint.reset();
         ImGui::DestroyContext();
         GlobalSettings::get().setValue("settings.language", _language);
+    }
+
+    void worldToolPanels(CreatorParameters& parameters)
+    {
+        auto& creator = CreatorWidget::get();
+        creator.processColorWidget();
+        creator.processPencilWidget(parameters);
+        creator.processMaterialWidgets(parameters);
+        creator.processShapeWidgets(parameters);
+        creator.processObjectDistanceWidget(parameters);
+        creator.processStickyWidget(parameters);
+        creator.processStaticWidget(parameters);
+        EXPECT_LE(GImGui->LastItemData.Rect.Max.x, ImGui::GetCurrentWindow()->WorkRect.Max.x + 1);
+        creator.processPointButtons();
+    }
+
+    void multiplierPanel(bool random)
+    {
+        auto& widget = MultiplierWidget::get();
+        if (random) {
+            widget.processRandomPanel();
+        } else {
+            widget.processGridPanel();
+        }
+        EXPECT_LE(GImGui->LastItemData.Rect.Max.x, ImGui::GetCurrentWindow()->WorkRect.Max.x + 1);
+    }
+
+    void checkMultiplierValues()
+    {
+        auto const& widget = MultiplierWidget::get();
+        EXPECT_EQ(7, widget._gridParameters._horizontalNumber);
+        EXPECT_EQ(9, widget._randomParameters._number);
+        EXPECT_FLOAT_EQ(1.25f, widget._randomParameters._minVelX);
+    }
+
+    void setMultiplierValues()
+    {
+        auto& widget = MultiplierWidget::get();
+        widget._gridParameters._horizontalNumber = 7;
+        widget._randomParameters._number = 9;
+        widget._randomParameters._minVelX = 1.25f;
+    }
+
+    void selectionPopups(bool open)
+    {
+        auto& widget = SelectionWidget::get();
+        if (open) {
+            ImGui::OpenPopup("##hudSticky");
+        }
+        widget.processStickyPopup();
+    }
+
+    void drawWorldToolHud()
+    {
+        SimulationInteractionController::get().processEditWidget();
+        EditorWidget::get().processDock();
+        EditorWidget::get().processToolOptions();
+        SelectionWidget::ViewBounds bounds{{500, 500}, {400, 400}, {600, 600}};
+        SelectionWidget::get().processSummary(bounds);
+        SelectionWidget::get().processActionBar(bounds);
+    }
+
+    void prepareWorldDialogs()
+    {
+        auto& resize = ResizeWorldDialog::get();
+        resize._width = 1234;
+        resize._height = 567;
+        resize._scaleContent = true;
+        auto& mass = MassEditDialog::get();
+        mass._randomizeEnergies = true;
+        mass._minEnergy = 111.25f;
+        mass._maxEnergy = 222.5f;
+        mass._restrictToSelectedCreatures = false;
+    }
+
+    void checkWorldDialogs()
+    {
+        auto const& resize = ResizeWorldDialog::get();
+        EXPECT_EQ(1234, resize._width);
+        EXPECT_EQ(567, resize._height);
+        EXPECT_TRUE(resize._scaleContent);
+        auto const& mass = MassEditDialog::get();
+        EXPECT_TRUE(mass._randomizeEnergies);
+        EXPECT_FLOAT_EQ(111.25f, mass._minEnergy);
+        EXPECT_FLOAT_EQ(222.5f, mass._maxEnergy);
+        EXPECT_FALSE(mass._restrictToSelectedCreatures);
     }
 
     std::string inspectionTitle(_InspectionWindow const& window) { return window.generateTitle(); }
@@ -8037,4 +8131,296 @@ TEST_F(LocalizationGuiTests, l5aOpenLimitMessagesResolveLanguageAtDisplayTime)
         }
         closeImmediately(dialog);
     }
+}
+
+TEST_F(LocalizationGuiTests, l5bCreatorMaterialsShapesAndLabelsRetainValuesAtEveryScale)
+{
+    GenomeShellWorldScope world;
+    auto originalTool = EditorModel::get().getTool();
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        frame([] {});
+        for (auto tool :
+             {EditTool_Freehand, EditTool_Object, EditTool_Rectangle, EditTool_Hexagon, EditTool_Disc, EditTool_Line, EditTool_Curve, EditTool_Polygon}) {
+            EditorModel::get().setTool(tool);
+            for (auto material : {CreationMaterial_Solid, CreationMaterial_Fluid, CreationMaterial_FreeCell, CreationMaterial_EnergyParticle}) {
+                CreatorParameters parameters;
+                parameters.material = material;
+                parameters.energy = 123.25f;
+                parameters.stiffness = 0.75f;
+                parameters.glow = 0.5f;
+                for (auto language : {"en", "ru", "en"}) {
+                    select(language);
+                    std::string log;
+                    switcherFrame((WorldToolPresentation::creatorTextWidth() + 200) * factor, [&] {
+                        ImGui::LogToBuffer();
+                        worldToolPanels(parameters);
+                        log = GImGui->LogBuffer.c_str();
+                        ImGui::LogFinish();
+                    });
+                    EXPECT_NE(std::string::npos, log.find(tr("worldtools.material")));
+                    EXPECT_NE(std::string::npos, log.find(tr("new.energy")));
+                    EXPECT_EQ(material, parameters.material);
+                    EXPECT_FLOAT_EQ(123.25f, parameters.energy);
+                    EXPECT_FLOAT_EQ(0.75f, parameters.stiffness);
+                    EXPECT_FLOAT_EQ(0.5f, parameters.glow);
+                    EXPECT_EQ(tool, EditorModel::get().getTool());
+                }
+            }
+        }
+    }
+    EditorModel::get().setTool(originalTool);
+}
+
+TEST_F(LocalizationGuiTests, l5bMultiplierFocusedInputsAndPopupIdsSurviveLanguageSwitch)
+{
+    setMultiplierValues();
+    ImGuiID original = 0;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        frame([] {});
+        bool focus = true;
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (int pass = 0; pass < 3; ++pass) {
+                switcherFrame((WorldToolPresentation::randomTextWidth() + 240) * factor, [&] {
+                    if (focus) {
+                        ImGui::SetKeyboardFocusHere();
+                    }
+                    multiplierPanel(true);
+                    focus = false;
+                });
+            }
+            if (!original) {
+                original = GImGui->ActiveId;
+            }
+            EXPECT_NE(0, original);
+            EXPECT_EQ(original, GImGui->ActiveId);
+            checkMultiplierValues();
+        }
+    }
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        frame([] {});
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            switcherFrame((WorldToolPresentation::gridTextWidth() + 300) * factor, [&] {
+                multiplierPanel(false);
+                auto host = ImGui::GetCurrentWindow();
+                WorldToolPresentation::selectable("Make sticky", tr("worldtools.makesticky"));
+                EXPECT_EQ(host->GetID("Make sticky"), GImGui->LastItemData.ID);
+            });
+            checkMultiplierValues();
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5bOpenWorldDialogsKeepInstancesFiltersAndParameters)
+{
+    GenomeShellWorldScope world;
+    prepareWorldDialogs();
+    for (auto dialog : {static_cast<AlienDialog*>(&ResizeWorldDialog::get()), static_cast<AlienDialog*>(&MassEditDialog::get())}) {
+        auto stableTitle = dialog == &ResizeWorldDialog::get() ? "###Resize world" : "###Mass operations";
+        openWithoutSimulation(*dialog);
+        ImGuiWindow* original = nullptr;
+        for (float factor : {1.0f, 1.5f, 2.0f}) {
+            setTestScale(factor);
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                for (int pass = 0; pass < 2; ++pass) {
+                    frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); });
+                }
+                auto current = ImGui::FindWindowByName(stableTitle);
+                ASSERT_NE(nullptr, current);
+                if (!original) {
+                    original = current;
+                }
+                EXPECT_EQ(original, current);
+                EXPECT_TRUE(dialog->isOpen());
+                checkWorldDialogs();
+            }
+        }
+        closeImmediately(*dialog);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5bCountFormsLongHelpAndPopupStateAtAllScales)
+{
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        frame([] {});
+        bool open = true;
+        ImGuiWindow* original = nullptr;
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (int count : {0, 1, 2, 5, 11, 14, 21, 22, 25, 1000}) {
+                for (auto noun : {"objects", "creatures", "particles"}) {
+                    auto text = WorldToolPresentation::selectionCount(std::string("worldtools.count.") + noun, count);
+                    EXPECT_FALSE(text.empty());
+                    EXPECT_EQ(std::string::npos, text.find('{'));
+                }
+            }
+            if (std::string(language) == "ru") {
+                EXPECT_EQ("21 объект", WorldToolPresentation::selectionCount("worldtools.count.objects", 21));
+                EXPECT_EQ("22 организма", WorldToolPresentation::selectionCount("worldtools.count.creatures", 22));
+                EXPECT_EQ("11 частиц энергии", WorldToolPresentation::selectionCount("worldtools.count.particles", 11));
+            }
+            for (auto key : {"worldtools.scopehelp0", "worldtools.scopehelp1", "worldtools.scopehelp2", "worldtools.help.creatormaterialtooltip"}) {
+                auto text = tr(key);
+                auto size = ImGui::CalcTextSize(text.c_str(), nullptr, false, 380 * factor);
+                EXPECT_LE(size.x, 380 * factor + 1);
+                EXPECT_GT(size.y, ImGui::GetTextLineHeight());
+            }
+            for (int pass = 0; pass < 2; ++pass) {
+                frame([&] {
+                    selectionPopups(open);
+                    open = false;
+                    EXPECT_TRUE(ImGui::IsPopupOpen("##hudSticky"));
+                });
+            }
+            auto current = GImGui->OpenPopupStack.back().Window;
+            if (!original) {
+                original = current;
+            }
+            EXPECT_EQ(original, current);
+        }
+        frame([&] {
+            if (ImGui::BeginPopup("##hudSticky")) {
+                ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+        });
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5bAngleInputRetainsLegacyIdFocusAndValue)
+{
+    float value = 12.5f;
+    ImGuiID original = 0;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        frame([] {});
+        bool focus = true;
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (int pass = 0; pass < 3; ++pass) {
+                switcherFrame(700 * factor, [&] {
+                    if (focus) {
+                        ImGui::SetKeyboardFocusHere(1);
+                    }
+                    AlienGui::SliderInputFloat(
+                        AlienGui::SliderInputFloatParameters()
+                            .name("Angle")
+                            .label(tr("parameters.forcefield.layerlinearforcefieldangle.name"))
+                            .min(-180)
+                            .max(180)
+                            .textWidth(WorldToolPresentation::transformTextWidth()),
+                        value);
+                    ImGui::PushID("");
+                    auto expected = ImGui::GetID("##inputAngle");
+                    ImGui::PopID();
+                    if (!original) {
+                        original = expected;
+                    }
+                    EXPECT_EQ(original, expected);
+                    focus = false;
+                });
+            }
+            EXPECT_EQ(original, GImGui->ActiveId);
+            EXPECT_FLOAT_EQ(12.5f, value);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5bOpenFailureMessagesResolveLanguageWithoutReopening)
+{
+    auto& dialog = GenericMessageDialog::get();
+    for (auto key : {"worldtools.theimagecouldnotberead", "worldtools.nonoverlappingcopiescouldnotbecreated"}) {
+        dialog.localizedInformation("Error", "common.error", key);
+        ImGuiWindow* original = nullptr;
+        for (float factor : {1.0f, 1.5f, 2.0f}) {
+            setTestScale(factor);
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                std::string log;
+                for (int pass = 0; pass < 2; ++pass) {
+                    frame([&] {
+                        ImGui::LogToBuffer();
+                        static_cast<MainLoopEntity&>(dialog).process();
+                        log = GImGui->LogBuffer.c_str();
+                        ImGui::LogFinish();
+                    });
+                }
+                auto current = ImGui::FindWindowByName("###Error");
+                ASSERT_NE(nullptr, current);
+                if (!original) {
+                    original = current;
+                }
+                EXPECT_EQ(original, current);
+                EXPECT_TRUE(dialog.isOpen());
+                EXPECT_NE(std::string::npos, log.find(tr(key)));
+            }
+        }
+        closeImmediately(dialog);
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5bWorldHudKeepsToolsSelectionAndWindowIds)
+{
+    class World : public _SimulationFacadeImpl
+    {
+    public:
+        bool isSimulationRunning() const override { return true; }
+        IntVector2D getWorldSize() const override { return {1024, 768}; }
+        SimulationParameters getSimulationParameters() const override { return *_parameters; }
+        SelectionShallowData getSelectionShallowData() override
+        {
+            SelectionShallowData result;
+            result.numObjects = 21;
+            result.numClusterCells = 42;
+            result.numCreatures = 2;
+            result.numEnergyParticles = 5;
+            return result;
+        }
+
+    private:
+        std::unique_ptr<SimulationParameters> _parameters = std::make_unique<SimulationParameters>();
+    };
+    auto originalFacade = _SimulationFacade::get();
+    auto originalTool = EditorModel::get().getTool();
+    auto editMode = SimulationInteractionController::get().isEditMode();
+    _SimulationFacadeImpl::set(std::make_shared<World>());
+    EditorModel::get().update();
+    std::map<std::string, ImGuiID> ids;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto tool : {EditTool_Select, EditTool_Scissors, EditTool_Force, EditTool_Rectangle, EditTool_Line}) {
+            EditorModel::get().setTool(tool);
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                for (int pass = 0; pass < 2; ++pass) {
+                    switcherFrame(1500 * factor, [&] { drawWorldToolHud(); });
+                }
+                for (auto name : {"##editDock", "##selectionActionBar"}) {
+                    auto window = ImGui::FindWindowByName(name);
+                    ASSERT_NE(nullptr, window);
+                    if (!ids.contains(name)) {
+                        ids.emplace(name, window->ID);
+                    }
+                    EXPECT_EQ(ids.at(name), window->ID);
+                    EXPECT_EQ(ImHashStr(name), window->ID);
+                }
+                EXPECT_EQ(tool, EditorModel::get().getTool());
+                auto const& selection = EditorModel::get().getSelectionShallowData();
+                EXPECT_EQ(21, selection.numObjects);
+                EXPECT_EQ(42, selection.numClusterCells);
+                EXPECT_EQ(2, selection.numCreatures);
+                EXPECT_EQ(5, selection.numEnergyParticles);
+            }
+        }
+    }
+    EditorModel::get().clear();
+    EditorModel::get().setTool(originalTool);
+    SimulationInteractionController::get().setEditMode(editMode);
+    _SimulationFacadeImpl::set(originalFacade);
 }

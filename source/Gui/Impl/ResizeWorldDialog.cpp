@@ -8,6 +8,7 @@
 #include <Engine/Interface/TemporalControlService.h>
 
 #include "AlienGui.h"
+#include "WorldToolPresentation.h"
 
 void ResizeWorldDialog::initIntern()
 {
@@ -25,8 +26,10 @@ void ResizeWorldDialog::open()
 }
 
 ResizeWorldDialog::ResizeWorldDialog()
-    : AlienDialog("Resize world")
-{}
+    : AlienDialog("Resize world", {500.0f, 230.0f})
+{
+    setTitleKey("worldtools.resizeworld");
+}
 
 void ResizeWorldDialog::processIntern()
 {
@@ -41,7 +44,7 @@ void ResizeWorldDialog::processIntern()
         ImGui::PopItemWidth();
 
         ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Width");
+        ImGui::TextUnformatted(tr("common.width").c_str());
 
         // Height
         ImGui::TableNextRow();
@@ -51,22 +54,22 @@ void ResizeWorldDialog::processIntern()
         ImGui::PopItemWidth();
 
         ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Height");
+        ImGui::TextUnformatted(tr("common.height").c_str());
 
         ImGui::EndTable();
     }
-    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Scale content"), _scaleContent);
+    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Scale content").label(tr("worldtools.scalecontent")), _scaleContent);
 
     AlienGui::Separator();
 
-    if (AlienGui::Button("OK")) {
+    if (AlienGui::DisplayButton("OK", tr("common.ok"))) {
         onResizing();
         close();
     }
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AlienGui::DisplayButton("Cancel", tr("common.cancel"))) {
         close();
     }
 

@@ -21,6 +21,8 @@ enum InteractionMode_
 
 class SimulationInteractionController : public MainLoopEntity
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON(SimulationInteractionController);
 
 public:

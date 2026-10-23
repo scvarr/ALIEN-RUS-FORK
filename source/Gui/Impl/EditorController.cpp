@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 
 #include <Data/DescEditService.h>
 
@@ -98,7 +99,7 @@ bool EditorController::isCopyingPossible() const
 void EditorController::onCopy()
 {
     _copiedSelection = _SimulationFacade::get()->getSelectedSimulationData(EditorModel::get().isApplyToNetworks());
-    printOverlayMessage("Selection copied");
+    printOverlayMessage(tr("worldtools.selectioncopied"));
 }
 
 bool EditorController::isPastingPossible() const
@@ -112,7 +113,7 @@ void EditorController::onPaste()
     DescEditService::get().setCenter(content, Viewport::get().getCenterInWorldPos());
     _SimulationFacade::get()->addAndSelectSimulationData(std::move(content));
     EditorModel::get().update();
-    printOverlayMessage("Selection pasted");
+    printOverlayMessage(tr("worldtools.selectionpasted"));
 }
 
 bool EditorController::isDeletingPossible() const
@@ -124,7 +125,7 @@ void EditorController::onDelete()
 {
     _SimulationFacade::get()->removeSelectedObjects(EditorModel::get().isApplyToNetworks());
     EditorModel::get().update();
-    printOverlayMessage("Selection deleted");
+    printOverlayMessage(tr("worldtools.selectiondeleted"));
 }
 
 bool EditorController::isDeselectingPossible() const
@@ -176,7 +177,7 @@ void EditorController::onGlueSelectedObjects()
 {
     _SimulationFacade::get()->glueSelectedObjects(EditorModel::get().isApplyToNetworks());
     EditorModel::get().update();
-    printOverlayMessage("Selection glued");
+    printOverlayMessage(tr("worldtools.selectionglued"));
 }
 
 void EditorController::onMoveSelectedObjectsBy(RealVector2D const& delta)
