@@ -7,6 +7,7 @@
 #include <Gui/Impl/BrowserGalleryWidget.h>
 #include <Gui/Impl/BrowserLoginBannerWidget.h>
 #include <Gui/Impl/BrowserLoginHintWidget.h>
+#include <Gui/Impl/BrowserMetadataSearch.h>
 #include <Gui/Impl/BrowserPresentation.h>
 #include <Gui/Impl/BrowserTableWidget.h>
 #include <Gui/Impl/BrowserUserListWidget.h>
@@ -527,4 +528,43 @@ TEST_F(BrowserLocalizationTests, l6bAllResourceOperationsKeepPendingTasksAndShow
         closeImmediately(GenericMessageDialog::get());
     }
     clearTransfers();
+}
+
+TEST_F(BrowserLocalizationTests, l6cGalleryAndTableUseTheSameUnicodeFilterWithoutChangingSortOrder)
+{
+    BrowserServiceScope services;
+    initBrowser();
+    auto data = browserData();
+    for (int type : {NetworkResourceType_Simulation, NetworkResourceType_Genome}) {
+        data->currentWorkspace = {type, WorkspaceType_Public};
+        auto& workspace = data->getCurrentWorkspace();
+        for (int i = 0; i < 3; ++i) {
+            auto item = std::make_shared<_NetworkResourceRawTO>();
+            item->id = std::to_string(i);
+            item->resourceName = i == 0 ? "МИР/ГЕНОМ/ЁЖ" : i == 1 ? "мир/геном/ёж" : "Other";
+            item->numLikesByEmojiType = {{1, i}};
+            item->resourceType = type;
+            item->workspaceType = WorkspaceType_Public;
+            workspace.rawTOs.emplace_back(item);
+        }
+        browserSort(0);
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            for (auto query : {"мИр", "ГеНоМ", "ёЖ"}) {
+                data->filter = query;
+                data->createTreeTOs(workspace);
+                auto sorted = browserSorted();
+                ASSERT_EQ(2, sorted.size());
+                EXPECT_EQ("1", sorted.at(0)->id);
+                EXPECT_EQ("0", sorted.at(1)->id);
+                EXPECT_EQ("МИР/ГЕНОМ/ЁЖ", workspace.rawTOs.at(0)->resourceName);
+                EXPECT_EQ(2, std::count_if(workspace.treeTOs.begin(), workspace.treeTOs.end(), [](auto const& tree) { return tree->isLeaf(); }));
+            }
+            data->filter = "ЕЖ";
+            data->createTreeTOs(workspace);
+            EXPECT_TRUE(workspace.treeTOs.empty());
+            EXPECT_TRUE(browserSorted().empty());
+        }
+    }
+    destroyBrowser();
 }

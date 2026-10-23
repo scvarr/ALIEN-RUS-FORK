@@ -17,6 +17,8 @@
 
 class GenericMessageDialog : public AlienDialog
 {
+    friend class AccountLocalizationTests;
+
     friend class LocalizationGuiTests;
     friend class BrowserLocalizationTests;
 

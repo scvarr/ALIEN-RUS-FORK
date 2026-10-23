@@ -1,5 +1,7 @@
 #include "BrowserData.h"
 
+#include "BrowserMetadataSearch.h"
+
 #include "BrowserPresentation.h"
 #include "LocalDialogPresentation.h"
 
@@ -68,7 +70,7 @@ void _BrowserData::createTreeTOs(Workspace& workspace)
     // Filtering
     std::vector<NetworkResourceRawTO> filteredRawTOs;
     for (auto const& rawTO : workspace.rawTOs) {
-        if (rawTO->matchWithFilter(filter)) {
+        if (BrowserMetadataSearch::matches(*rawTO, filter)) {
             filteredRawTOs.emplace_back(rawTO);
         }
     }

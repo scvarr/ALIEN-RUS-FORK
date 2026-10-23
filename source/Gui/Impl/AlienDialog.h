@@ -12,6 +12,8 @@
 
 class AlienDialog : public MainLoopEntity
 {
+    friend class AccountLocalizationTests;
+
     friend class LocalizationGuiTests;
     friend class BrowserLocalizationTests;
 

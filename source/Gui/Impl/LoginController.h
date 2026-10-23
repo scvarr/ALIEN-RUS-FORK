@@ -12,6 +12,8 @@
 
 class LoginController : public MainLoopEntity
 {
+    friend class AccountLocalizationTests;
+
     MAKE_SINGLETON(LoginController);
 
 public:

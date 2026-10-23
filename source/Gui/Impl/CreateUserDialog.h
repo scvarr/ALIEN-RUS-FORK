@@ -9,6 +9,8 @@
 
 class CreateUserDialog : public AlienDialog
 {
+    friend class AccountLocalizationTests;
+
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(CreateUserDialog);
 
 public:

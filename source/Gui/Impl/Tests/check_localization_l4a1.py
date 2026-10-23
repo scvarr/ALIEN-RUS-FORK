@@ -40,7 +40,7 @@ class L4a1Contracts(unittest.TestCase):
         for language, values in [("en", en), ("ru", ru)]:
             old = json.loads(original(f"resources/locales/{language}.json"))
             self.assertEqual(old, {key: values[key] for key in old})
-            self.assertEqual(134, sum(not k.startswith(("neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.")) for k in values) - len(old))
+            self.assertEqual(134, sum(not k.startswith(("neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.")) for k in values) - len(old))
             for key, text in values.items():
                 self.assertRegex(key, r"^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$")
                 self.assertTrue(text)

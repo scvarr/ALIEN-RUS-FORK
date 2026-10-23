@@ -66,7 +66,7 @@ class L2b1Contracts(unittest.TestCase):
             return result
         en, ru = [json.loads(read(ROOT / f'resources/locales/{lang}.json'), object_pairs_hook=unique) for lang in ('en', 'ru')]
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.")) for key in en))
         for key in en:
             self.assertEqual(re.findall(r'\{[^}]*\}', en[key]), re.findall(r'\{[^}]*\}', ru[key]))
             self.assertNotIn('##', en[key])

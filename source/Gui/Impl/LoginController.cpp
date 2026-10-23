@@ -1,5 +1,7 @@
 #include "LoginController.h"
 
+#include "LocalDialogPresentation.h"
+
 #include <Base/GlobalSettings.h>
 
 #include <Network/NetworkService.h>
@@ -63,7 +65,7 @@ void LoginController::onLogin()
                 saveSettings();
                 BrowserWindow::get().onRefresh();
             },
-            [&](auto const& criticalErrors) { GenericMessageDialog::get().information("Error", criticalErrors); });
+            [&](auto const& criticalErrors) { LocalDialogPresentation::error("account.loginerror", criticalErrors); });
     }
 }
 

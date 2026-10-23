@@ -371,6 +371,7 @@ alien_link_hip_rdc(alien-cli)
 alien_link_hip_rdc(EngineTests)
 alien_link_hip_rdc(PersisterTests)
 alien_link_hip_rdc(GuiLocalizationTests)
+alien_link_hip_rdc(AccountLocalizationTests)
 
 # Refresh catalogs and licensed fonts even when no executable needs relinking.
 add_custom_target(LocalizationResources ALL

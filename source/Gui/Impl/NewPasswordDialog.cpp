@@ -1,5 +1,7 @@
 #include "NewPasswordDialog.h"
 
+#include "AccountPresentation.h"
+
 #include <imgui.h>
 
 #include <Network/NetworkService.h>
@@ -25,27 +27,29 @@ void NewPasswordDialog::open(std::string const& userName, UserInfo const& userIn
 }
 
 NewPasswordDialog::NewPasswordDialog()
-    : AlienDialog("New password")
-{}
+    : AlienDialog("New password", {600.0f, 300.0f})
+{
+    setTitleKey("account.newpassword");
+}
 
 void NewPasswordDialog::processIntern()
 {
-    AlienGui::Text("Security information");
-    AlienGui::HelpMarker(
+    AlienGui::Text(AccountPresentation::text("Security information"));
+    AlienGui::HelpMarker(AccountPresentation::text(
         "The data transfer to the server is encrypted via https. On the server side, the password is not stored in cleartext, but as a salted SHA-256 hash "
-        "value in the database.");
+        "value in the database."));
 
     AlienGui::Separator();
 
-    AlienGui::Text("Please enter a new password and the confirmation code\nsent to your email address.");
+    AlienGui::Text(AccountPresentation::text("Please enter a new password and the confirmation code\nsent to your email address."));
     AlienGui::Separator();
-    AlienGui::InputText(AlienGui::InputTextParameters().hint("New password").password(true).textWidth(0), _newPassword);
-    AlienGui::InputText(AlienGui::InputTextParameters().hint("Code (case sensitive)").textWidth(0), _confirmationCode);
+    AlienGui::InputText(AlienGui::InputTextParameters().hint(AccountPresentation::text("New password")).hintId("New password").password(true).textWidth(0), _newPassword);
+    AlienGui::InputText(AlienGui::InputTextParameters().hint(AccountPresentation::text("Code (case sensitive)")).hintId("Code (case sensitive)").textWidth(0), _confirmationCode);
 
     AlienGui::Separator();
 
     ImGui::BeginDisabled(_confirmationCode.empty());
-    if (AlienGui::Button("OK")) {
+    if (AccountPresentation::button("OK")) {
         close();
         onNewPassword();
     }
@@ -53,7 +57,7 @@ void NewPasswordDialog::processIntern()
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AccountPresentation::button("Cancel")) {
         close();
     }
 }
@@ -66,10 +70,9 @@ void NewPasswordDialog::onNewPassword()
         result |= NetworkService::get().login(errorCode, _userName, _newPassword, _userInfo);
     }
     if (!result) {
-        GenericMessageDialog::get().information(
-            "Error", "An error occurred on the server. Your entered code may be incorrect.\nPlease try to reset the password again.");
+        AccountPresentation::information("newerror");
         return;
     }
-    GenericMessageDialog::get().information("Information", "The password has been successfully set.\nYou are logged in.");
+    AccountPresentation::information("newsuccess");
     BrowserWindow::get().onRefresh();
 }

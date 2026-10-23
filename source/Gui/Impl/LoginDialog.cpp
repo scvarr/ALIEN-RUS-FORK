@@ -1,5 +1,7 @@
 #include "LoginDialog.h"
 
+#include "AccountPresentation.h"
+
 #include <imgui.h>
 
 #include <Base/GlobalSettings.h>
@@ -25,43 +27,45 @@ void LoginDialog::initIntern()
 }
 
 LoginDialog::LoginDialog()
-    : AlienDialog("Login or register", {450.0f, 450.0f})
-{}
+    : AlienDialog("Login or register", {640.0f, 450.0f})
+{
+    setTitleKey("account.login.title");
+}
 
 void LoginDialog::processIntern()
 {
-    AlienGui::Text("How to create a new user?");
-    AlienGui::HelpMarker(Const::LoginHowToCreateNewUseTooltip);
+    AlienGui::Text(AccountPresentation::text("How to create a new user?"));
+    AlienGui::HelpMarker(AccountPresentation::text(Const::LoginHowToCreateNewUseTooltip));
 
-    AlienGui::Text("Forgot your password?");
-    AlienGui::HelpMarker(Const::LoginForgotYourPasswordTooltip);
+    AlienGui::Text(AccountPresentation::text("Forgot your password?"));
+    AlienGui::HelpMarker(AccountPresentation::text(Const::LoginForgotYourPasswordTooltip));
 
-    AlienGui::Text("Security information");
-    AlienGui::HelpMarker(Const::LoginSecurityInformationTooltip);
+    AlienGui::Text(AccountPresentation::text("Security information"));
+    AlienGui::HelpMarker(AccountPresentation::text(Const::LoginSecurityInformationTooltip));
 
     AlienGui::Separator();
 
     auto& loginController = LoginController::get();
     auto userName = loginController.getUserName();
-    AlienGui::InputText(AlienGui::InputTextParameters().hint("User name").textWidth(0), userName);
+    AlienGui::InputText(AlienGui::InputTextParameters().hint(AccountPresentation::text("User name")).hintId("User name").textWidth(0), userName);
     loginController.setUserName(userName);
 
     auto password = loginController.getPassword();
-    AlienGui::InputText(AlienGui::InputTextParameters().hint("Password").password(true).textWidth(0), password);
+    AlienGui::InputText(AlienGui::InputTextParameters().hint(AccountPresentation::text("Password")).hintId("Password").password(true).textWidth(0), password);
     loginController.setPassword(password);
 
     AlienGui::Separator();
     ImGui::Spacing();
 
     auto remember = loginController.isRemember();
-    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Remember").tooltip(Const::LoginRememberTooltip), remember);
+    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Remember").label(AccountPresentation::text("Remember")).tooltip(AccountPresentation::text(Const::LoginRememberTooltip)), remember);
     loginController.setRemember(remember);
 
     auto shareGpuInfo = loginController.shareGpuInfo();
     AlienGui::ToggleButton(
         AlienGui::ToggleButtonParameters()
-            .name("Share GPU model info")
-            .tooltip(Const::LoginShareGpuInfoTooltip1 + _SimulationFacade::get()->getGpuName() + "\n" + Const::LoginShareGpuInfoTooltip2),
+            .name("Share GPU model info").label(AccountPresentation::text("Share GPU model info"))
+            .tooltip(LocalizationGuiText::format("account.help.sharegpu", {{"gpu", _SimulationFacade::get()->getGpuName()}})),
         shareGpuInfo);
     loginController.setShareGpuInfo(shareGpuInfo);
 
@@ -69,7 +73,7 @@ void LoginDialog::processIntern()
     AlienGui::Separator();
 
     ImGui::BeginDisabled(userName.empty() || password.empty());
-    if (AlienGui::Button("Login")) {
+    if (AccountPresentation::button("Login")) {
         close();
         loginController.onLogin();
     }
@@ -81,7 +85,7 @@ void LoginDialog::processIntern()
 
     ImGui::SameLine();
     ImGui::BeginDisabled(userName.empty() || password.empty());
-    if (AlienGui::Button("Create user")) {
+    if (AccountPresentation::button("Create user")) {
         close();
         CreateUserDialog::get().open(userName, password, LoginController::get().getUserInfo());
     }
@@ -89,7 +93,7 @@ void LoginDialog::processIntern()
 
     ImGui::SameLine();
     ImGui::BeginDisabled(userName.empty());
-    if (AlienGui::Button("Reset password")) {
+    if (AccountPresentation::button("Reset password")) {
         close();
         ResetPasswordDialog::get().open(userName, LoginController::get().getUserInfo());
     }
@@ -99,7 +103,7 @@ void LoginDialog::processIntern()
     AlienGui::VerticalSeparator();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AccountPresentation::button("Cancel")) {
         close();
     }
 }

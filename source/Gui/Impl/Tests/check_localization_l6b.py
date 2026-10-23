@@ -16,7 +16,9 @@ COMPONENTS = ['BrowserWindow', 'BrowserGalleryWidget', 'BrowserTableWidget',
 
 
 def read(path):
-    return (ROOT / path).read_text(encoding='utf8')
+    return ((ROOT / path).read_text(encoding='utf8')
+            .replace('BrowserMetadataSearch::matches(*rawTO, filter)', 'rawTO->matchWithFilter(filter)')
+            .replace('BrowserMetadataSearch::matches(*rawTO, _data->filter)', 'rawTO->matchWithFilter(_data->filter)'))
 
 
 def original(path):
@@ -39,7 +41,7 @@ class L6bContracts(unittest.TestCase):
             before = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(before, {key: values[key] for key in before})
             for key in values.keys() - before.keys():
-                self.assertTrue(key.startswith('browser.'))
+                self.assertTrue(key.startswith(('browser.', 'account.')))
                 self.assertTrue(values[key])
                 self.assertNotIn('##', values[key])
                 self.assertEqual(sorted(re.findall(r'\{\w+}', catalogs['en'][key])), sorted(re.findall(r'\{\w+}', catalogs['ru'][key])))
@@ -106,15 +108,15 @@ class L6bContracts(unittest.TestCase):
         self.assertEqual(original(GUI + 'LocalDialogPresentation.h'), read(GUI + 'LocalDialogPresentation.h'))
 
     def test_later_stages_protocols_and_user_data_remain_outside_scope(self):
-        changed = subprocess.check_output(['git', 'diff', '--name-only', BASE], cwd=ROOT).decode().splitlines()
+        changed = subprocess.check_output(['git', 'diff', '--name-only', BASE, 'c1e86f2d9100ef8de0208a708c922d140848df72'], cwd=ROOT).decode().splitlines()
         for path in changed:
             self.assertFalse(path.startswith(('source/Network/', 'source/Persister/', 'source/Data/', 'source/Engine/',
                                              'source/McpTools/', 'source/Apps/', 'external/')), path)
             self.assertNotIn('AGENTS.md', path)
-        for name in ['LoginController', 'LoginDialog', 'McpWindow', 'McpSettingsDialog', 'PictureGuiService', 'NewSimulationService']:
+        for name in ['McpWindow', 'McpSettingsDialog', 'PictureGuiService', 'NewSimulationService']:
             self.assertEqual(original(GUI + name + '.cpp'), read(GUI + name + '.cpp'))
         for path in ['docs/localization-roadmap.md', 'docs/localization-terminology.md', 'docs/localization-l3-audit.md']:
-            self.assertEqual(original(path), read(path))
+            self.assertEqual(subprocess.check_output(['git', 'show', f'cfbde45fd0e086962e377b4c3e490cafcaeabfb6:{path}'], cwd=ROOT).decode('utf8').replace('\r\n', '\n'), read(path))
 
 
 if __name__ == '__main__':

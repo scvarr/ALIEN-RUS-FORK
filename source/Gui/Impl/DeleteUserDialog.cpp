@@ -1,5 +1,7 @@
 #include "DeleteUserDialog.h"
 
+#include "AccountPresentation.h"
+
 #include <imgui.h>
 
 #include <Network/NetworkService.h>
@@ -10,26 +12,28 @@
 #include "GenericMessageDialog.h"
 
 DeleteUserDialog::DeleteUserDialog()
-    : AlienDialog("Delete user")
-{}
+    : AlienDialog("Delete user", {700.0f, 260.0f})
+{
+    setTitleKey("account.deleteuser");
+}
 
 void DeleteUserDialog::processIntern()
 {
-    AlienGui::Text(
-        "Warning: All the data of the user '" + *NetworkService::get().getLoggedInUserName()
-        + "' will be deleted on the server side.\nThese include the likes, the simulations and the account data.");
+    AlienGui::Text(LocalizationGuiText::format("account.deletewarning", {{"user", *NetworkService::get().getLoggedInUserName()}}));
     AlienGui::Separator();
 
-    AlienGui::InputText(AlienGui::InputTextParameters().hint("Re-enter password").password(true).textWidth(0), _reenteredPassword);
+    AlienGui::InputText(
+        AlienGui::InputTextParameters().hint(AccountPresentation::text("Re-enter password")).hintId("Re-enter password").password(true).textWidth(0),
+        _reenteredPassword);
     AlienGui::Separator();
 
     ImGui::BeginDisabled(_reenteredPassword.empty());
-    if (AlienGui::Button("Delete")) {
+    if (AccountPresentation::button("Delete")) {
         close();
         if (_reenteredPassword == *NetworkService::get().getPassword()) {
             onDelete();
         } else {
-            GenericMessageDialog::get().information("Error", "The password does not match.");
+            AccountPresentation::information("mismatch");
         }
         _reenteredPassword.clear();
     }
@@ -37,7 +41,7 @@ void DeleteUserDialog::processIntern()
     ImGui::SetItemDefaultFocus();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AccountPresentation::button("Cancel")) {
         close();
         _reenteredPassword.clear();
     }
@@ -48,8 +52,8 @@ void DeleteUserDialog::onDelete()
     auto userName = *NetworkService::get().getLoggedInUserName();
     if (NetworkService::get().deleteUser()) {
         BrowserWindow::get().onRefresh();
-        GenericMessageDialog::get().information("Information", "The user '" + userName + "' has been deleted.\nYou are logged out.");
+        AccountPresentation::information("deleted", {{"user", userName}});
     } else {
-        GenericMessageDialog::get().information("Error", "An error occurred on the server.");
+        AccountPresentation::information("servererror");
     }
 }

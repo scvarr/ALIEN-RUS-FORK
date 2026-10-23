@@ -1,5 +1,7 @@
 #include "BrowserGalleryWidget.h"
 
+#include "BrowserMetadataSearch.h"
+
 #include "BrowserPresentation.h"
 
 #include <algorithm>
@@ -573,7 +575,7 @@ std::vector<NetworkResourceRawTO> _BrowserGalleryWidget::getSortedEntries() cons
 
     std::vector<NetworkResourceRawTO> result;
     for (auto const& rawTO : workspace.rawTOs) {
-        if (_data->filter.empty() || rawTO->matchWithFilter(_data->filter)) {
+        if (_data->filter.empty() || BrowserMetadataSearch::matches(*rawTO, _data->filter)) {
             result.emplace_back(rawTO);
         }
     }

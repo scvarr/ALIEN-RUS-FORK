@@ -1,5 +1,7 @@
 #include "ActivateUserDialog.h"
 
+#include "AccountPresentation.h"
+
 #include <imgui.h>
 
 #include <Network/NetworkService.h>
@@ -26,22 +28,24 @@ void ActivateUserDialog::open(std::string const& userName, std::string const& pa
 }
 
 ActivateUserDialog::ActivateUserDialog()
-    : AlienDialog("Activate user")
-{}
+    : AlienDialog("Activate user", {750.0f, 260.0f})
+{
+    setTitleKey("account.activate");
+}
 
 void ActivateUserDialog::processIntern()
 {
-    AlienGui::Text("Please enter the confirmation code sent to your email address.");
-    AlienGui::HelpMarker(
+    AlienGui::Text(AccountPresentation::text("Please enter the confirmation code sent to your email address."));
+    AlienGui::HelpMarker(AccountPresentation::text(
         "Please check your spam folder if you did not find an email. If you did not receive an email there, try signing up with possibly another "
-        "email address. If this still does not work, please contact info@alien-project.org.");
+        "email address. If this still does not work, please contact info@alien-project.org."));
     AlienGui::Separator();
-    AlienGui::InputText(AlienGui::InputTextParameters().hint("Code (case sensitive)").textWidth(0), _confirmationCode);
+    AlienGui::InputText(AlienGui::InputTextParameters().hint(AccountPresentation::text("Code (case sensitive)")).hintId("Code (case sensitive)").textWidth(0), _confirmationCode);
 
     AlienGui::Separator();
 
     ImGui::BeginDisabled(_confirmationCode.empty());
-    if (AlienGui::Button("OK")) {
+    if (AccountPresentation::button("OK")) {
         close();
         onActivateUser();
     }
@@ -52,12 +56,12 @@ void ActivateUserDialog::processIntern()
     AlienGui::VerticalSeparator();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Resend")) {
+    if (AccountPresentation::button("Resend")) {
         CreateUserDialog::get().onCreateUser();
     }
 
     ImGui::SameLine();
-    if (AlienGui::Button("Resend to other email address")) {
+    if (AccountPresentation::button("Resend to other email address")) {
         close();
         CreateUserDialog::get().open(_userName, _password, _userInfo);
     }
@@ -66,7 +70,7 @@ void ActivateUserDialog::processIntern()
     AlienGui::VerticalSeparator();
 
     ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (AccountPresentation::button("Cancel")) {
         close();
     }
 }
@@ -79,12 +83,9 @@ void ActivateUserDialog::onActivateUser()
         result |= NetworkService::get().login(errorCode, _userName, _password, _userInfo);
     }
     if (!result) {
-        GenericMessageDialog::get().information("Error", "An error occurred on the server. Your entered code may be incorrect.\nPlease try to register again.");
+        AccountPresentation::information("activateerror");
     } else {
-        GenericMessageDialog::get().information(
-            "Information",
-            "The user '" + _userName
-                + "' has been successfully created.\nYou are logged in and are now able to upload your own simulations\nor upvote others by likes.");
+        AccountPresentation::information("activated", {{"user", _userName}});
         BrowserWindow::get().onRefresh();
     }
 }

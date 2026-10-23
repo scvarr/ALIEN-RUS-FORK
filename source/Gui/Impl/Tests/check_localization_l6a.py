@@ -31,7 +31,7 @@ class L6aContracts(unittest.TestCase):
         for lang, values in catalogs.items():
             before = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(before, {key: values[key] for key in before})
-            added = {key for key in values.keys() - before.keys() if not key.startswith("browser.")}
+            added = {key for key in values.keys() - before.keys() if not key.startswith(("browser.", "account."))}
             self.assertEqual(43, len(added))
             for key in added:
                 self.assertTrue(key.startswith('localui.'))
@@ -101,7 +101,7 @@ class L6aContracts(unittest.TestCase):
             self.assertFalse(path.startswith(('source/Engine/', 'source/Data/', 'source/Persister/', 'source/Network/', 'source/McpTools/', 'source/Apps/', 'external/')), path)
             self.assertNotIn('AGENTS.md', path)
         for path in ['docs/localization-terminology.md', 'docs/localization-roadmap.md', 'docs/localization-l3-audit.md']:
-            self.assertEqual(subprocess.check_output(['git', 'show', f'f97d6d0373fe5592740401fc1a8e724d703da7f4:{path}'], cwd=ROOT).decode('utf8').replace('\r\n', '\n'), read(path))
+            self.assertEqual(subprocess.check_output(['git', 'show', f'cfbde45fd0e086962e377b4c3e490cafcaeabfb6:{path}'], cwd=ROOT).decode('utf8').replace('\r\n', '\n'), read(path))
 
 
 if __name__ == '__main__':
