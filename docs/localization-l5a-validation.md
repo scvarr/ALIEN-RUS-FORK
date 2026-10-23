@@ -143,9 +143,31 @@ vendor UI remains the separately planned L8-B scope.
 
 ## Preservation
 
-`main` remains at the requested baseline. Only the feature branch is committed
-and pushed. `AGENTS.md` retains skip-worktree and SHA-256
+At implementation delivery, `main` remained at the requested baseline and only
+the feature branch was committed and pushed. `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 No user worlds, genomes, autosaves, dependency sources or pinned-vcpkg state were
 changed. GUI tests use the existing isolated `SettingsTestScope`; no production
 GUI was launched. No CodeQL scan, submodule update or IDE-tree build was run.
+
+## Acceptance and L5-A closure
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L5-A implementation
+`c766b7fc7525f8e4fb59d7ca50fb4df8526abd4d` based on the recorded automated
+tests and review of this report. L5-A is complete. Manual visual acceptance was
+not performed and is not claimed by this closure.
+
+Known limitation retained: the inspector's separately drawn title requires
+visual verification during subsequent use, including its appearance and native
+close/collapse controls at the supported UI scales. Acceptance on automated
+evidence does not resolve this visual-verification limitation. The other known
+limitations above, including the untranslated service option `Free`, remain.
+
+The user authorizes a documentation-only commit and push, fast-forward-only
+integration into `main`, pushing `main`, synchronization verification and deletion
+of the integrated feature branch. Only this report and the roadmap are changed.
+Builds and tests are not rerun; the implementation's existing passing results
+remain the validation evidence. `AGENTS.md`, skip-worktree flags, user data and
+dependencies are preserved. L5-B is not started or authorized.

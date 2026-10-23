@@ -2,8 +2,8 @@
 
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
-Original L3 planning baseline; completion status updated on 2026-10-22.
-L4-A1–A5 are complete and L4 is closed. L5 has not started.
+Original L3 planning baseline; completion status updated on 2026-10-23.
+L4-A1–A5 and L5-A are complete. L4 is closed; L5-B and later stages remain pending.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
@@ -23,7 +23,22 @@ The user accepted L4-A5 implementation
 localization review, without an additional manual launch. No completed visual
 acceptance is claimed for A5. Its validation report records the acceptance
 basis and deferred editorial wording candidates; catalogs are unchanged by
-closure. L5 and later stages remain pending and require separate authorization.
+closure. This L4 closure did not authorize L5; the separately accepted L5-A
+implementation is recorded below.
+
+## L5-A completion record
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L5-A implementation
+`c766b7fc7525f8e4fb59d7ca50fb4df8526abd4d` based on automated tests and review
+of the [L5-A validation report](localization-l5a-validation.md). L5-A is complete.
+Manual visual acceptance was not performed. The inspector's separately drawn
+title requires visual verification during subsequent use; this known limitation
+remains recorded in the validation report.
+
+Closure updates documentation only. Builds and tests are not rerun; the existing
+validation evidence remains applicable. L5-B is not started or authorized.
 
 ## Scope and sequencing
 
@@ -52,7 +67,7 @@ days; translation review effort can exceed code effort.
 | 3 / **Completed: L4-A3** Node properties and modes | `NodeEditorWidget`, shared display adapters for `CellTypeConstants`, relevant `EntityAttributeHelp`; constructor and per-cell panels | High | Reuse A1/A2 adapters; review approved modes and object names. All actual cell panels/modes and nested constructors work; enum order, channel masks, hidden controls and values unchanged. Do not add inactive injector controls; resolve `Free` separately where exposed |
 | 4 / **Completed: L4-A4** Mutation editor | `MutationRatesWidget`, `MutationRatesDialog`, remaining mutation attribute descriptions | Medium–high | A3 terminology and stable repeated-field scopes. Every mutation group, active summary, sigma/probability, reset and dialog action localized; values/limits/number formats unchanged |
 | 5 / **Completed: L4-A5** Genome diagnostics and preview completion | `GenomeIssueDescription`, `GeneGraphWidget`, preview/settings, `SignalsBufferDialog`, shared signal editor | High | A1–A4; full-sentence variants and agreed count/list formatting. Exercise each warning family and 0/1/2/5/21 counts, issue locations/follow-ups; ensure correction algorithm unaffected; preview switches retain state |
-| 6 / L5-A Object inspector | `InspectionWindow`, remaining object/cell `EntityAttributeHelp` | High | Shared modes/help from L4. Particle, solid, fluid, free cell and organism-cell inspectors, lifecycle/connections and neural panels; dynamic IDs and live data retained on switch |
+| 6 / **Completed: L5-A** Object inspector | `InspectionWindow`, remaining object/cell `EntityAttributeHelp` | High | Shared modes/help from L4. Particle, solid, fluid, free cell and organism-cell inspectors, lifecycle/connections and neural panels; dynamic IDs and live data retained on switch |
 | 7 / L5-B World/selection tools | `EditorWidget`, `SelectionWidget`, `CreatorWidget`, `MultiplierWidget`, `ResizeWorldDialog`, `MassEditDialog`, `ChangeColorDialog`, image conversion and interaction hints | Medium–high | L4 display adapters and L5-A names. HUD focus and repeated controls stable; create/copy/undo/filter/world resize semantics unchanged; no translation of user names or file filters' syntax |
 | 8 / L5-C Controls and statistics | Temporal/spatial/location windows; `EvolutionDashboardWindow` metric labels, table and plots | High | Stable ImPlot series/card IDs and L5 terminology. Preserve selected lineage, plot visibility/ranges and history mode; long captions at multiple DPI levels; computation/CSV contracts stay canonical |
 | 9 / L6-A Remaining local dialogs and messages | About/network settings, autosave/log, file/preview errors and startup/application notices; remaining HelpStrings | Medium | L4–L5 shared controls. Trace callback producers to generic messages; open/queued message language policy documented; test autosave status without changing directory/peak identifiers |
