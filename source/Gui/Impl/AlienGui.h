@@ -257,6 +257,7 @@ public:
         MEMBER(InputTextParameters, bool, readOnly, false);
         MEMBER(InputTextParameters, bool, password, false);
         MEMBER(InputTextParameters, bool, folderButton, false);
+        MEMBER(InputTextParameters, std::string, folderDialogTitle, "Select directory");
         MEMBER(InputTextParameters, std::optional<std::function<std::string()>>, generateValueFunc, std::nullopt);
         MEMBER(InputTextParameters, std::string, generateValueTooltip, "Generate a random name");
         MEMBER(InputTextParameters, std::optional<std::string>, defaultValue, std::nullopt);

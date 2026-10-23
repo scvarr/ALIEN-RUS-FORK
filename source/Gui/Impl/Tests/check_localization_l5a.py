@@ -29,9 +29,9 @@ class L5aContracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {k: values[k] for k in old})
-            self.assertEqual(112, sum(not key.startswith(('worldtools.', 'simulationui.')) for key in values) - len(old))
+            self.assertEqual(112, sum(not key.startswith(('worldtools.', 'simulationui.', 'localui.')) for key in values) - len(old))
             for key in values.keys() - old.keys():
-                if key.startswith(('worldtools.', 'simulationui.')):
+                if key.startswith(('worldtools.', 'simulationui.', 'localui.')):
                     continue
                 self.assertTrue(key.startswith('inspection.'))
                 self.assertTrue(values[key])
@@ -67,8 +67,9 @@ class L5aContracts(unittest.TestCase):
         self.assertIn('ImGui::Begin(generateTitle().c_str(), &_on, ImGuiWindowFlags_HorizontalScrollbar)', after)
 
     def test_shared_extension_is_opt_in_and_l5b_data_dependencies_are_unchanged(self):
+        from localization_node_legacy import legacy_local_dialog_text
         before = original('source/Gui/Impl/AlienGui.cpp')
-        after = read(GUI / 'AlienGui.cpp')
+        after = legacy_local_dialog_text('AlienGui.cpp', read(GUI / 'AlienGui.cpp'))
         start = after.index('void AlienGui::InputFloat2(')
         end = after.index('\n}', start)
         after = after[:start] + after[start:end].replace('.text(parameters._label.value_or(parameters._name))', '.text(parameters._name.c_str())') + after[end:]
@@ -76,7 +77,7 @@ class L5aContracts(unittest.TestCase):
         end = after.index('\n}', start)
         after = after[:start] + after[start:end].replace('.text(parameters._label.value_or(parameters._name))', '.text(parameters._name.c_str())') + after[end:]
         self.assertEqual(before, after)
-        header = read(GUI / 'AlienGui.h').replace('        MEMBER(InputFloat2Parameters, std::optional<std::string>, label, std::nullopt);\n', '')
+        header = legacy_local_dialog_text('AlienGui.h', read(GUI / 'AlienGui.h')).replace('        MEMBER(InputFloat2Parameters, std::optional<std::string>, label, std::nullopt);\n', '')
         header = header.replace('        MEMBER(SliderInputFloatParameters, std::optional<std::string>, label, std::nullopt);\n', '')
         self.assertEqual(original('source/Gui/Impl/AlienGui.h'), header)
         paths = ['source/Data/Descs.h', 'source/Data/CellTypeConstants.h', 'source/Gui/Impl/EntityAttributeHelp.cpp',

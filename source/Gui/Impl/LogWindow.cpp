@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 #include <Base/GlobalSettings.h>
+#include <Base/LocalizationService.h>
 #include <Base/StringHelper.h>
 
 #include "AlienGui.h"
@@ -25,7 +26,9 @@ void LogWindow::initIntern()
 
 LogWindow::LogWindow()
     : AlienWindow("Log", "windows.log", false, false, {934.0f, 636.0f}, {652.0f, 414.0f})
-{}
+{
+    setTitleKey("menu.log");
+}
 
 void LogWindow::shutdownIntern()
 {
@@ -39,8 +42,8 @@ void LogWindow::processIntern()
     auto flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_ScrollY;
     if (ImGui::BeginTable("##logMessages", 2, flags, ImVec2(-1, ImGui::GetContentRegionAvail().y - scale(ToolbarHeight)))) {
         auto timeColumnWidth = ImGui::CalcTextSize(TimeColumnSample).x + ImGui::GetStyle().CellPadding.x * 2;
-        ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, timeColumnWidth);
-        ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn((tr("localui.timestamp") + "###Timestamp").c_str(), ImGuiTableColumnFlags_WidthFixed, timeColumnWidth);
+        ImGui::TableSetupColumn((tr("localui.log.message") + "###Message").c_str(), ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Const::TableHeaderColor);
@@ -75,5 +78,5 @@ void LogWindow::processIntern()
 
     ImGui::Spacing();
     ImGui::Spacing();
-    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Verbose"), _verbose);
+    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Verbose").label(tr("localui.log.verbose")), _verbose);
 }

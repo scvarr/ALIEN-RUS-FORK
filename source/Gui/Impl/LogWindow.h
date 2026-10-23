@@ -7,6 +7,8 @@
 
 class LogWindow : public AlienWindow
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(LogWindow);
 
 private:

@@ -54,9 +54,7 @@ namespace Const
         "memory for 25 minutes and never stores. Instances sharing one IP address count once. Instances where 'Count me as active' is disabled in the "
         "network settings are not included.";
 
-    std::string const NetworkCountAsActiveTooltip =
-        "If this option is enabled, this instance is included in the number of active simulators shown in the browser window. The server tells the "
-        "instances apart by a hash of their IP address that it keeps only in memory for 25 minutes and never stores.";
+    std::string const NetworkCountAsActiveTooltip = "localui.network.activehelp";
 
     std::string const BrowserFeaturedWorkspaceTooltip =
         "This workspace is curated by the alien-project and contains the simulations that come along with the released versions. They cover a wide range and "

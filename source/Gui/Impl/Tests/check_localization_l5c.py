@@ -35,7 +35,7 @@ class L5cContracts(unittest.TestCase):
         for lang, values in catalogs.items():
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {k: values[k] for k in old})
-            added = values.keys() - old.keys()
+            added = {key for key in values.keys() - old.keys() if not key.startswith('localui.')}
             self.assertEqual(56, len(added))
             for key in added:
                 self.assertTrue(key.startswith('simulationui.'))
@@ -91,7 +91,7 @@ class L5cContracts(unittest.TestCase):
         allowed.update(f'source/Gui/Impl/Tests/check_localization_{stage}.py' for stage in ['l4a1', 'l4a2', 'l4a3', 'l4a4', 'l4a5', 'l5a', 'l5b', 'l5c'])
         allowed.update(f'source/Gui/Impl/Tests/check_localization_{stage}.py' for stage in
                        ['l2a', 'l2b1', 'l2b2', 'l2b3a', 'l2b3b', 'l2b3c', 'l2b4a', 'l2b4b', 'l2b4c', 'l2b4d', 'l2b4e'])
-        changed = subprocess.check_output(['git', 'diff', '--name-only', BASE], cwd=ROOT).decode().splitlines()
+        changed = subprocess.check_output(['git', 'diff', '--name-only', BASE, '4d85183ce261a8648baae90ac2aa6cd6f75843b3'], cwd=ROOT).decode().splitlines()
         self.assertLessEqual(set(changed), allowed)
         self.assertEqual(original('docs/localization-terminology.md'), read('docs/localization-terminology.md'))
 

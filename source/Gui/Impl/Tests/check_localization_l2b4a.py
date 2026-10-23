@@ -24,7 +24,7 @@ class L2b4aContracts(unittest.TestCase):
     def test_eight_unique_typed_bindings_and_complete_descriptions(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.")) for key in en))
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         blocks = declarations()
         for typ, member, group, russian in MEMBERS:

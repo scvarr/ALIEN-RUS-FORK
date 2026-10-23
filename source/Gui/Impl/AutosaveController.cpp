@@ -14,6 +14,7 @@
 #include <Persister/Interface/TaskProcessor.h>
 
 #include "GenericMessageDialog.h"
+#include "LocalDialogPresentation.h"
 #include "OverlayController.h"
 #include "Viewport.h"
 
@@ -140,7 +141,7 @@ std::optional<SavepointEntry> AutosaveController::getPersistedSavepoint()
 
 void AutosaveController::onCreateSavepoint(bool usePeakSimulation)
 {
-    printOverlayMessage("Creating save point ...");
+    printOverlayMessage(tr("localui.autosave.creating"));
 
     if (_saveMode == SaveMode_Circular) {
         auto nonPersistentEntries = SavepointTableService::get().truncate(_savepointTable.value(), _numberOfFiles - 1);
@@ -170,7 +171,7 @@ void AutosaveController::onCreateSavepoint(bool usePeakSimulation)
 
 void AutosaveController::onDeleteSavepoint(SavepointEntry const& entry)
 {
-    printOverlayMessage("Deleting save point ...");
+    printOverlayMessage(tr("localui.autosave.deleting"));
 
     SavepointTableService::get().deleteEntry(_savepointTable.value(), entry);
 
@@ -216,7 +217,7 @@ void AutosaveController::processDeleteNonPersistentSavepoint()
 void AutosaveController::processCleanup()
 {
     if (_scheduleCleanup) {
-        printOverlayMessage("Cleaning up save points ...");
+        printOverlayMessage(tr("localui.autosave.cleaning"));
 
         auto nonPersistentEntries = SavepointTableService::get().truncate(_savepointTable.value(), 0);
         scheduleDeleteNonPersistentSavepoint(nonPersistentEntries);
@@ -256,7 +257,7 @@ void AutosaveController::processAutomaticSavepoints()
                             .center = Viewport::get().getCenterInWorldPos()});
                 },
                 [&](auto const& requestId) {},
-                [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+                [](auto const& errors) { LocalDialogPresentation::error("localui.error.details", errors); });
             _lastPeakTimepoint = std::chrono::steady_clock::now();
         }
     }

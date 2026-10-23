@@ -15,17 +15,20 @@
 #include "AutosaveController.h"
 #include "FileTransferController.h"
 #include "GenericMessageDialog.h"
+#include "LocalDialogPresentation.h"
 #include "StyleService.h"
 
 namespace
 {
-    auto constexpr RightColumnWidth = 200.0f;
+    auto constexpr RightColumnWidth = 280.0f;
     auto constexpr DefaultSettingsHeight = 130.0f;
 }
 
 AutosaveWindow::AutosaveWindow()
-    : AlienWindow("Autosave", "windows.autosave", false, true, {49.0f, 71.0f}, {546.0f, 448.0f})
-{}
+    : AlienWindow("Autosave", "windows.autosave", false, true, {49.0f, 71.0f}, {680.0f, 480.0f})
+{
+    setTitleKey("menu.autosave");
+}
 
 void AutosaveWindow::initIntern()
 {
@@ -50,7 +53,7 @@ void AutosaveWindow::processIntern()
     try {
         processToolbar();
 
-        if (ImGui::BeginChild("##child1", {0, -scale(44.0f)})) {
+        if (ImGui::BeginChild("##child1", {0, -scale(70.0f)})) {
             processHeader();
 
             //AlienGui::Separator();
@@ -65,7 +68,7 @@ void AutosaveWindow::processIntern()
 
         processStatusBar();
     } catch (std::runtime_error const& error) {
-        GenericMessageDialog::get().information("Error", error.what());
+        LocalDialogPresentation::error("localui.error.details", error.what());
     }
 }
 
@@ -76,23 +79,24 @@ void AutosaveWindow::processToolbar()
     AlienGui::Toolbar(
         AlienGui::ToolbarParameters().id("Autosave"),
         {AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLUS).name("Create save point").disabled(!savepointTable.has_value()).action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLUS).name(tr("localui.autosave.create")).disabled(!savepointTable.has_value()).action([&] {
                  AutosaveController::get().onCreateSavepoint(false);
              })),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_MINUS).name("Delete save point").disabled(!static_cast<bool>(_selectedEntry)).action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_MINUS).name(tr("localui.autosave.delete")).disabled(!static_cast<bool>(_selectedEntry)).action([&] {
                  AutosaveController::get().onDeleteSavepoint(_selectedEntry);
                  _selectedEntry.reset();
              })),
          AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                  .icon(ICON_CLEAR)
-                                                 .name("Delete all save points")
+                                                 .name(tr("localui.autosave.deleteall"))
                                                  .disabled(!savepointTable.has_value() || savepointTable->isEmpty())
                                                  .action([&] {
-                                                     GenericMessageDialog::get().yesNo("Delete", "Do you really want to delete all savepoints?", [&]() {
-                                                         AutosaveController::get().scheduleCleanup();
-                                                         _selectedEntry.reset();
-                                                     });
+                                                     GenericMessageDialog::get().localizedYesNo(
+                                                         "Delete", "menu.delete", "localui.autosave.confirmdelete", [&]() {
+                                                             AutosaveController::get().scheduleCleanup();
+                                                             _selectedEntry.reset();
+                                                         });
                                                  }))});
 }
 
@@ -102,16 +106,19 @@ void AutosaveWindow::processTable()
 {
     auto const& savepointTable = AutosaveController::get().getSavepointTable();
     if (!savepointTable.has_value()) {
-        AlienGui::Text("Error: Savepoint files could not be read or created in the specified directory.");
+        ImGui::TextWrapped("%s", tr("localui.autosave.directoryerror").c_str());
         return;
     }
     static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_RowBg
         | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX;
 
     if (ImGui::BeginTable("Save files", 3, flags, ImVec2(-1, -1), 0.0f)) {
-        ImGui::TableSetupColumn("Simulation", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
-        ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
-        ImGui::TableSetupColumn("Time step", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(100.0f));
+        ImGui::TableSetupColumn(
+            (tr("localui.autosave.simulation") + "###Simulation").c_str(), ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
+        ImGui::TableSetupColumn(
+            (tr("localui.timestamp") + "###Timestamp").c_str(), ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, scale(140.0f));
+        ImGui::TableSetupColumn(
+            (tr("localui.autosave.timestep") + "###Time step").c_str(), ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(100.0f));
         //ImGui::TableSetupColumn("Peak value", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, scale(200.0f));
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
@@ -130,15 +137,15 @@ void AutosaveWindow::processTable()
                 ImGui::TableNextColumn();
                 if (entry->state == SavepointState_InQueue) {
                     ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDecentColor.Value);
-                    AlienGui::Text("In queue");
+                    AlienGui::Text(tr("localui.autosave.queued"));
                     ImGui::PopStyleColor();
                 } else if (entry->state == SavepointState_InProgress) {
                     ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDecentColor.Value);
-                    AlienGui::Text("In progress");
+                    AlienGui::Text(tr("localui.autosave.progress"));
                     ImGui::PopStyleColor();
                 } else if (entry->state == SavepointState_Persisted) {
                     auto triggerLoadSavepoint = AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_DOWNLOAD));
-                    AlienGui::Tooltip(AlienGui::TooltipParameters().text("Load save point").delay(false));
+                    AlienGui::Tooltip(AlienGui::TooltipParameters().text(tr("localui.autosave.load")).delay(false));
                     if (triggerLoadSavepoint) {
                         onLoadSavepoint(entry);
                     }
@@ -146,7 +153,7 @@ void AutosaveWindow::processTable()
                     ImGui::SameLine();
                     AlienGui::Text(entry->name);
                 } else if (entry->state == SavepointState_Error) {
-                    AlienGui::Text("Error");
+                    AlienGui::Text(tr("localui.error"));
                 }
                 ImGui::SameLine();
                 ImGui::Dummy({0, scale(22.0f)});
@@ -197,13 +204,18 @@ void AutosaveWindow::processSettings()
         AlienGui::MovableHorizontalSeparator(AlienGui::MovableHorizontalSeparatorParameters().additive(false), _settingsHeight);
     }
 
-    _settingsOpen = AlienGui::BeginTreeNode(AlienGui::TreeNodeParameters().name("Settings").rank(AlienGui::TreeNodeRank::High).defaultOpen(_settingsOpen));
+    _settingsOpen = AlienGui::BeginTreeNode(
+        AlienGui::TreeNodeParameters().name("Settings").label(tr("localui.autosave.settings")).rank(AlienGui::TreeNodeRank::High).defaultOpen(_settingsOpen));
     if (_settingsOpen) {
         if (ImGui::BeginChild("##autosaveSettings", {scale(0), 0})) {
             auto autosaveEnabled = AutosaveController::get().isAutosaveEnabled();
             auto autosaveInterval = AutosaveController::get().getAutosaveInterval();
             if (AlienGui::InputInt(
-                    AlienGui::InputIntParameters().name("Autosave interval (min)").textWidth(RightColumnWidth).defaultValue(_origAutosaveInterval),
+                    AlienGui::InputIntParameters()
+                        .name("Autosave interval (min)")
+                        .label(tr("localui.autosave.interval"))
+                        .textWidth(RightColumnWidth)
+                        .defaultValue(_origAutosaveInterval),
                     autosaveInterval,
                     &autosaveEnabled)) {
                 AutosaveController::get().setAutosaveInterval(autosaveInterval);
@@ -229,11 +241,12 @@ void AutosaveWindow::processSettings()
             if (AlienGui::InputText(
                     AlienGui::InputTextParameters()
                         .name("Directory")
+                        .label(tr("localui.autosave.directory"))
                         .textWidth(RightColumnWidth)
                         .defaultValue(_origDirectory)
                         .folderButton(true)
-                        .tooltip("The directory where the savepoints are stored can be chosen here. This allows the savepoints to be created in a separate "
-                                 "directory for a simulation run. The savepoints are named using the current time step."),
+                        .folderDialogTitle(tr("localui.autosave.selectdirectory"))
+                        .tooltip(tr("localui.autosave.directoryhelp")),
                     directory)) {
                 AutosaveController::get().setDirectory(directory);
                 _selectedEntry.reset();
@@ -243,7 +256,9 @@ void AutosaveWindow::processSettings()
             if (AlienGui::Switcher(
                     AlienGui::SwitcherParameters()
                         .name("Mode")
+                        .label(tr("localui.autosave.mode"))
                         .values({"Limited save files", "Unlimited save files"})
+                        .displayValues({tr("localui.autosave.limited"), tr("localui.autosave.unlimited")})
                         .textWidth(RightColumnWidth)
                         .defaultValue(_origSaveMode),
                     &saveMode)) {
@@ -253,7 +268,12 @@ void AutosaveWindow::processSettings()
             if (saveMode == AutosaveController::SaveMode_Circular) {
                 auto numberOfFiles = AutosaveController::get().getNumberOfFiles();
                 if (AlienGui::InputInt(
-                        AlienGui::InputIntParameters().name("Number of files").textWidth(RightColumnWidth).defaultValue(_origNumberOfFiles), numberOfFiles)) {
+                        AlienGui::InputIntParameters()
+                            .name("Number of files")
+                            .label(tr("localui.autosave.files"))
+                            .textWidth(RightColumnWidth)
+                            .defaultValue(_origNumberOfFiles),
+                        numberOfFiles)) {
                     AutosaveController::get().setNumberOfFiles(numberOfFiles);
                 }
             }
@@ -269,17 +289,21 @@ void AutosaveWindow::processStatusBar()
 
     std::vector<std::string> statusItems;
     if (!savepointTable.has_value()) {
-        statusItems.emplace_back("No valid directory");
+        statusItems.emplace_back(tr("localui.autosave.invalid"));
     } else if (!AutosaveController::get().isAutosaveEnabled()) {
-        statusItems.emplace_back("No autosave scheduled");
+        statusItems.emplace_back(tr("localui.autosave.unscheduled"));
     } else {
-        statusItems.emplace_back("Next autosave in " + StringHelper::format(AutosaveController::get().getDurationUntilNextAutosave()));
+        statusItems.emplace_back(LocalizationGuiText::format(
+            "localui.autosave.next", {{"duration", StringHelper::format(AutosaveController::get().getDurationUntilNextAutosave())}}));
     }
     if (savepointTable.has_value()) {
-        statusItems.emplace_back(std::to_string(savepointTable->getSize()) + " save points");
+        statusItems.emplace_back(LocalizationGuiText::format("localui.autosave.count", {{"count", std::to_string(savepointTable->getSize())}}));
     }
 
-    AlienGui::StatusBar(AlienGui::StatusBarParameters().infoItems(statusItems));
+    AlienGui::Separator();
+    for (auto const& item : statusItems) {
+        ImGui::TextWrapped("%s", item.c_str());
+    }
 }
 
 void AutosaveWindow::onLoadSavepoint(SavepointEntry const& entry)

@@ -10,6 +10,7 @@
 
 #include "GenericFileDialog.h"
 #include "GenericMessageDialog.h"
+#include "LocalDialogPresentation.h"
 #include "NewSimulationService.h"
 #include "OverlayController.h"
 #include "Viewport.h"
@@ -43,7 +44,7 @@ void FileTransferController::onOpenSimulationDialog()
 
 void FileTransferController::onOpenSimulation(std::filesystem::path const& filename)
 {
-    printOverlayMessage("Loading ...");
+    printOverlayMessage(tr("localui.loading"));
 
     _openSimulationProcessor->executeTask(
         [&](auto const& senderId) {
@@ -54,11 +55,11 @@ void FileTransferController::onOpenSimulation(std::filesystem::path const& filen
         [&](auto const& requestId) {
             auto const& data = _PersisterFacade::get()->fetchReadSimulationData(requestId);
             if (auto errorMessage = NewSimulationService::get().loadSimulation(data.simulationDesc)) {
-                showMessage("Error", *errorMessage);
+                LocalDialogPresentation::simulationLoadError(*errorMessage);
             }
             printOverlayMessage(PathHelper::toUtf8(data.filename));
         },
-        [](auto const& criticalErrors) { GenericMessageDialog::get().information("Error", criticalErrors); });
+        [](auto const& criticalErrors) { LocalDialogPresentation::error("localui.error.open", criticalErrors); });
 }
 
 void FileTransferController::onSaveSimulationDialog()
@@ -66,7 +67,7 @@ void FileTransferController::onSaveSimulationDialog()
     GenericFileDialog::get().showSaveFileDialog(tr("file.save"), tr("file.simulation") + " (*.sim){.sim},.*", fileDialogDirectory(_referencePath), [&](std::filesystem::path const& path) {
         auto firstFilename = path;
         _referencePath = PathHelper::toUtf8(firstFilename.parent_path());
-        printOverlayMessage("Saving ...");
+        printOverlayMessage(tr("localui.saving"));
         _saveSimulationProcessor->executeTask(
             [&, firstFilename = firstFilename](auto const& senderId) {
                 auto senderInfo = SenderInfo{.senderId = senderId, .wishResultData = false, .wishErrorInfo = true};
@@ -74,7 +75,7 @@ void FileTransferController::onSaveSimulationDialog()
                 return _PersisterFacade::get()->scheduleSaveSimulation(senderInfo, readData);
             },
             [](auto const&) {},
-            [](auto const& criticalErrors) { GenericMessageDialog::get().information("Error", criticalErrors); });
+            [](auto const& criticalErrors) { LocalDialogPresentation::error("localui.error.save", criticalErrors); });
     });
 }
 

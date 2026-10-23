@@ -63,7 +63,7 @@ class L2b4dContracts(unittest.TestCase):
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         for lang in ('en', 'ru'):
             old = json.loads(original(f'resources/locales/{lang}.json'))
-            self.assertEqual(expected, {key for key in catalog(lang) if not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui."))} - set(old))
+            self.assertEqual(expected, {key for key in catalog(lang) if not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui."))} - set(old))
             self.assertEqual(old, {k: catalog(lang)[k] for k in old})
         for field, group in zip(FIELDS, GROUPS):
             prefix = f'parameters.{group}.{field.lower()}'

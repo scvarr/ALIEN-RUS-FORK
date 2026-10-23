@@ -14,6 +14,8 @@
 
 class AutosaveController : public MainLoopEntity
 {
+    friend class LocalizationGuiTests;
+
     MAKE_SINGLETON(AutosaveController);
 
 public:

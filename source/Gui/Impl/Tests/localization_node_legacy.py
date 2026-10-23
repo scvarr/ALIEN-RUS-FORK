@@ -2,7 +2,17 @@
 
 Current behavior, IDs and fallback paths are tested by L4-A3 production ImGui tests.
 """
+def legacy_local_dialog_text(file, text):
+    """Remove only L6-A's opt-in folder caption for historical widget contracts."""
+    if file.endswith('AlienGui.cpp'):
+        text = text.replace('parameters._folderDialogTitle, "", std::string(buffer),', '"Select directory", "", std::string(buffer),')
+    if file.endswith('AlienGui.h'):
+        text = text.replace('        MEMBER(InputTextParameters, std::string, folderDialogTitle, "Select directory");\n', '')
+    return text
+
+
 def legacy_node_widget_text(file, text):
+    text = legacy_local_dialog_text(file, text)
     if file.endswith("AlienGui.h"):
         for struct in ("SliderInputFloatParameters", "InputFloat2Parameters", "ComboColorParameters", "MultiCheckboxesParameters", "ColorCheckboxesParameters", "ButtonParameters"):
             text = text.replace(f'        MEMBER({struct}, std::optional<std::string>, label, std::nullopt);\n', '')

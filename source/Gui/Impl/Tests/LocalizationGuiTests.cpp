@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <ranges>
 #include <set>
 
@@ -22,10 +23,13 @@
 #include <Engine/Impl/SimulationFacadeImpl.h>
 #include <Persister/Interface/ReadSimulationRequestData.h>
 #include <Persister/Interface/ReadSimulationResultData.h>
+#include <Persister/Interface/SavepointTableService.h>
 #include <Persister/Interface/SerializerService.h>
+#include <Gui/Impl/AboutDialog.h>
 #include <Gui/Impl/AlienDialog.h>
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
+#include <Gui/Impl/AutosaveWindow.h>
 #include <Gui/Impl/ChangeColorDialog.h>
 #include <Gui/Impl/ControlStatisticsPresentation.h>
 #include <Gui/Impl/CreatorWidget.h>
@@ -47,22 +51,27 @@
 #include <Gui/Impl/GenomeTabLayoutData.h>
 #include <Gui/Impl/GenomeTabWidget.h>
 #include <Gui/Impl/GenomeWindowEditData.h>
+#include <Gui/Impl/GuiLogger.h>
 #include <Gui/Impl/InspectionPresentation.h>
 #include <Gui/Impl/InspectionWindow.h>
+#include <Gui/Impl/LocalDialogPresentation.h>
 #include <Gui/Impl/LocalizationGui.h>
 #include <Gui/Impl/LocationController.h>
 #include <Gui/Impl/LocationWindow.h>
+#include <Gui/Impl/LogWindow.h>
 #include <Gui/Impl/MassEditDialog.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/MultiplierWidget.h>
 #include <Gui/Impl/MutationRatesDialog.h>
 #include <Gui/Impl/MutationRatesPresentation.h>
 #include <Gui/Impl/MutationRatesWidget.h>
+#include <Gui/Impl/NetworkSettingsDialog.h>
 #include <Gui/Impl/NeuralNetEditorPresentation.h>
 #include <Gui/Impl/NeuralNetEditorWidget.h>
 #include <Gui/Impl/NewSimulationDialog.h>
 #include <Gui/Impl/NodeEditorWidget.h>
 #include <Gui/Impl/OverlayController.h>
+#include <Gui/Impl/PictureGuiService.h>
 #include <Gui/Impl/PreviewSettingsDialog.h>
 #include <Gui/Impl/ResizeWorldDialog.h>
 #include <Gui/Impl/SavePictureDialog.h>
@@ -577,6 +586,95 @@ protected:
         editor->_previewDesc._cells.resize(count);
         editor->processTitle();
     }
+
+
+    std::string localErrorDetails() { return GenericMessageDialog::get()._messageArguments.at("details"); }
+
+    void seedNetworkFields()
+    {
+        auto& dialog = NetworkSettingsDialog::get();
+        dialog._serverAddress = "example.invalid/Edited-100%{server}###";
+        dialog._origServerAddress = "example.invalid/original";
+        dialog._countAsActive = false;
+    }
+
+    void verifyNetworkFields()
+    {
+        auto& dialog = NetworkSettingsDialog::get();
+        EXPECT_EQ("example.invalid/Edited-100%{server}###", dialog._serverAddress);
+        EXPECT_EQ("example.invalid/original", dialog._origServerAddress);
+        EXPECT_FALSE(dialog._countAsActive);
+    }
+
+    void seedLocalPanels(std::filesystem::path const& filename)
+    {
+        auto& controller = AutosaveController::get();
+        controller._directory = filename.parent_path().string();
+        controller._savepointTable = std::get<SavepointTable>(SavepointTableService::get().loadFromFile(filename.string()));
+        controller._saveMode = AutosaveController::SaveMode_Circular;
+        controller._autosaveInterval = 37;
+        controller._numberOfFiles = 19;
+        controller._autosaveEnabled = true;
+        controller._lastAutosaveTimepoint = std::chrono::steady_clock::now();
+        for (auto state : {SavepointState_Error, SavepointState_Persisted, SavepointState_InProgress, SavepointState_InQueue}) {
+            auto entry = std::make_shared<_SavepointEntry>();
+            entry->state = state;
+            entry->name = "User / Ёж 100% {count} ###";
+            entry->filename = "12345.sim";
+            entry->timestamp = "2026-10-23 12:34:56";
+            entry->timestep = 12345;
+            entry->requestId = "canonical-request-42";
+            entry->peakType = "genome complexity variance";
+            SavepointTableService::get().insertEntryAtFront(*controller._savepointTable, entry);
+        }
+        auto& window = AutosaveWindow::get();
+        window._settingsOpen = true;
+        window._settingsHeight = scale(220.0f);
+        window._selectedEntry = controller._savepointTable->at(1);
+        auto& logger = LogWindow::get();
+        logger.initIntern();
+        logger._verbose = true;
+        log(Priority::Important, "Driver error: CUDA 100% {details} ###\nraw diagnostic");
+        log(Priority::Unimportant, "machine_status=ready");
+    }
+
+    void verifyLocalPanels(std::filesystem::path const& filename)
+    {
+        auto& controller = AutosaveController::get();
+        ASSERT_TRUE(controller._savepointTable.has_value());
+        EXPECT_EQ(4, controller._savepointTable->getSize());
+        EXPECT_EQ(37, controller._autosaveInterval);
+        EXPECT_EQ(19, controller._numberOfFiles);
+        EXPECT_EQ(AutosaveController::SaveMode_Circular, controller._saveMode);
+        EXPECT_EQ(filename.parent_path().string(), controller._directory);
+        EXPECT_EQ(filename, controller._savepointTable->getFilename());
+        EXPECT_EQ(controller._savepointTable->at(1), AutosaveWindow::get()._selectedEntry);
+        EXPECT_TRUE(AutosaveWindow::get()._settingsOpen);
+        for (int row = 0; row < 4; ++row) {
+            auto const& entry = controller._savepointTable->at(row);
+            EXPECT_EQ("User / Ёж 100% {count} ###", entry->name);
+            EXPECT_EQ("12345.sim", entry->filename);
+            EXPECT_EQ("canonical-request-42", entry->requestId);
+            EXPECT_EQ("genome complexity variance", entry->peakType);
+            EXPECT_EQ(12345, entry->timestep);
+            EXPECT_EQ(row, entry->state);
+        }
+        EXPECT_TRUE(LogWindow::get()._verbose);
+        auto const& messages = LogWindow::get()._logger->getMessages(Priority::Unimportant);
+        ASSERT_GE(messages.size(), 2);
+        EXPECT_EQ("machine_status=ready", messages.back().text);
+        EXPECT_EQ("Driver error: CUDA 100% {details} ###\nraw diagnostic", messages.at(messages.size() - 2).text);
+    }
+
+    void resetLocalPanels()
+    {
+        AutosaveController::get()._savepointTable.reset();
+        AutosaveWindow::get()._selectedEntry.reset();
+        LogWindow::get()._logger.reset();
+    }
+
+    void localAutosavePanel() { AutosaveWindow::get().processIntern(); }
+    void localLogPanel() { LogWindow::get().processIntern(); }
 
     float _originalScale = 1;
     std::string _language;
@@ -8716,4 +8814,195 @@ TEST_F(LocalizationGuiTests, l5cControlsCardsNotificationsAndLocationUseExisting
     Viewport::get().setCenterInWorldPos(originalCenter);
     Viewport::get().setZoomSensitivity(originalSensitivity);
     _SimulationFacadeImpl::set(originalFacade);
+}
+
+TEST_F(LocalizationGuiTests, l6aOpenDialogsKeepWindowsFieldsAndActiveInputAtEveryScale)
+{
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    io.DisplaySize = {3000, 2200};
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto const& [dialog, title] :
+             std::vector<std::pair<AlienDialog*, std::string>>{{&AboutDialog::get(), "About"}, {&NetworkSettingsDialog::get(), "Network settings"}}) {
+            seedNetworkFields();
+            openWithoutSimulation(*dialog);
+            auto draw = [&] { frame([&] { static_cast<MainLoopEntity&>(*dialog).process(); }); };
+            draw();
+            auto window = ImGui::FindWindowByName(("###" + title).c_str());
+            ASSERT_NE(nullptr, window);
+            ImGui::SetWindowSize(window, {650 * factor, 300 * factor});
+            draw();
+            draw();
+            auto position = window->Pos;
+            auto size = window->Size;
+            ImGuiID inputId = 0;
+            if (title == "Network settings") {
+                auto seed = ImHashStr(title.c_str(), 0, window->ID);
+                inputId = ImHashStr("##Server address", 0, seed);
+                auto pos = window->DC.CursorStartPos;
+                io.AddMousePosEvent(pos.x + 35 * factor, pos.y + ImGui::GetFrameHeight() / 2);
+                draw();
+                io.AddMouseButtonEvent(0, true);
+                draw();
+                io.AddMouseButtonEvent(0, false);
+                draw();
+                EXPECT_EQ(inputId, GImGui->ActiveId);
+            }
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                draw();
+                draw();
+                EXPECT_TRUE(dialog->isOpen());
+                EXPECT_EQ(window, ImGui::FindWindowByName(("###" + title).c_str()));
+                EXPECT_EQ(position.x, window->Pos.x);
+                EXPECT_EQ(size.x, window->Size.x);
+                EXPECT_LE(window->ContentSize.x, window->InnerRect.GetWidth() + 1) << title << ": " << language;
+                EXPECT_LE(window->ContentSize.y, window->InnerRect.GetHeight() + 1);
+                if (inputId) {
+                    EXPECT_EQ(inputId, GImGui->ActiveId);
+                    EXPECT_EQ(inputId, GImGui->InputTextState.ID);
+                }
+                verifyNetworkFields();
+                EXPECT_EQ(0, GImGui->ErrorCountCurrentFrame);
+            }
+            closeImmediately(*dialog);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l6aAutosaveAndLogKeepDataSelectionAndTableStateAtEveryScale)
+{
+    auto directory = std::filesystem::temp_directory_path() / ("alien-l6a-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(directory);
+    auto filename = directory / "savepoints.json";
+    seedLocalPanels(filename);
+    auto read = [&] {
+        std::ifstream stream(filename, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+    };
+    auto persisted = read();
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto const& panel : {std::function<void()>([&] { localAutosavePanel(); }), std::function<void()>([&] { localLogPanel(); })}) {
+            ImGuiTable* table = nullptr;
+            ImGuiID tableId = 0;
+            float columnWidth = 0;
+            for (auto language : {"en", "ru", "en"}) {
+                select(language);
+                for (int repeat = 0; repeat < 3; ++repeat) {
+                    switcherFrame(680 * factor, panel);
+                }
+                for (int index = 0; index < GImGui->Tables.GetBufSize(); ++index) {
+                    auto candidate = GImGui->Tables.GetByIndex(index);
+                    if (candidate->LastFrameActive == GImGui->FrameCount) {
+                        if (!table) {
+                            table = candidate;
+                            tableId = table->ID;
+                            table->Columns[0].WidthRequest = 170 * factor;
+                            table->IsSettingsDirty = true;
+                            if (table->ColumnsCount == 3) {
+                                table->Columns[1].IsUserEnabledNextFrame = false;
+                            }
+                        }
+                        EXPECT_EQ(table, candidate);
+                        EXPECT_EQ(tableId, candidate->ID);
+                    }
+                }
+                ASSERT_NE(nullptr, table);
+                switcherFrame(680 * factor, panel);
+                if (columnWidth == 0) {
+                    columnWidth = table->Columns[0].WidthGiven;
+                }
+                EXPECT_NEAR(columnWidth, table->Columns[0].WidthGiven, 1);
+                if (table->ColumnsCount == 3) {
+                    EXPECT_FALSE(table->Columns[1].IsUserEnabled);
+                }
+                verifyLocalPanels(filename);
+                EXPECT_EQ(persisted, read());
+                EXPECT_EQ(0, GImGui->ErrorCountCurrentFrame);
+            }
+        }
+    }
+    resetLocalPanels();
+    std::filesystem::remove(filename);
+    std::filesystem::remove(directory);
+}
+
+TEST_F(LocalizationGuiTests, l6aDeferredErrorsKeepRawDetailsAndFollowDisplayLanguage)
+{
+    std::string details = "CUDA driver: 100% {details} ### /Папка/ёж.sim\n";
+    for (int repeat = 0; repeat < 25; ++repeat) {
+        details += "External diagnostic; bytes remain unchanged. ";
+    }
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto key : {"localui.error.open", "localui.error.save", "localui.error.details"}) {
+            select("en");
+            LocalDialogPresentation::error(key, std::vector<PersisterErrorInfo>{{details}, {"second raw error"}});
+            ImGuiWindow* original = nullptr;
+            for (auto language : {"ru", "en", "ru"}) {
+                select(language);
+                for (int repeat = 0; repeat < 2; ++repeat) {
+                    frame([&] { static_cast<MainLoopEntity&>(GenericMessageDialog::get()).process(); });
+                }
+                auto window = ImGui::FindWindowByName("###Error");
+                ASSERT_NE(nullptr, window);
+                if (!original) {
+                    original = window;
+                }
+                EXPECT_EQ(original, window);
+                std::string text;
+                frame([&] {
+                    ImGui::LogToBuffer();
+                    static_cast<MainLoopEntity&>(GenericMessageDialog::get()).process();
+                    text = GImGui->LogBuffer.c_str();
+                    ImGui::LogFinish();
+                });
+                EXPECT_EQ(details + "\n\nsecond raw error", localErrorDetails());
+                EXPECT_NE(std::string::npos, text.find("CUDA driver: 100% {details} ### /Папка/ёж.sim"));
+                EXPECT_NE(std::string::npos, text.find("External diagnostic; bytes remain unchanged."));
+                EXPECT_NE(std::string::npos, text.find("second raw error"));
+                EXPECT_EQ(std::string::npos, text.find("localui."));
+                EXPECT_TRUE(GenericMessageDialog::get().isOpen());
+                EXPECT_EQ(0, GImGui->ErrorCountCurrentFrame);
+            }
+            closeImmediately(GenericMessageDialog::get());
+        }
+        select("en");
+        printOverlayMessage(tr("localui.autosave.creating"));
+        auto emitted = overlayMessage();
+        select("ru");
+        EXPECT_EQ(emitted, overlayMessage());
+        printOverlayMessage(tr("localui.autosave.deleting"));
+        EXPECT_EQ(tr("localui.autosave.deleting"), overlayMessage());
+        auto path = PathHelper::toUtf8(std::filesystem::path(L"C:\\User\\Ёж 100% {details} ###.sim"));
+        printOverlayMessage(path);
+        select("en");
+        EXPECT_EQ(path, overlayMessage());
+    }
+}
+
+TEST_F(LocalizationGuiTests, l6aSharedPictureErrorsAndEncodedDataStayCanonicalAcrossLanguages)
+{
+    PictureData picture{.resolution = {1, 1}, .pixels = {20, 40, 60}};
+    std::string encoded;
+    for (auto language : {"en", "ru", "en"}) {
+        select(language);
+        auto data = PictureGuiService::get().encodePng(picture);
+        if (encoded.empty()) {
+            encoded = data;
+        }
+        EXPECT_EQ(encoded, data);
+        try {
+            PictureGuiService::get().scale(picture, {0, 1});
+            FAIL() << "Expected invalid resolution error";
+        } catch (std::exception const& error) {
+            EXPECT_STREQ("The resolution of a picture must be positive.", error.what());
+        }
+        GenericMessageDialog::get().localizedInformation("Save picture error", "picture.title", "picture.error");
+        frame([&] { static_cast<MainLoopEntity&>(GenericMessageDialog::get()).process(); });
+        EXPECT_TRUE(GenericMessageDialog::get().isOpen());
+        closeImmediately(GenericMessageDialog::get());
+    }
 }

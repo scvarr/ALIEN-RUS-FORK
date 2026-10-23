@@ -41,6 +41,7 @@
 #include "ImageToPatternDialog.h"
 #include "InspectionController.h"
 #include "LocalizationGui.h"
+#include "LocalizationGuiText.h"
 #include "LogWindow.h"
 #include "LoginDialog.h"
 #include "MassEditDialog.h"
@@ -250,7 +251,7 @@ void MainLoopController::setupSimulation(SimulationDesc const& simulationDesc)
 
 void MainLoopController::setupEmptySimulation()
 {
-    GenericMessageDialog::get().information("Error", "The simulation could not be loaded.\nAn empty simulation will be created.");
+    GenericMessageDialog::get().localizedInformation("Error", "localui.error", "localui.startup.failure");
 
     SimulationDesc emptySim;
     emptySim.worldSize({1000, 500}).timestep(0).zoom(12.0f).center({500.0f, 250.0f}).realTime(std::chrono::milliseconds(0));
@@ -326,7 +327,7 @@ void MainLoopController::processOperatingMode()
 void MainLoopController::processScheduleExit()
 {
     if (_saveOnExit) {
-        printOverlayMessage("Saving on exit ...");
+        printOverlayMessage(tr("localui.savingonexit"));
 
         auto senderInfo = SenderInfo{.senderId = SenderId{StartupSenderId}, .wishResultData = true, .wishErrorInfo = true};
         auto saveData = SaveSimulationRequestData{Const::AutosaveFile, Viewport::get().getZoomFactor(), Viewport::get().getCenterInWorldPos()};
@@ -384,13 +385,10 @@ void MainLoopController::drawLoadingScreen()
 
     drawList->AddText(styleRep.getReefLargeFont(), scale(48.0f), {center.x - scale(175), bottom - scale(200)}, textColor, "Artificial Life Environment");
 
-    auto versionString = "Version " + Const::ProgramVersion;
-    drawList->AddText(
-        styleRep.getReefMediumFont(),
-        scale(24.0f),
-        {center.x - scale(toFloat(versionString.size()) * 3.4f), bottom - scale(140)},
-        textColor,
-        versionString.c_str());
+    auto versionString = LocalizationGuiText::format("localui.version", {{"version", Const::ProgramVersion}});
+    auto versionFont = LocalizationService::get().getLanguage() == "ru" ? styleRep.getMediumFont() : styleRep.getReefMediumFont();
+    auto versionWidth = versionFont->CalcTextSizeA(scale(24.0f), FLT_MAX, 0, versionString.c_str()).x;
+    drawList->AddText(versionFont, scale(24.0f), {center.x - versionWidth / 2, bottom - scale(140)}, textColor, versionString.c_str());
 
     if (GlobalSettings::get().isDebugMode()) {
         drawList->AddText(styleRep.getReefMediumFont(), scale(24.0f), {center.x - scale(24.0f), bottom - scale(100)}, textColor, "DEBUG");

@@ -568,7 +568,7 @@ bool AlienGui::InputText(InputTextParameters const& parameters, char* buffer, in
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() - ImGui::GetStyle().FramePadding.x);
         if (ImGui::Button(ICON_FA_FOLDER_OPEN, {scale(30.0f), 0})) {
             GenericFileDialog::get().showOpenFileDialog(
-                "Select directory", "", std::string(buffer), [&](std::filesystem::path const& path) { selectedFolder = path.string(); });
+                parameters._folderDialogTitle, "", std::string(buffer), [&](std::filesystem::path const& path) { selectedFolder = path.string(); });
         }
         if (!selectedFolder.empty()) {
             auto folderLength = std::min(toInt(selectedFolder.size()), bufferSize);

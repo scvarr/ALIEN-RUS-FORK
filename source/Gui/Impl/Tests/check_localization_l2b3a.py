@@ -28,7 +28,7 @@ class L2b3aContracts(unittest.TestCase):
     def test_catalogs_and_all_twenty_typed_member_bindings(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.")) for key in en))
         source = read(GUI / "SimulationParametersPresentation.cpp")
         for index, (spec, member) in enumerate(MEMBERS):
             prefix = "parameters." + ("visualization." if index < 13 else "energy.") + member.lower()
