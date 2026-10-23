@@ -15,6 +15,8 @@ struct Workspace;
 
 class _BrowserTableWidget
 {
+    friend class BrowserLocalizationTests;
+
 public:
     static BrowserTableWidget create(BrowserData const& data);
 

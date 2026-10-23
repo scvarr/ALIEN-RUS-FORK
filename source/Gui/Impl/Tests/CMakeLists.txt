@@ -1,4 +1,4 @@
-target_sources(GuiLocalizationTests PRIVATE LocalizationGuiTests.cpp)
+target_sources(GuiLocalizationTests PRIVATE LocalizationGuiTests.cpp BrowserLocalizationTests.cpp)
 target_link_libraries(GuiLocalizationTests PRIVATE
     GuiImpl RenderingImpl McpToolsImpl PersisterImpl EngineImpl EngineKernels GTest::gtest_main)
 target_include_directories(GuiLocalizationTests PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})

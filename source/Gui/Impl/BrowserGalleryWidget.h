@@ -22,6 +22,8 @@ enum GallerySorting
 
 class _BrowserGalleryWidget
 {
+    friend class BrowserLocalizationTests;
+
 public:
     static BrowserGalleryWidget create(BrowserData const& data);
 

@@ -37,7 +37,7 @@ class L5bContracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {key: values[key] for key in old})
-            added = {key for key in values.keys() - old.keys() if not key.startswith(('simulationui.', 'localui.'))}
+            added = {key for key in values.keys() - old.keys() if not key.startswith(('simulationui.', 'localui.', 'browser.'))}
             self.assertEqual(132, len(added))
             for key in added:
                 self.assertTrue(key.startswith('worldtools.'))

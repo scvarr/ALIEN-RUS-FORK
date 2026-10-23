@@ -1,5 +1,8 @@
 #include "BrowserData.h"
 
+#include "BrowserPresentation.h"
+#include "LocalDialogPresentation.h"
+
 #include <algorithm>
 #include <ranges>
 
@@ -155,9 +158,9 @@ std::string _BrowserData::getUserNamesToEmojiType(std::string const& resourceId,
                     auto data = _PersisterFacade::get()->fetchGetUserNamesForReactionData(requestId);
                     _userNamesByEmojiTypeBySimIdCache.emplace(std::make_pair(data.resourceId, data.emojiType), data.userNames);
                 },
-                [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+                [](auto const& errors) { LocalDialogPresentation::error("browser.error.reactionusers", errors); });
         }
-        return "Loading...";
+        return BrowserPresentation::text("Loading...");
     }
 
     return boost::algorithm::join(userNames, ", ");
@@ -215,7 +218,7 @@ void _BrowserData::onToggleLike(NetworkResourceTreeTO const& treeTO, int emojiTy
             [](auto const&) {},
             [](auto const& errors) {
                 BrowserWindow::get().onRefresh();
-                GenericMessageDialog::get().information("Error", errors);
+                LocalDialogPresentation::error("browser.error.reaction", errors);
             });
     } else {
         LoginDialog::get().open();

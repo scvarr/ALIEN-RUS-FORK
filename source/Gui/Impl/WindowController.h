@@ -12,6 +12,7 @@ class WindowController : public MainLoopEntity
 {
     MAKE_SINGLETON(WindowController);
     friend class LocalizationGuiTests;
+    friend class BrowserLocalizationTests;
 
 public:
     struct WindowData

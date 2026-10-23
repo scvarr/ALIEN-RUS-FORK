@@ -35,7 +35,7 @@ class L5cContracts(unittest.TestCase):
         for lang, values in catalogs.items():
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {k: values[k] for k in old})
-            added = {key for key in values.keys() - old.keys() if not key.startswith('localui.')}
+            added = {key for key in values.keys() - old.keys() if not key.startswith(('localui.', 'browser.'))}
             self.assertEqual(56, len(added))
             for key in added:
                 self.assertTrue(key.startswith('simulationui.'))

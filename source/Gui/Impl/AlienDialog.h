@@ -13,6 +13,7 @@
 class AlienDialog : public MainLoopEntity
 {
     friend class LocalizationGuiTests;
+    friend class BrowserLocalizationTests;
 
 public:
     AlienDialog(

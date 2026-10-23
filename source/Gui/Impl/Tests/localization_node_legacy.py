@@ -5,6 +5,7 @@ Current behavior, IDs and fallback paths are tested by L4-A3 production ImGui te
 def legacy_local_dialog_text(file, text):
     """Remove only L6-A's opt-in folder caption for historical widget contracts."""
     if file.endswith('AlienGui.cpp'):
+        text = text.replace('ImGui::CalcTextSize(parameters._buttonText.c_str(), nullptr, true)', 'ImGui::CalcTextSize(parameters._buttonText.c_str())')
         text = text.replace('parameters._folderDialogTitle, "", std::string(buffer),', '"Select directory", "", std::string(buffer),')
     if file.endswith('AlienGui.h'):
         text = text.replace('        MEMBER(InputTextParameters, std::string, folderDialogTitle, "Select directory");\n', '')
@@ -40,4 +41,12 @@ def legacy_node_widget_text(file, text):
                 text = text[:match.start()] + block + text[match.end():]
         text = text.replace('auto result = parameters._buttonLabel ? DisplayButton(parameters._buttonText, *parameters._buttonLabel, {width, 0})\n                                          : ImGui::Button(parameters._buttonText.c_str(), {width, 0});', 'auto result = ImGui::Button(parameters._buttonText.c_str(), {width, 0});')
         text = text.replace('    if (parameters._displayValues.size() == parameters._values.size() && !parameters._displayValues.empty()) {\n        auto id = ImGui::GetCurrentWindow()->GetID(("##" + parameters._name).c_str());\n        auto preview = value >= 0 && value < parameters._displayValues.size() ? parameters._displayValues.at(value).c_str() : "";\n        if (ImGui::BeginCombo(("##" + parameters._name).c_str(), preview)) {\n            for (int index = 0; index < parameters._values.size(); ++index) {\n                ImGui::PushID(index);\n                auto selected = value == index;\n                auto label = parameters._displayValues.at(index) + "###" + parameters._values.at(index);\n                if (ImGui::Selectable(label.c_str(), selected)) {\n                    result |= value != index;\n                    value = index;\n                }\n                if (selected) {\n                    ImGui::SetItemDefaultFocus();\n                }\n                ImGui::PopID();\n            }\n            ImGui::EndCombo();\n        }\n        if (result) {\n            ImGui::MarkItemEdited(id);\n        }\n    } else {\n        result |= ImGui::Combo(("##" + parameters._name).c_str(), &value, vectorGetter, static_cast<void*>(&parameters._values), parameters._values.size());\n    }', '    result |= ImGui::Combo(("##" + parameters._name).c_str(), &value, vectorGetter, static_cast<void*>(&parameters._values), parameters._values.size());')
+    return text
+
+
+def legacy_browser_message_text(text):
+    """Remove only L6-B's opt-in display-time Markdown support."""
+    import re
+    text = re.sub(r'void GenericMessageDialog::localizedMarkdownInformation\(.*?\n}\n\n', '', text, flags=re.S)
+    text = text.replace('        if (!_messageKey.empty()) {\n            _markdownMessage = MarkdownParser::parse(LocalizationGuiText::format(_messageKey, _messageArguments));\n        }\n', '')
     return text

@@ -1,5 +1,7 @@
 #include "BrowserHelper.h"
 
+#include "BrowserPresentation.h"
+
 #include <imgui.h>
 
 #include <Fonts/IconsFontAwesome5.h>
@@ -26,7 +28,7 @@ bool BrowserHelper::ActionButton(std::string const& text)
 void BrowserHelper::DownloadButton(BrowserData const& data, BrowserLeaf const& leaf)
 {
     auto isDownload = AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_DOWNLOAD));
-    AlienGui::Tooltip(AlienGui::TooltipParameters().text("Download").delay(false));
+    AlienGui::Tooltip(AlienGui::TooltipParameters().text(BrowserPresentation::text("Download")).delay(false));
     if (isDownload) {
         data->onDownloadResource(leaf);
     }

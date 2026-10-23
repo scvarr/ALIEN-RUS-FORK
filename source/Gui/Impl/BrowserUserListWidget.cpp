@@ -1,5 +1,7 @@
 #include "BrowserUserListWidget.h"
 
+#include "BrowserPresentation.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -70,11 +72,11 @@ namespace
 
     AlienGui::TabItemParameters getSimulatorsTabParameters(std::optional<int> const& numActiveSimulators)
     {
-        auto result = AlienGui::TabItemParameters().name("Simulators");
+        auto result = AlienGui::TabItemParameters().name(BrowserPresentation::text("Simulators")).id("Simulators");
         if (numActiveSimulators) {
-            result.badge("  " + std::to_string(*numActiveSimulators) + " active")
+            result.badge("  " + LocalizationGuiText::format("browser.active", {{"count", std::to_string(*numActiveSimulators)}}))
                 .badgeColor(ImColor::HSV(0.0f, 0.4f, 0.9f))
-                .tooltip(Const::BrowserActiveSimulatorsTooltip);
+                .tooltip(BrowserPresentation::text(Const::BrowserActiveSimulatorsTooltip));
         }
         return result;
     }
@@ -93,7 +95,7 @@ namespace
             return;
         }
         auto pos = ImGui::GetCursorScreenPos();
-        auto offsetX = ImGui::CalcTextSize(GpuColumnName).x + ImGui::CalcTextSize("  ").x;
+        auto offsetX = ImGui::CalcTextSize(BrowserPresentation::text(GpuColumnName).c_str()).x + ImGui::CalcTextSize("  ").x;
         AlienGui::SmallIcon(AlienGui::SmallIconParameters().icon(ICON_FA_EYE_SLASH).pos({pos.x + offsetX, pos.y}).color(Const::TextDimColor));
     }
 
@@ -110,7 +112,7 @@ namespace
     void processSharedGpu(std::string const& gpu)
     {
         if (gpu.empty()) {
-            AlienGui::Text(AlienGui::TextParameters().text("not shared").style(AlienGui::TextStyle::Decent).truncate(true));
+            AlienGui::Text(AlienGui::TextParameters().text(BrowserPresentation::text("not shared")).style(AlienGui::TextStyle::Decent).truncate(true));
         } else {
             AlienGui::Text(AlienGui::TextParameters().text(getGpuString(gpu)).truncate(true));
         }
@@ -129,12 +131,15 @@ namespace
         ImGui::GetWindowDrawList()->AddRectFilled(
             {pos.x + scale(1.0f), barTop}, {pos.x + length, barTop + barHeight}, Const::BrowserHiddenGpuBarColor, barHeight / 2);
 
-        AlienGui::Tooltip(AlienGui::TooltipParameters().text(isLoggedIn ? Const::BrowserGpuHiddenNotSharedTooltip : Const::BrowserGpuHiddenLoggedOutTooltip));
+        AlienGui::Tooltip(AlienGui::TooltipParameters().text(
+            isLoggedIn ? BrowserPresentation::text(Const::BrowserGpuHiddenNotSharedTooltip)
+                       : BrowserPresentation::text(Const::BrowserGpuHiddenLoggedOutTooltip)));
     }
 
     std::string getGpuHintText(bool isLoggedIn)
     {
-        return isLoggedIn ? ICON_FA_LOCK "  Share yours to see" : ICON_FA_LOCK "  Log in to see";
+        return isLoggedIn ? std::string(ICON_FA_LOCK "  ") + BrowserPresentation::text("Share yours to see")
+                          : std::string(ICON_FA_LOCK "  ") + BrowserPresentation::text("Log in to see");
     }
 
     struct GpuHintPlacement
@@ -187,7 +192,7 @@ namespace
             hovered ? Const::ActionButtonHighlightedTextColor : Const::TextDimColor,
             text.c_str());
 
-        AlienGui::Tooltip(AlienGui::TooltipParameters().text(Const::BrowserGpuHiddenLoggedOutTooltip));
+        AlienGui::Tooltip(AlienGui::TooltipParameters().text(BrowserPresentation::text(Const::BrowserGpuHiddenLoggedOutTooltip)));
         return result;
     }
 
@@ -201,11 +206,11 @@ namespace
             return;
         }
         if (AlienGui::ActionButton(AlienGui::ActionButtonParameters()
-                                       .buttonText(getGpuHintText(true))
+                                       .buttonText(getGpuHintText(true) + "###shareGpu")
                                        .highlighted(true)
                                        .frame(true)
                                        .transparentBackground(false)
-                                       .tooltip(Const::BrowserShareGpuTooltip + getOwnGpuString()))) {
+                                       .tooltip(BrowserPresentation::text(Const::BrowserShareGpuTooltip) + getOwnGpuString()))) {
             LoginController::get().setShareGpuInfo(true);
         }
     }
@@ -225,16 +230,24 @@ void _BrowserUserListWidget::process()
         selectedTabIndex);
 
     if (ImGui::BeginTable("Browser", 5, flags, ImVec2(-1, -1), 0.0f)) {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, scale(90.0f));
+        ImGui::TableSetupColumn(
+            (tr("browser.userfieldname") + "###Name").c_str(), ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, scale(90.0f));
         auto isLoggedIn = NetworkService::get().getLoggedInUserName().has_value();
         auto isGpuVisible = isLoggedIn && LoginController::get().shareGpuInfo();
-        ImGui::TableSetupColumn(GpuColumnName, ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, styleService.scale(200.0f));
-        ImGui::TableSetupColumn("Time spent", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, styleService.scale(80.0f));
         ImGui::TableSetupColumn(
-            "Reactions received",
+            BrowserPresentation::column(GpuColumnName).c_str(),
+            ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
+            styleService.scale(200.0f));
+        ImGui::TableSetupColumn(
+            BrowserPresentation::column("Time spent").c_str(), ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, styleService.scale(80.0f));
+        ImGui::TableSetupColumn(
+            BrowserPresentation::column("Reactions received").c_str(),
             ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending,
             scale(120.0f));
-        ImGui::TableSetupColumn("Reactions given", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, styleService.scale(100.0f));
+        ImGui::TableSetupColumn(
+            BrowserPresentation::column("Reactions given").c_str(),
+            ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
+            styleService.scale(100.0f));
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
         if (!isGpuVisible) {
@@ -289,9 +302,9 @@ void _BrowserUserListWidget::process()
                     auto totalSeconds = user.timeSpent;
                     std::string text;
                     if (totalSeconds >= 3600) {
-                        text = StringHelper::format(static_cast<uint64_t>(totalSeconds / 3600)) + "h";
+                        text = StringHelper::format(static_cast<uint64_t>(totalSeconds / 3600)) + BrowserPresentation::text("h");
                     } else {
-                        text = std::to_string(totalSeconds / 60) + "m";
+                        text = std::to_string(totalSeconds / 60) + BrowserPresentation::text("m");
                     }
                     AlienGui::Text(AlienGui::TextParameters().text(text).style(getTextStyle(isOwnRow)).truncate(true));
                 }

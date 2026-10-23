@@ -1,5 +1,7 @@
 #include "BrowserWindow.h"
 
+#include "BrowserPresentation.h"
+
 #include <algorithm>
 #include <ranges>
 
@@ -49,7 +51,9 @@ namespace
 
 BrowserWindow::BrowserWindow()
     : AlienWindow("Browser", "windows.browser", true, true, {172.0f, 78.0f}, {1252.0f, 825.0f})
-{}
+{
+    setTitleKey("menu.browser");
+}
 
 namespace
 {
@@ -174,7 +178,8 @@ namespace
     std::string getAccountChipText()
     {
         auto userName = NetworkService::get().getLoggedInUserName();
-        return userName.has_value() ? ICON_FA_USER "  " + *userName + "  " ICON_FA_CARET_DOWN : std::string(ICON_FA_SIGN_IN_ALT "  Log in");
+        return userName.has_value() ? ICON_FA_USER "  " + *userName + "  " ICON_FA_CARET_DOWN
+                                    : std::string(ICON_FA_SIGN_IN_ALT "  ") + BrowserPresentation::text("Log in");
     }
 }
 
@@ -184,20 +189,22 @@ void BrowserWindow::processToolbar()
     auto isOwnerForSelectedItem = _data->isOwner(_data->selectedTreeTO);
 
     std::vector<AlienGui::ToolbarItem> items{
-        AlienGui::ToolbarItem::createButton(
-            AlienGui::ToolbarItemParameters().icon(ICON_FA_SYNC).name("Refresh").disabled(BrowserController::get().isRefreshing()).action([&] {
-                onRefresh();
-            })),
+        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                .icon(ICON_FA_SYNC)
+                                                .name(BrowserPresentation::text("Refresh"))
+                                                .disabled(BrowserController::get().isRefreshing())
+                                                .action([&] { onRefresh(); })),
         AlienGui::ToolbarItem::createSeparator(),
         AlienGui::ToolbarItem::createButton(
             AlienGui::ToolbarItemParameters()
                 .icon(ICON_FA_UPLOAD)
-                .name("Upload " + resourceTypeString)
-                .tooltip(
+                .name(BrowserPresentation::text("Upload " + resourceTypeString))
+                .tooltip(BrowserPresentation::text(
                     "Upload your current " + resourceTypeString
                     + " to the server and make it visible in the browser. You can choose whether you want to share it with the community or whether it should "
                       "only be visible in your own workspace.\nIf you have already selected a folder, your "
-                    + resourceTypeString + " will be uploaded there. If you have selected a " + resourceTypeString + ", its folder and name will be suggested.")
+                    + resourceTypeString + " will be uploaded there. If you have selected a " + resourceTypeString
+                    + ", its folder and name will be suggested."))
                 .action([&] {
                     auto [folder, resourceName] = [&]() -> std::pair<std::string, std::string> {
                         if (_data->selectedTreeTO == nullptr) {
@@ -212,60 +219,68 @@ void BrowserWindow::processToolbar()
                     }();
                     UploadSimulationDialog::get().open(_data->currentWorkspace.resourceType, folder, resourceName);
                 })),
-        AlienGui::ToolbarItem::createButton(
-            AlienGui::ToolbarItemParameters().icon(ICON_FA_EDIT).name("Change name or description").disabled(!isOwnerForSelectedItem).action([&] {
-                onEditResource(_data->selectedTreeTO);
-            })),
+        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                .icon(ICON_FA_EDIT)
+                                                .name(BrowserPresentation::text("Change name or description"))
+                                                .disabled(!isOwnerForSelectedItem)
+                                                .action([&] { onEditResource(_data->selectedTreeTO); })),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_EXCHANGE_ALT)
-                                                .name("Replace " + resourceTypeString)
-                                                .tooltip(
+                                                .name(BrowserPresentation::text("Replace " + resourceTypeString))
+                                                .tooltip(BrowserPresentation::text(
                                                     "Replace the selected " + resourceTypeString
-                                                    + " with the one that is currently open. The name, description and reactions will be preserved.")
+                                                    + " with the one that is currently open. The name, description and reactions will be preserved."))
                                                 .disabled(!isOwnerForSelectedItem || !_data->selectedTreeTO->isLeaf())
                                                 .action([&] { onReplaceResource(_data->selectedTreeTO->getLeaf()); })),
-        AlienGui::ToolbarItem::createButton(
-            AlienGui::ToolbarItemParameters()
-                .icon(ICON_FA_SHARE_ALT)
-                .name("Change visibility")
-                .tooltip("Change visibility: Community " ICON_FA_LONG_ARROW_ALT_RIGHT " Private and Private " ICON_FA_LONG_ARROW_ALT_RIGHT " Community")
-                .disabled(!isOwnerForSelectedItem)
-                .action([&] { onMoveResource(_data->selectedTreeTO); })),
-        AlienGui::ToolbarItem::createButton(
-            AlienGui::ToolbarItemParameters().icon(ICON_FA_TRASH).name("Delete selected " + resourceTypeString).disabled(!isOwnerForSelectedItem).action([&] {
-                onDeleteResource(_data->selectedTreeTO);
-            })),
+        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                .icon(ICON_FA_SHARE_ALT)
+                                                .name(BrowserPresentation::text("Change visibility"))
+                                                .tooltip(BrowserPresentation::text("Change visibility: Community → Private and Private → Community"))
+                                                .disabled(!isOwnerForSelectedItem)
+                                                .action([&] { onMoveResource(_data->selectedTreeTO); })),
+        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                .icon(ICON_FA_TRASH)
+                                                .name(BrowserPresentation::text("Delete selected " + resourceTypeString))
+                                                .disabled(!isOwnerForSelectedItem)
+                                                .action([&] { onDeleteResource(_data->selectedTreeTO); })),
         AlienGui::ToolbarItem::createSeparator(),
-        AlienGui::ToolbarItem::createButton(
-            AlienGui::ToolbarItemParameters().icon(ICON_FA_EXPAND_ARROWS_ALT).name("Expand all folders").disabled(_galleryView).action([&] {
-                onExpandFolders();
-            })),
-        AlienGui::ToolbarItem::createButton(
-            AlienGui::ToolbarItemParameters().icon(ICON_FA_COMPRESS_ARROWS_ALT).name("Collapse all folders").disabled(_galleryView).action([&] {
-                onCollapseFolders();
-            })),
+        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                .icon(ICON_FA_EXPAND_ARROWS_ALT)
+                                                .name(BrowserPresentation::text("Expand all folders"))
+                                                .disabled(_galleryView)
+                                                .action([&] { onExpandFolders(); })),
+        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
+                                                .icon(ICON_FA_COMPRESS_ARROWS_ALT)
+                                                .name(BrowserPresentation::text("Collapse all folders"))
+                                                .disabled(_galleryView)
+                                                .action([&] { onCollapseFolders(); })),
         AlienGui::ToolbarItem::createSeparator(),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_TH)
-                                                .name("Gallery view")
-                                                .tooltip("Show the " + resourceTypeString + "s as tiles with preview pictures.")
+                                                .name(BrowserPresentation::text("Gallery view"))
+                                                .tooltip(BrowserPresentation::text("Show the " + resourceTypeString + "s as tiles with preview pictures."))
                                                 .selected(_galleryView)
                                                 .action([&] { _galleryView = true; })),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_LIST)
-                                                .name("Table view")
-                                                .tooltip("Show the " + resourceTypeString + "s as a sortable table with folders.")
+                                                .name(BrowserPresentation::text("Table view"))
+                                                .tooltip(BrowserPresentation::text("Show the " + resourceTypeString + "s as a sortable table with folders."))
                                                 .selected(!_galleryView)
                                                 .action([&] { _galleryView = false; }))};
 
     items.emplace_back(AlienGui::ToolbarItem::createSeparator());
-    items.emplace_back(
-        AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_COMMENTS).name("Open ALIEN Discord server").action([] {
+    items.emplace_back(AlienGui::ToolbarItem::createButton(
+        AlienGui::ToolbarItemParameters().icon(ICON_FA_COMMENTS).name(BrowserPresentation::text("Open ALIEN Discord server")).action([] {
             WebLinkHelper::openInBrowser(Const::DiscordURL);
         })));
 
     AlienGui::Toolbar(
-        AlienGui::ToolbarParameters().id("Browser").trailing([this] { processAccountChip(); }).trailingWidth(calcAccountChipWidth()).trailingAsButton(true),
+        AlienGui::ToolbarParameters()
+            .id("Browser")
+            .overflowTooltip(tr("genome.toolbar.more"))
+            .trailing([this] { processAccountChip(); })
+            .trailingWidth(calcAccountChipWidth())
+            .trailingAsButton(true),
         items);
 }
 
@@ -280,7 +295,8 @@ void BrowserWindow::processWorkspace()
         auto resourceType = _data->currentWorkspace.resourceType;
         AlienGui::TabBar(
             AlienGui::TabBarParameters().id("##Type").style(AlienGui::TabBarStyle::Group),
-            {AlienGui::TabItemParameters().name("Simulations"), AlienGui::TabItemParameters().name("Genomes")},
+            {AlienGui::TabItemParameters().name(BrowserPresentation::text("Simulations")).id("Simulations"),
+             AlienGui::TabItemParameters().name(BrowserPresentation::text("Genomes")).id("Genomes")},
             resourceType);
         if (_data->currentWorkspace.resourceType != resourceType) {
             _data->currentWorkspace.resourceType = resourceType;
@@ -329,11 +345,14 @@ bool BrowserWindow::isLoginRequired() const
 
 void BrowserWindow::processWorkspaceSelection()
 {
-    processWorkspaceButton(WorkspaceType_AlienProject, ICON_FA_STAR, "Featured", Const::BrowserFeaturedWorkspaceTooltip);
+    processWorkspaceButton(
+        WorkspaceType_AlienProject, ICON_FA_STAR, BrowserPresentation::text("Featured"), BrowserPresentation::text(Const::BrowserFeaturedWorkspaceTooltip));
     ImGui::SameLine();
-    processWorkspaceButton(WorkspaceType_Public, ICON_FA_GLOBE, "Community", Const::BrowserCommunityWorkspaceTooltip);
+    processWorkspaceButton(
+        WorkspaceType_Public, ICON_FA_GLOBE, BrowserPresentation::text("Community"), BrowserPresentation::text(Const::BrowserCommunityWorkspaceTooltip));
     ImGui::SameLine();
-    processWorkspaceButton(WorkspaceType_Private, ICON_FA_LOCK, "Private", Const::BrowserPrivateWorkspaceTooltip);
+    processWorkspaceButton(
+        WorkspaceType_Private, ICON_FA_LOCK, BrowserPresentation::text("Private"), BrowserPresentation::text(Const::BrowserPrivateWorkspaceTooltip));
 }
 
 void BrowserWindow::processWorkspaceButton(WorkspaceType workspaceType, std::string const& icon, std::string const& name, std::string const& tooltip)
@@ -344,7 +363,7 @@ void BrowserWindow::processWorkspaceButton(WorkspaceType workspaceType, std::str
     if (workspaceType != WorkspaceType_Private || NetworkService::get().getLoggedInUserName()) {
         label += "  (" + std::to_string(_data->workspaces.at(WorkspaceId{_data->currentWorkspace.resourceType, workspaceType}).rawTOs.size()) + ")";
     }
-    label += "##workspace" + std::to_string(workspaceType);
+    label += "###workspace" + std::to_string(workspaceType);
 
     auto selected = isSelected;
     if (AlienGui::SelectableButton(AlienGui::SelectableButtonParameters().name(label).tooltip(tooltip), selected) && !isSelected) {
@@ -364,12 +383,14 @@ void BrowserWindow::processAccountChip()
     auto userName = NetworkService::get().getLoggedInUserName();
     auto invitesToLogin = !userName.has_value() && !_loginBannerWidget->isVisible();
 
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters()
-                                   .buttonText(getAccountChipText())
-                                   .highlighted(invitesToLogin)
-                                   .frame(invitesToLogin)
-                                   .transparentBackground(false)
-                                   .tooltip(userName.has_value() ? std::string("Show the account menu") : Const::BrowserLoginChipTooltip))) {
+    if (AlienGui::ActionButton(
+            AlienGui::ActionButtonParameters()
+                .buttonText(getAccountChipText() + "###accountChip")
+                .highlighted(invitesToLogin)
+                .frame(invitesToLogin)
+                .transparentBackground(false)
+                .tooltip(
+                    userName.has_value() ? BrowserPresentation::text("Show the account menu") : BrowserPresentation::text(Const::BrowserLoginChipTooltip)))) {
         if (userName.has_value()) {
             ImGui::OpenPopup("##account");
         } else {
@@ -378,7 +399,7 @@ void BrowserWindow::processAccountChip()
     }
 
     if (ImGui::BeginPopup("##account")) {
-        if (ImGui::Selectable(ICON_FA_SIGN_OUT_ALT "  Log out")) {
+        if (ImGui::Selectable((std::string(ICON_FA_SIGN_OUT_ALT "  ") + BrowserPresentation::text("Log out") + "###logout").c_str())) {
             NetworkService::get().logout();
             onRefresh();
         }
@@ -389,7 +410,9 @@ void BrowserWindow::processAccountChip()
 void BrowserWindow::processFooter()
 {
     auto filterWidth = std::clamp(scaleInverse(ImGui::GetContentRegionAvail().x), MinFilterWidth, FilterWidth);
-    if (AlienGui::InputFilter(AlienGui::InputFilterParameters().width(filterWidth), _data->filter)) {
+    if (AlienGui::InputFilter(
+            AlienGui::InputFilterParameters().width(filterWidth).hint(BrowserPresentation::text("Filter (case insensitive)")).id("Filter (case insensitive)"),
+            _data->filter)) {
         _galleryWidget->resetPage();
         _data->createTreeTOsForAllWorkspaces();
     }
@@ -426,19 +449,19 @@ void BrowserWindow::processStatusBar()
     auto numSimulations = toInt(simulations.size());
     auto numGenomes = toInt(genomes.size());
 
-    statusItems.emplace_back("Server: " + NetworkService::get().getServerAddress());
+    statusItems.emplace_back(LocalizationGuiText::format("browser.server", {{"address", NetworkService::get().getServerAddress()}}));
 
     if (auto userName = NetworkService::get().getLoggedInUserName()) {
-        statusItems.emplace_back("Logged in as " + *userName);
+        statusItems.emplace_back(LocalizationGuiText::format("browser.loggedin", {{"user", *userName}}));
     } else {
-        statusItems.emplace_back("Not logged in");
+        statusItems.emplace_back(BrowserPresentation::text("Not logged in"));
     }
-    statusItems.emplace_back(std::to_string(numSimulations) + " simulations found");
-    statusItems.emplace_back(std::to_string(numGenomes) + " genomes found");
-    statusItems.emplace_back(std::to_string(_data->userTOs.size()) + " simulators found");
+    statusItems.emplace_back(BrowserPresentation::count("browser.count.simulations", numSimulations));
+    statusItems.emplace_back(BrowserPresentation::count("browser.count.genomes", numGenomes));
+    statusItems.emplace_back(BrowserPresentation::count("browser.count.simulators", toInt(_data->userTOs.size())));
 
     if (!NetworkService::get().getLoggedInUserName()) {
-        statusItems.emplace_back("In order to share and upvote simulations you need to log in.");
+        statusItems.emplace_back(BrowserPresentation::text("In order to share and upvote simulations you need to log in."));
     }
 
     AlienGui::StatusBar(AlienGui::StatusBarParameters().infoItems(statusItems));
@@ -451,7 +474,7 @@ void BrowserWindow::processEmojiWindow()
         _data->activateEmojiPopup = false;
     }
     if (ImGui::BeginPopup("emoji")) {
-        ImGui::Text("Choose a reaction");
+        AlienGui::Text(BrowserPresentation::text("Choose a reaction"));
         ImGui::Spacing();
         ImGui::Spacing();
         if (_showAllEmojis) {
@@ -479,7 +502,7 @@ void BrowserWindow::processEmojiWindow()
                 }
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + scale(8.0f));
 
-                if (AlienGui::Button("More", ImGui::GetContentRegionAvail().x)) {
+                if (AlienGui::DisplayButton("More", BrowserPresentation::text("More"), {ImGui::GetContentRegionAvail().x, 0})) {
                     _showAllEmojis = true;
                 }
             }
@@ -595,8 +618,8 @@ void BrowserWindow::onDeleteResource(NetworkResourceTreeTO const& treeTO)
 {
     auto rawTOs = NetworkResourceService::get().getMatchingRawTOs(treeTO, _data->getCurrentWorkspace().rawTOs);
 
-    auto message = treeTO->isLeaf() ? "Do you really want to delete the selected item?" : "Do you really want to delete the selected folder?";
-    GenericMessageDialog::get().yesNo("Delete", message, [rawTOs = rawTOs, this]() {
+    auto messageKey = treeTO->isLeaf() ? "browser.doyoureallywanttodeletetheselecteditem" : "browser.doyoureallywanttodeletetheselectedfolder";
+    GenericMessageDialog::get().localizedYesNo("Delete", "browser.delete", messageKey, [rawTOs = rawTOs, this]() {
         // Remove resources form workspace
         for (WorkspaceType workspaceType = 0; workspaceType < WorkspaceType_Count; ++workspaceType) {
             auto& workspace = _data->workspaces.at(WorkspaceId{_data->currentWorkspace.resourceType, workspaceType});

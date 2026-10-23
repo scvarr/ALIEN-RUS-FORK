@@ -1,5 +1,7 @@
 #include "BrowserTableWidget.h"
 
+#include "BrowserPresentation.h"
+
 #include <map>
 #include <optional>
 #include <ranges>
@@ -47,13 +49,18 @@ void _BrowserTableWidget::process()
     ImGui::PushID(resourceType == NetworkResourceType_Simulation ? "SimulationList" : "GenomeList");
     if (ImGui::BeginTable("Browser", toInt(columns.size()), getTableFlags(resourceType), ImVec2(-1, -BrowserHelper::calcFooterHeight()), 0.0f)) {
         for (auto const& column : columns) {
-            ImGui::TableSetupColumn(column.name.c_str(), column.flags, scale(column.width), column.sortId);
+            ImGui::TableSetupColumn(BrowserPresentation::column(column.name).c_str(), column.flags, scale(column.width), column.sortId);
         }
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Const::TableHeaderColor);
 
         processSortSpecs();
+        if (workspace.treeTOs.empty()) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            AlienGui::Text(tr("browser.empty"));
+        }
 
         _recreateTreeTOs = false;
         ImGuiListClipper clipper;
@@ -201,8 +208,9 @@ void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& 
         ImGui::SameLine();
         if (_data->currentWorkspace.workspaceType == WorkspaceType_Private && leaf.rawTO->workspaceType != WorkspaceType_Private) {
             AlienGui::Text(ICON_FA_SHARE_ALT);
-            AlienGui::Tooltip(
-                AlienGui::TooltipParameters().text(leaf.rawTO->workspaceType == WorkspaceType_AlienProject ? "Visible in Featured" : "Visible in Community"));
+            AlienGui::Tooltip(AlienGui::TooltipParameters().text(
+                leaf.rawTO->workspaceType == WorkspaceType_AlienProject ? BrowserPresentation::text("Visible in Featured")
+                                                                        : BrowserPresentation::text("Visible in Community")));
         }
         ImGui::SameLine();
 
@@ -212,7 +220,7 @@ void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& 
             font->Scale *= 0.65f;
             ImGui::PushFont(font);
             ImGui::PushStyleColor(ImGuiCol_Text, Const::BrowserResourceNewTextColor.Value);
-            AlienGui::Text("NEW");
+            AlienGui::Text(BrowserPresentation::text("NEW"));
             ImGui::PopStyleColor();
             font->Scale = origSize;
             ImGui::PopFont();
@@ -228,14 +236,8 @@ void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& 
         AlienGui::Text(AlienGui::TextParameters().text(treeTO->folderNames.back()).truncate(true));
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::TextDecentColor);
-        std::string resourceTypeString = [&] {
-            if (treeTO->type == NetworkResourceType_Simulation) {
-                return folder.numLeafs == 1 ? "sim" : "sims";
-            } else {
-                return folder.numLeafs == 1 ? "genome" : "genomes";
-            }
-        }();
-        AlienGui::Text("(" + std::to_string(folder.numLeafs) + " " + resourceTypeString + ")");
+        auto countKey = treeTO->type == NetworkResourceType_Simulation ? "browser.folder.simulation" : "browser.folder.genome";
+        AlienGui::Text("(" + BrowserPresentation::count(countKey, folder.numLeafs) + ")");
         ImGui::PopStyleColor();
     }
 }
@@ -323,7 +325,7 @@ void _BrowserTableWidget::processReactionList(NetworkResourceTreeTO const& treeT
         auto& leaf = treeTO->getLeaf();
 
         auto isAddReaction = AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_PLUS));
-        AlienGui::Tooltip(AlienGui::TooltipParameters().text("Add a reaction").delay(false));
+        AlienGui::Tooltip(AlienGui::TooltipParameters().text(BrowserPresentation::text("Add a reaction")).delay(false));
         if (isAddReaction) {
             _data->activateEmojiPopup = true;
             _data->emojiPopupTO = treeTO;
@@ -449,7 +451,7 @@ void _BrowserTableWidget::processNumObjectsField(NetworkResourceTreeTO const& tr
     if (treeTO->isLeaf()) {
         auto& leaf = treeTO->getLeaf();
         if (kobjects) {
-            AlienGui::Text(StringHelper::format(leaf.rawTO->particles / 1000) + " K");
+            AlienGui::Text(StringHelper::format(leaf.rawTO->particles / 1000) + BrowserPresentation::text(" K"));
         } else {
             AlienGui::Text(AlienGui::TextParameters().text(StringHelper::format(leaf.rawTO->particles)).rightAligned(true));
         }
@@ -461,9 +463,9 @@ void _BrowserTableWidget::processSizeField(NetworkResourceTreeTO const& treeTO, 
     if (treeTO->isLeaf()) {
         auto& leaf = treeTO->getLeaf();
         if (kbyte) {
-            AlienGui::Text(StringHelper::format(leaf.rawTO->contentSize / 1024) + " KB");
+            AlienGui::Text(StringHelper::format(leaf.rawTO->contentSize / 1024) + BrowserPresentation::text(" KB"));
         } else {
-            AlienGui::Text(StringHelper::format(leaf.rawTO->contentSize) + " Bytes");
+            AlienGui::Text(StringHelper::format(leaf.rawTO->contentSize) + BrowserPresentation::text(" Bytes"));
         }
     }
 }

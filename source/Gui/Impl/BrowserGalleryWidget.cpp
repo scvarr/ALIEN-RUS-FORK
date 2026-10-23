@@ -1,5 +1,7 @@
 #include "BrowserGalleryWidget.h"
 
+#include "BrowserPresentation.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -78,12 +80,19 @@ void _BrowserGalleryWidget::shutdown()
 
 void _BrowserGalleryWidget::processSorting()
 {
+    auto sortingLabelWidth = std::max(55.0f, scaleInverse(ImGui::CalcTextSize(BrowserPresentation::text("Sort by").c_str()).x) + 8.0f);
+    auto sortingValueWidth = 0.0f;
+    for (auto const& name : {"Most reactions", "Newest", "Most downloads"}) {
+        sortingValueWidth = std::max(sortingValueWidth, scaleInverse(ImGui::CalcTextSize(BrowserPresentation::text(name).c_str()).x));
+    }
     if (AlienGui::Switcher(
             AlienGui::SwitcherParameters()
                 .name("Sort by")
-                .width(SortingSwitcherWidth)
-                .textWidth(55.0f)
-                .values({std::string("Most reactions"), std::string("Newest"), std::string("Most downloads")}),
+                .label(BrowserPresentation::text("Sort by"))
+                .width(std::max(SortingSwitcherWidth, sortingLabelWidth + sortingValueWidth + 70.0f))
+                .textWidth(sortingLabelWidth)
+                .values({std::string("Most reactions"), std::string("Newest"), std::string("Most downloads")})
+                .displayValues({BrowserPresentation::text("Most reactions"), BrowserPresentation::text("Newest"), BrowserPresentation::text("Most downloads")}),
             &_sorting)) {
         _page = 0;
     }
@@ -96,8 +105,9 @@ void _BrowserGalleryWidget::processSorting()
     AlienGui::SliderInt(
         AlienGui::SliderIntParameters()
             .name("Card size")
+            .label(BrowserPresentation::text("Card size"))
             .width(cardSizeSliderWidth)
-            .textWidth(75.0f)
+            .textWidth(std::max(75.0f, scaleInverse(ImGui::CalcTextSize(BrowserPresentation::text("Card size").c_str()).x) + 8.0f))
             .min(MinCardSizePercent)
             .max(MaxCardSizePercent)
             .format("%d %%"),
@@ -124,6 +134,9 @@ void _BrowserGalleryWidget::process()
     if (ImGui::BeginChild(
             "##tiles", {0, ImGui::GetContentRegionAvail().y - BrowserHelper::calcFooterHeight()}, false, ImGuiWindowFlags_AlwaysVerticalScrollbar)) {
         auto layout = calcTileLayout();
+        if (pageEntries.empty()) {
+            AlienGui::Text(tr("browser.empty"));
+        }
 
         for (auto const& [index, rawTO] : pageEntries | boost::adaptors::indexed(0)) {
             if (index % layout.numColumns != 0) {
@@ -166,11 +179,11 @@ void _BrowserGalleryWidget::processPlaceholderTiles()
 void _BrowserGalleryWidget::processPaging()
 {
     ImGui::BeginDisabled(_page == 0);
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_DOUBLE_LEFT).tooltip("First page"))) {
+    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_DOUBLE_LEFT).tooltip(BrowserPresentation::text("First page")))) {
         _page = 0;
     }
     ImGui::SameLine();
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_LEFT).tooltip("Previous page"))) {
+    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_LEFT).tooltip(BrowserPresentation::text("Previous page")))) {
         --_page;
     }
     ImGui::EndDisabled();
@@ -180,11 +193,11 @@ void _BrowserGalleryWidget::processPaging()
 
     ImGui::SameLine();
     ImGui::BeginDisabled(_page >= _numPages - 1);
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_RIGHT).tooltip("Next page"))) {
+    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_RIGHT).tooltip(BrowserPresentation::text("Next page")))) {
         ++_page;
     }
     ImGui::SameLine();
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_DOUBLE_RIGHT).tooltip("Last page"))) {
+    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_ANGLE_DOUBLE_RIGHT).tooltip(BrowserPresentation::text("Last page")))) {
         _page = _numPages - 1;
     }
     ImGui::EndDisabled();
@@ -245,7 +258,7 @@ namespace
     {
         auto font = StyleService::get().getSmallBoldFont();
         auto fontSize = font->FontSize * NewBadgeFontScale;
-        auto textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "NEW");
+        auto textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, BrowserPresentation::text("NEW").c_str());
 
         auto badgeMin = ImVec2{picturePos.x + scale(NewBadgeMargin), picturePos.y + scale(NewBadgeMargin)};
         auto badgeMax = ImVec2{badgeMin.x + textSize.x + scale(NewBadgePaddingX) * 2, badgeMin.y + scale(NewBadgeHeight)};
@@ -258,7 +271,7 @@ namespace
             fontSize,
             {badgeMin.x + scale(NewBadgePaddingX), badgeMin.y + (badgeMax.y - badgeMin.y - textSize.y) / 2},
             Const::BrowserResourceNewTextColor,
-            "NEW");
+            BrowserPresentation::text("NEW").c_str());
     }
 
     NetworkResourceTreeTO createLeafTreeTO(NetworkResourceRawTO const& rawTO)
@@ -314,8 +327,9 @@ void _BrowserGalleryWidget::processTile(NetworkResourceRawTO const& rawTO, float
 
         if (_data->currentWorkspace.workspaceType == WorkspaceType_Private && rawTO->workspaceType != WorkspaceType_Private) {
             AlienGui::Text(ICON_FA_SHARE_ALT);
-            AlienGui::Tooltip(
-                AlienGui::TooltipParameters().text(rawTO->workspaceType == WorkspaceType_AlienProject ? "Visible in Featured" : "Visible in Community"));
+            AlienGui::Tooltip(AlienGui::TooltipParameters().text(
+                rawTO->workspaceType == WorkspaceType_AlienProject ? BrowserPresentation::text("Visible in Featured")
+                                                                   : BrowserPresentation::text("Visible in Community")));
             ImGui::SameLine();
         }
         ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::BrowserResourceTextColor);
@@ -445,8 +459,8 @@ void _BrowserGalleryWidget::processTileTooltip(NetworkResourceRawTO const& rawTO
     AlienGui::Separator();
 
     auto isSimulation = rawTO->resourceType == NetworkResourceType_Simulation;
-    processTooltipRow("User", rawTO->userName);
-    processTooltipRow("Timestamp", rawTO->timestamp);
+    processTooltipRow(BrowserPresentation::text("User"), rawTO->userName);
+    processTooltipRow(BrowserPresentation::text("Timestamp"), rawTO->timestamp);
 
     if (rawTO->numLikesByEmojiType.empty()) {
         AlienGui::Text("-");
@@ -461,18 +475,18 @@ void _BrowserGalleryWidget::processTileTooltip(NetworkResourceRawTO const& rawTO
             ImGui::SameLine();
         }
     }
-    processTooltipLabel("Reactions");
+    processTooltipLabel(BrowserPresentation::text("Reactions"));
 
-    processTooltipRow("Downloads", std::to_string(rawTO->numDownloads));
+    processTooltipRow(BrowserPresentation::text("Downloads"), std::to_string(rawTO->numDownloads));
     if (isSimulation) {
-        processTooltipRow("World size", std::to_string(rawTO->width) + " x " + std::to_string(rawTO->height));
-        processTooltipRow("Objects", StringHelper::format(rawTO->particles / 1000) + " K");
-        processTooltipRow("File size", StringHelper::format(rawTO->contentSize / 1024) + " KB");
+        processTooltipRow(BrowserPresentation::text("World size"), std::to_string(rawTO->width) + " x " + std::to_string(rawTO->height));
+        processTooltipRow(BrowserPresentation::text("Objects"), StringHelper::format(rawTO->particles / 1000) + BrowserPresentation::text(" K"));
+        processTooltipRow(BrowserPresentation::text("File size"), StringHelper::format(rawTO->contentSize / 1024) + BrowserPresentation::text(" KB"));
     } else {
-        processTooltipRow("Cells", StringHelper::format(rawTO->particles));
-        processTooltipRow("File size", StringHelper::format(rawTO->contentSize) + " Bytes");
+        processTooltipRow(BrowserPresentation::text("Cells"), StringHelper::format(rawTO->particles));
+        processTooltipRow(BrowserPresentation::text("File size"), StringHelper::format(rawTO->contentSize) + BrowserPresentation::text(" Bytes"));
     }
-    processTooltipRow("Version", rawTO->version);
+    processTooltipRow(BrowserPresentation::text("Version"), rawTO->version);
 
     ImGui::PopStyleColor();
     ImGui::EndTooltip();
@@ -504,7 +518,7 @@ void _BrowserGalleryWidget::processPicture(NetworkResourceRawTO const& rawTO, fl
     }
 
     ImGui::GetWindowDrawList()->AddRectFilled(pos, {pos.x + width, pos.y + height}, (ImU32)Const::BackgroundColor);
-    auto text = findResult == _pictureBySimId.end() ? std::string("loading...") : std::string("no preview");
+    auto text = findResult == _pictureBySimId.end() ? BrowserPresentation::text("loading...") : BrowserPresentation::text("no preview");
     auto textSize = ImGui::CalcTextSize(text.c_str());
     ImGui::GetWindowDrawList()->AddText({pos.x + (width - textSize.x) / 2, pos.y + (height - textSize.y) / 2}, (ImU32)Const::TextDecentColor, text.c_str());
     ImGui::Dummy({width, height});
@@ -530,7 +544,7 @@ void _BrowserGalleryWidget::processReactionTooltip(NetworkResourceRawTO const& r
     ImGui::BeginTooltip();
     ImGui::PushStyleColor(ImGuiCol_Text, Const::TextTooltipColor.Value);
     if (rawTO->numLikesByEmojiType.empty()) {
-        AlienGui::Text("Add a reaction");
+        AlienGui::Text(BrowserPresentation::text("Add a reaction"));
     } else {
         for (auto const& [emojiType, numLikes] : rawTO->numLikesByEmojiType) {
             if (emojiType < toInt(_data->emojis.size())) {
@@ -549,7 +563,8 @@ std::string _BrowserGalleryWidget::getPageText() const
 {
     auto firstEntry = _numEntries > 0 ? _page * TilesPerPage + 1 : 0;
     auto lastEntry = std::min(_numEntries, (_page + 1) * TilesPerPage);
-    return std::to_string(firstEntry) + " - " + std::to_string(lastEntry) + " of " + std::to_string(_numEntries);
+    return LocalizationGuiText::format(
+        "browser.page", {{"first", std::to_string(firstEntry)}, {"last", std::to_string(lastEntry)}, {"total", std::to_string(_numEntries)}});
 }
 
 std::vector<NetworkResourceRawTO> _BrowserGalleryWidget::getSortedEntries() const

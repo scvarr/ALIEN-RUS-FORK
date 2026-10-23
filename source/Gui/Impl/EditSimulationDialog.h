@@ -9,6 +9,7 @@
 
 class EditSimulationDialog : public AlienDialog
 {
+    friend class BrowserLocalizationTests;
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(EditSimulationDialog);
 
 public:

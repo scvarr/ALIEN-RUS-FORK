@@ -89,6 +89,12 @@ void GenericMessageDialog::localizedInformation(
     _messageKey = messageKey;
 }
 
+void GenericMessageDialog::localizedMarkdownInformation(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey)
+{
+    localizedInformation(stableTitle, titleKey, messageKey);
+    _markdownMessage = MarkdownParser::parse(tr(messageKey));
+}
+
 void GenericMessageDialog::localizedYesNo(
     std::string const& stableTitle,
     std::string const& titleKey,
@@ -134,6 +140,9 @@ void GenericMessageDialog::processMessageText()
     auto messageHeight = std::max(scale(20.0f), ImGui::GetContentRegionAvail().y - scale(50.0f));
     ImGui::BeginChild("MessageText", {0, messageHeight});
     if (_markdownMessage.has_value()) {
+        if (!_messageKey.empty()) {
+            _markdownMessage = MarkdownParser::parse(LocalizationGuiText::format(_messageKey, _messageArguments));
+        }
         if (auto clickedLink = _markdownRenderer.render(*_markdownMessage, {})) {
             WebLinkHelper::openInBrowser(*clickedLink);
         }

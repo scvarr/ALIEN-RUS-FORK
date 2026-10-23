@@ -1,5 +1,7 @@
 #include "ReplaceSimulationDialog.h"
 
+#include "BrowserPresentation.h"
+
 #include <imgui.h>
 
 #include "AlienGui.h"
@@ -24,6 +26,7 @@ ReplaceSimulationDialog::ReplaceSimulationDialog()
 void ReplaceSimulationDialog::open(NetworkResourceType resourceType, BrowserLeaf const& leaf)
 {
     changeTitle("Replace " + getResourceTypeString(resourceType));
+    setTitleKey(resourceType == NetworkResourceType_Simulation ? "browser.replacesimulation" : "browser.replacegenome");
     _resourceType = resourceType;
     _leaf = leaf;
     if (_resourceType == NetworkResourceType_Simulation) {
@@ -39,7 +42,10 @@ void ReplaceSimulationDialog::processIntern()
     if (ImGui::BeginChild("##content", {0, ImGui::GetContentRegionAvail().y - scale(50.0f)})) {
         auto resourceTypeString = getResourceTypeString(_resourceType);
         ImGui::TextWrapped(
-            "Do you really want to replace the following %s with the currently opened %s?", resourceTypeString.c_str(), resourceTypeString.c_str());
+            "%s",
+            BrowserPresentation::text(
+                "Do you really want to replace the following " + resourceTypeString + " with the currently opened " + resourceTypeString + "?")
+                .c_str());
         AlienGui::Text(AlienGui::TextParameters().text(_leaf.leafName).style(AlienGui::TextStyle::Bold));
 
         ImGui::Spacing();
@@ -49,12 +55,12 @@ void ReplaceSimulationDialog::processIntern()
 
     AlienGui::Separator();
 
-    if (AlienGui::Button("Yes")) {
+    if (AlienGui::DisplayButton("Yes", BrowserPresentation::text("Yes"))) {
         close();
         onReplace();
     }
     ImGui::SameLine();
-    if (AlienGui::Button("No")) {
+    if (AlienGui::DisplayButton("No", BrowserPresentation::text("No"))) {
         close();
     }
 }

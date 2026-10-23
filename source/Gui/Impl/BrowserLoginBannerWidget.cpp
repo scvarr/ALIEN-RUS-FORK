@@ -1,5 +1,7 @@
 #include "BrowserLoginBannerWidget.h"
 
+#include "BrowserPresentation.h"
+
 #include <string>
 
 #include <imgui.h>
@@ -21,9 +23,6 @@ namespace
     auto constexpr TextSpacing = 12.0f;
 
     auto const Icon = std::string(ICON_FA_USER_PLUS);
-    auto const Headline = std::string("Join the ALIEN community");
-    auto const SubText = std::string("Upload your own simulations, react to those of others and get a private workspace. It's free.");
-    auto const ButtonText = std::string("Log in or register");
 }
 
 BrowserLoginBannerWidget _BrowserLoginBannerWidget::create()
@@ -33,6 +32,9 @@ BrowserLoginBannerWidget _BrowserLoginBannerWidget::create()
 
 void _BrowserLoginBannerWidget::process()
 {
+    auto const headline = BrowserPresentation::text("Join the ALIEN community");
+    auto const subText = BrowserPresentation::text("Upload your own simulations, react to those of others and get a private workspace. It's free.");
+    auto const buttonText = BrowserPresentation::text("Log in or register");
     if (!isVisible()) {
         return;
     }
@@ -46,7 +48,7 @@ void _BrowserLoginBannerWidget::process()
     drawList->AddRectFilled(pos, {pos.x + width, pos.y + height}, Const::BrowserLoginBannerColor);
     drawList->AddRectFilled(pos, {pos.x + scale(BarWidth), pos.y + height}, Const::BrowserLoginBannerBarColor);
 
-    auto loginButtonWidth = ImGui::CalcTextSize(ButtonText.c_str()).x + style.FramePadding.x * 2;
+    auto loginButtonWidth = ImGui::CalcTextSize(buttonText.c_str()).x + style.FramePadding.x * 2;
     auto dismissButtonWidth = ImGui::CalcTextSize(ICON_FA_TIMES).x + style.FramePadding.x * 2;
     auto dismissButtonPosX = pos.x + width - scale(PaddingX) - dismissButtonWidth;
 
@@ -55,22 +57,25 @@ void _BrowserLoginBannerWidget::process()
     drawList->AddText({textPosX, textPosY}, Const::BrowserLoginBannerBarColor, Icon.c_str());
 
     textPosX += ImGui::CalcTextSize(Icon.c_str()).x + scale(IconSpacing);
-    drawList->AddText({textPosX, textPosY}, Const::TextBaseColor, Headline.c_str());
+    drawList->AddText({textPosX, textPosY}, Const::TextBaseColor, headline.c_str());
 
-    textPosX += ImGui::CalcTextSize(Headline.c_str()).x + scale(TextSpacing);
-    auto subTextWidth = ImGui::CalcTextSize(SubText.c_str()).x;
+    textPosX += ImGui::CalcTextSize(headline.c_str()).x + scale(TextSpacing);
+    auto subTextWidth = ImGui::CalcTextSize(subText.c_str()).x;
     if (textPosX + subTextWidth + scale(TextSpacing) + loginButtonWidth < dismissButtonPosX - style.ItemSpacing.x) {
-        drawList->AddText({textPosX, textPosY}, Const::TextDecentColor, SubText.c_str());
+        drawList->AddText({textPosX, textPosY}, Const::TextDecentColor, subText.c_str());
         textPosX += subTextWidth + scale(TextSpacing);
     }
 
     ImGui::SetCursorScreenPos({textPosX, pos.y + scale(PaddingY)});
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ButtonText).highlighted(true).frame(true).transparentBackground(false))) {
+    if (AlienGui::ActionButton(
+            AlienGui::ActionButtonParameters().buttonText(buttonText + "###loginInvitation").highlighted(true).frame(true).transparentBackground(false))) {
         LoginDialog::get().open();
     }
 
     ImGui::SetCursorScreenPos({dismissButtonPosX, pos.y + scale(PaddingY)});
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_TIMES).tooltip("Hide the invitation until the next program start"))) {
+    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters()
+                                   .buttonText(ICON_FA_TIMES)
+                                   .tooltip(BrowserPresentation::text("Hide the invitation until the next program start")))) {
         _dismissed = true;
     }
 

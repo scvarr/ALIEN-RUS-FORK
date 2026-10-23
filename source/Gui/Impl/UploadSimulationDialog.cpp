@@ -51,7 +51,7 @@ void UploadSimulationDialog::open(NetworkResourceType resourceType, std::string 
 {
     if (NetworkService::get().getLoggedInUserName()) {
         changeTitle("Upload " + BrowserDataTypeToLowerString.at(resourceType));
-        setTitleKey(resourceType == NetworkResourceType_Genome ? "genome.upload.title" : "");
+        setTitleKey(resourceType == NetworkResourceType_Genome ? "genome.upload.title" : "browser.upload.title");
         _resourceType = resourceType;
         _folder = folder;
         _resourceName = resourceName.empty() ? _resourceNameByFolder[_folder] : resourceName;
@@ -74,7 +74,12 @@ UploadSimulationDialog::UploadSimulationDialog()
 void UploadSimulationDialog::processIntern()
 {
     auto resourceTypeString = BrowserDataTypeToLowerString.at(_resourceType);
-    auto genomeText = [&](std::string const& canonical, std::string const& key) { return _resourceType == NetworkResourceType_Genome ? tr(key) : canonical; };
+    auto genomeText = [&](std::string const&, std::string const& key) {
+        return _resourceType == NetworkResourceType_Genome ? tr(key)
+                                                           : tr(key == "genome.field.name"              ? "browser.upload.name"
+                                                                    : key.starts_with("genome.upload.") ? "browser.upload." + key.substr(14)
+                                                                                                        : key);
+    };
     if (ImGui::BeginChild("##header", ImVec2(0, scale(52.0f)), true, ImGuiWindowFlags_HorizontalScrollbar)) {
         AlienGui::Text(genomeText("Data privacy policy", "genome.upload.privacy"));
         AlienGui::HelpMarker(genomeText(
@@ -141,11 +146,7 @@ void UploadSimulationDialog::processIntern()
             close();
             onUpload();
         } else {
-            if (_resourceType == NetworkResourceType_Genome) {
-                GenericMessageDialog::get().localizedInformation("Error", "common.error", "genome.upload.invalid");
-            } else {
-                showMessage("Error", Const::NotAllowedCharacters);
-            }
+            GenericMessageDialog::get().localizedInformation("Error", "common.error", "genome.upload.invalid");
         }
         _resourceNameByFolder[_folder] = _resourceName;
         _resourceDescriptionByFolder[_folder] = _resourceDescription;

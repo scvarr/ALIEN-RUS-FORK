@@ -18,6 +18,7 @@
 class GenericMessageDialog : public AlienDialog
 {
     friend class LocalizationGuiTests;
+    friend class BrowserLocalizationTests;
 
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(GenericMessageDialog);
 
@@ -33,6 +34,8 @@ public:
         std::string const& titleKey,
         std::string const& messageKey,
         std::map<std::string, std::string> const& arguments);
+
+    void localizedMarkdownInformation(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey);
 
     void localizedYesNo(std::string const& stableTitle, std::string const& titleKey, std::string const& messageKey, std::function<void()> const& yesFunction);
 

@@ -1,5 +1,7 @@
 #include "BrowserLoginHintWidget.h"
 
+#include "BrowserPresentation.h"
+
 #include <algorithm>
 #include <string>
 #include <cfloat>
@@ -26,9 +28,6 @@ namespace
     auto constexpr ButtonOffsetY = 162.0f;
 
     auto const Icon = std::string(ICON_FA_LOCK);
-    auto const Headline = std::string("Your private workspace");
-    auto const SubText = std::string("Log in to see the simulations and genomes you uploaded.");
-    auto const ButtonText = std::string("Login or register");
 }
 
 BrowserLoginHintWidget _BrowserLoginHintWidget::create()
@@ -58,7 +57,10 @@ void _BrowserLoginHintWidget::process(RealVector2D const& pos, RealVector2D cons
 
 void _BrowserLoginHintWidget::processCard()
 {
-    auto cardWidth = std::max(scale(MinCardWidth), ImGui::CalcTextSize(SubText.c_str()).x + scale(CardPadding) * 2);
+    auto const headline = BrowserPresentation::text("Your private workspace");
+    auto const subText = BrowserPresentation::text("Log in to see the simulations and genomes you uploaded.");
+    auto const buttonText = BrowserPresentation::text("Login or register");
+    auto cardWidth = std::max(scale(MinCardWidth), ImGui::CalcTextSize(subText.c_str()).x + scale(CardPadding) * 2);
     auto cardHeight = scale(CardHeight);
 
     auto windowSize = ImGui::GetWindowSize();
@@ -88,18 +90,19 @@ void _BrowserLoginHintWidget::processCard()
         false);
 
     ImGui::PushFont(StyleService::get().getMediumBoldFont());
-    auto headlineWidth = ImGui::CalcTextSize(Headline.c_str()).x;
+    auto headlineWidth = ImGui::CalcTextSize(headline.c_str()).x;
     ImGui::SetCursorPos({cardPos.x + (cardWidth - headlineWidth) / 2, cardPos.y + scale(HeadlineOffsetY)});
-    ImGui::TextUnformatted(Headline.c_str());
+    ImGui::TextUnformatted(headline.c_str());
     ImGui::PopFont();
 
-    auto subTextWidth = ImGui::CalcTextSize(SubText.c_str()).x;
+    auto subTextWidth = ImGui::CalcTextSize(subText.c_str()).x;
     ImGui::SetCursorPos({cardPos.x + (cardWidth - subTextWidth) / 2, cardPos.y + scale(SubTextOffsetY)});
-    AlienGui::Text(AlienGui::TextParameters().text(SubText).style(AlienGui::TextStyle::Decent));
+    AlienGui::Text(AlienGui::TextParameters().text(subText).style(AlienGui::TextStyle::Decent));
 
-    auto buttonWidth = ImGui::CalcTextSize(ButtonText.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+    auto buttonWidth = ImGui::CalcTextSize(buttonText.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
     ImGui::SetCursorPos({cardPos.x + (cardWidth - buttonWidth) / 2, cardPos.y + scale(ButtonOffsetY)});
-    if (AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ButtonText).highlighted(true).frame(true).transparentBackground(false))) {
+    if (AlienGui::ActionButton(
+            AlienGui::ActionButtonParameters().buttonText(buttonText + "###loginInvitation").highlighted(true).frame(true).transparentBackground(false))) {
         LoginDialog::get().open();
     }
 }

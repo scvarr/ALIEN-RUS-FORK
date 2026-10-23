@@ -11,6 +11,7 @@
 
 class BrowserWindow : public AlienWindow
 {
+    friend class BrowserLocalizationTests;
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(BrowserWindow);
 
 public:

@@ -18,6 +18,7 @@
 
 class NetworkTransferController : public MainLoopEntity
 {
+    friend class BrowserLocalizationTests;
     MAKE_SINGLETON(NetworkTransferController);
 
 public:

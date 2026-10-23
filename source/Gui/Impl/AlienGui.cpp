@@ -2947,7 +2947,7 @@ bool AlienGui::ActionButton(ActionButtonParameters const& parameters)
     ImGui::PushStyleColor(ImGuiCol_Button, !parameters._transparentBackground ? Const::ActionButtonBackgroundColor.Value : ImColor::HSV(0, 0, 0, 0).Value);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Const::ActionButtonHoveredColor.Value);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, Const::ActionButtonActiveColor.Value);
-    auto size = ImGui::CalcTextSize(parameters._buttonText.c_str());
+    auto size = ImGui::CalcTextSize(parameters._buttonText.c_str(), nullptr, true);
     auto padding = ImGui::GetStyle().FramePadding;
     size.x += padding.x * 2;
     size.y += padding.y * 2;

@@ -12,6 +12,7 @@
 
 class BrowserController : public MainLoopEntity
 {
+    friend class BrowserLocalizationTests;
     MAKE_SINGLETON(BrowserController);
 
 public:

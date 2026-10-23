@@ -1,5 +1,8 @@
 #include "BrowserController.h"
 
+#include "BrowserPresentation.h"
+#include "LocalDialogPresentation.h"
+
 #include <optional>
 
 #include <Network/NetworkService.h>
@@ -85,7 +88,7 @@ void BrowserController::refresh(bool withRetry)
             }
             _data->sortUserList();
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.refresh", errors); });
 }
 
 bool BrowserController::isRefreshing() const

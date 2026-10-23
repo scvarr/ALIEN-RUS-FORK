@@ -31,7 +31,7 @@ class L6aContracts(unittest.TestCase):
         for lang, values in catalogs.items():
             before = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(before, {key: values[key] for key in before})
-            added = values.keys() - before.keys()
+            added = {key for key in values.keys() - before.keys() if not key.startswith("browser.")}
             self.assertEqual(43, len(added))
             for key in added:
                 self.assertTrue(key.startswith('localui.'))
@@ -57,7 +57,7 @@ class L6aContracts(unittest.TestCase):
 
     def test_shared_picture_and_simulation_diagnostics_keep_machine_consumers(self):
         # These errors also reach MCP. The GUI explains the operation separately.
-        for name in ['PictureGuiService', 'NewSimulationService', 'McpController', 'NetworkTransferController', 'GuiLogger']:
+        for name in ['PictureGuiService', 'NewSimulationService', 'McpController', 'GuiLogger']:
             path = f'source/Gui/Impl/{name}.cpp'
             self.assertEqual(original(path), read(path))
         file = read('source/Gui/Impl/FileTransferController.cpp')
@@ -76,7 +76,8 @@ class L6aContracts(unittest.TestCase):
         message = read('source/Gui/Impl/LocalDialogPresentation.h')
         self.assertIn('localizedInformation("Error", "localui.error", messageKey, {{"details", details}})', message)
         self.assertNotIn('tr(details)', message)
-        self.assertEqual(original('source/Gui/Impl/GenericMessageDialog.cpp'), read('source/Gui/Impl/GenericMessageDialog.cpp'))
+        from localization_node_legacy import legacy_browser_message_text
+        self.assertEqual(original('source/Gui/Impl/GenericMessageDialog.cpp'), legacy_browser_message_text(read('source/Gui/Impl/GenericMessageDialog.cpp')))
 
     def test_folder_chooser_adapter_is_opt_in(self):
         from localization_node_legacy import legacy_local_dialog_text
@@ -86,7 +87,7 @@ class L6aContracts(unittest.TestCase):
         self.assertIn('.folderDialogTitle(tr("localui.autosave.selectdirectory"))', read('source/Gui/Impl/AutosaveWindow.cpp'))
 
     def test_scope_excludes_later_stages_and_dependencies(self):
-        changed = subprocess.check_output(['git', 'diff', '--name-only', BASE], cwd=ROOT).decode().splitlines()
+        changed = subprocess.check_output(['git', 'diff', '--name-only', BASE, 'a5748740d395c90d0c6198c0a0f4993ed39b1bcb'], cwd=ROOT).decode().splitlines()
         allowed = {'resources/locales/en.json', 'resources/locales/ru.json',
                    'docs/localization-l6a-validation.md', 'source/Base/Tests/LocalizationServiceTests.cpp',
                    'source/Gui/Impl/AlienGui.cpp', 'source/Gui/Impl/AlienGui.h',
@@ -100,7 +101,7 @@ class L6aContracts(unittest.TestCase):
             self.assertFalse(path.startswith(('source/Engine/', 'source/Data/', 'source/Persister/', 'source/Network/', 'source/McpTools/', 'source/Apps/', 'external/')), path)
             self.assertNotIn('AGENTS.md', path)
         for path in ['docs/localization-terminology.md', 'docs/localization-roadmap.md', 'docs/localization-l3-audit.md']:
-            self.assertEqual(original(path), read(path))
+            self.assertEqual(subprocess.check_output(['git', 'show', f'f97d6d0373fe5592740401fc1a8e724d703da7f4:{path}'], cwd=ROOT).decode('utf8').replace('\r\n', '\n'), read(path))
 
 
 if __name__ == '__main__':

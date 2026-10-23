@@ -1,5 +1,8 @@
 #include "NetworkTransferController.h"
 
+#include "BrowserPresentation.h"
+#include "LocalDialogPresentation.h"
+
 #include <Base/VersionParserService.h>
 
 #include <Engine/Interface/SimulationFacade.h>
@@ -28,7 +31,7 @@ void NetworkTransferController::init()
 
 void NetworkTransferController::onDownload(DownloadNetworkResourceRequestData const& requestData)
 {
-    printOverlayMessage("Downloading ...");
+    printOverlayMessage(BrowserPresentation::text("Downloading ..."));
 
     _downloadProcessor->executeTask(
         [&](auto const& senderId) {
@@ -40,7 +43,7 @@ void NetworkTransferController::onDownload(DownloadNetworkResourceRequestData co
 
             if (data.resourceType == NetworkResourceType_Simulation) {
                 if (auto errorMessage = NewSimulationService::get().loadSimulation(std::get<SimulationDesc>(data.resourceData))) {
-                    showMessage("Error", *errorMessage);
+                    LocalDialogPresentation::simulationLoadError(*errorMessage);
                 }
                 printOverlayMessage(data.resourceName);
             } else {
@@ -48,20 +51,17 @@ void NetworkTransferController::onDownload(DownloadNetworkResourceRequestData co
                 GenomeEditorWindow::get().openTab(std::get<GenomeDesc>(data.resourceData), false);
             }
             if (VersionParserService::get().isVersionNewer(data.resourceVersion)) {
-                std::string dataTypeString = data.resourceType == NetworkResourceType_Simulation ? "simulation" : "genome";
-                GenericMessageDialog::get().markdownInformation(
-                    "Warning",
-                    "The download was successful but the " + dataTypeString + " was generated using a more recent version of ALIEN. Consequently, the "
-                        + dataTypeString
-                        + " might not function as expected.\n\nPlease visit\n\nhttps://github.com/chrxh/alien\n\nto obtain the latest version.");
+                GenericMessageDialog::get().localizedMarkdownInformation(
+                    "Warning", "browser.warning",
+                    data.resourceType == NetworkResourceType_Simulation ? "browser.newerversion.simulation" : "browser.newerversion.genome");
             }
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.download", errors); });
 }
 
 void NetworkTransferController::onUpload(UploadNetworkResourceRequestData const& requestData)
 {
-    printOverlayMessage("Uploading ...");
+    printOverlayMessage(BrowserPresentation::text("Uploading ..."));
 
     _uploadProcessor->executeTask(
         [&](auto const& senderId) {
@@ -72,12 +72,12 @@ void NetworkTransferController::onUpload(UploadNetworkResourceRequestData const&
             _PersisterFacade::get()->fetchUploadNetworkResourcesData(requestId);
             BrowserWindow::get().onRefresh();
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.upload", errors); });
 }
 
 void NetworkTransferController::onReplace(ReplaceNetworkResourceRequestData const& requestData)
 {
-    printOverlayMessage("Replacing ...");
+    printOverlayMessage(BrowserPresentation::text("Replacing ..."));
 
     _replaceProcessor->executeTask(
         [&](auto const& senderId) {
@@ -89,12 +89,12 @@ void NetworkTransferController::onReplace(ReplaceNetworkResourceRequestData cons
             BrowserWindow::get().onPreviewPictureChanged(resourceId);
             BrowserWindow::get().onRefresh();
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.replace", errors); });
 }
 
 void NetworkTransferController::onDelete(DeleteNetworkResourceRequestData const& requestData)
 {
-    printOverlayMessage("Deleting ...");
+    printOverlayMessage(BrowserPresentation::text("Deleting ..."));
 
     _deleteProcessor->executeTask(
         [&](auto const& senderId) {
@@ -105,12 +105,12 @@ void NetworkTransferController::onDelete(DeleteNetworkResourceRequestData const&
             _PersisterFacade::get()->fetchDeleteNetworkResourcesData(requestId);
             BrowserWindow::get().onRefresh();
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.delete", errors); });
 }
 
 void NetworkTransferController::onEdit(EditNetworkResourceRequestData const& requestData)
 {
-    printOverlayMessage("Applying changes ...");
+    printOverlayMessage(BrowserPresentation::text("Applying changes ..."));
 
     _editProcessor->executeTask(
         [&](auto const& senderId) {
@@ -120,12 +120,12 @@ void NetworkTransferController::onEdit(EditNetworkResourceRequestData const& req
             _PersisterFacade::get()->fetchEditNetworkResourcesData(requestId);
             BrowserWindow::get().onRefresh();
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.edit", errors); });
 }
 
 void NetworkTransferController::onMove(MoveNetworkResourceRequestData const& requestData)
 {
-    printOverlayMessage("Changing visibility ...");
+    printOverlayMessage(BrowserPresentation::text("Changing visibility ..."));
 
     _moveProcessor->executeTask(
         [&](auto const& senderId) {
@@ -135,7 +135,7 @@ void NetworkTransferController::onMove(MoveNetworkResourceRequestData const& req
             _PersisterFacade::get()->fetchMoveNetworkResourcesData(requestId);
             BrowserWindow::get().onRefresh();
         },
-        [](auto const& errors) { GenericMessageDialog::get().information("Error", errors); });
+        [](auto const& errors) { LocalDialogPresentation::error("browser.error.move", errors); });
 }
 
 void NetworkTransferController::process()
