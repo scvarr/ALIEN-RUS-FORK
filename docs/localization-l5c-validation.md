@@ -151,8 +151,36 @@ resized windows still need visual acceptance during ordinary use. No separate
 manual-acceptance build was prepared, as requested. Vendor menus remain L8-B;
 the existing L5-A inspector-title limitation is unchanged.
 
-Only the feature branch is committed and pushed. `main` remains at the requested
-baseline. `AGENTS.md` retains skip-worktree and SHA-256
+At implementation delivery, only the feature branch was committed and pushed;
+`main` remained at the requested baseline. `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 User worlds, genomes, autosaves, dependencies and pinned vcpkg are unchanged.
 Tests use isolated settings. No CodeQL, submodule update or IDE-tree build was run.
+
+## Acceptance and L5 closure
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L5-C implementation
+`4d85183ce261a8648baae90ac2aa6cd6f75843b3` based on the recorded automated
+checks and review of this report. L5-C is complete. Together with the previously
+accepted L5-A and L5-B implementations, this closes the entire L5 stage, as
+recorded in the [roadmap](localization-roadmap.md).
+
+Manual visual acceptance was not performed and is not claimed. The automated
+100/150/200% layout checks and actual ImPlot identity, visibility and axis-range
+checks remain the acceptance evidence. Final desktop composition, hovered-tooltip
+appearance and unusually narrow manually resized windows still require visual
+verification during ordinary use. The L5-A inspector-title limitation and L5-B
+vendor file-dialog limitations also remain; acceptance does not resolve them.
+
+The existing automatic axis-limit policy, emit-time overlay policy, ImPlot
+internal-header dependency and GitNexus full-text index limitation documented
+above remain unchanged. Vendor UI retains its planned L8-B scope.
+
+This closure updates only this report and the roadmap. Builds and tests are not
+rerun; the accepted implementation evidence remains applicable. The user
+authorizes a documentation commit and push, fast-forward-only integration into
+`main`, pushing `main`, synchronization verification and deletion of the
+integrated feature branch. `AGENTS.md`, skip-worktree flags, user data and
+dependencies are preserved. L6 is not started or authorized.
