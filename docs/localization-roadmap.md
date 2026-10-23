@@ -3,7 +3,7 @@
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
 Original L3 planning baseline; completion status updated on 2026-10-23.
-L4-A1–A5, L5-A–C and L6-A–B are complete. L4 and L5 are closed; L6 remains open. L6-C–D and later stages remain pending.
+L4-A1–A5, L5-A–C and L6-A–C are complete. L4 and L5 are closed; L6 remains open. L6-D and later stages remain pending.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
@@ -136,8 +136,34 @@ Closure changes documentation only. Builds and tests are not rerun; the recorded
 implementation evidence remains applicable. The user authorizes a documentation
 commit and push, fast-forward-only integration into `main`, pushing `main`,
 synchronization/cleanliness verification and deletion of the integrated feature
-branch locally and remotely. **The entire L6 stage remains open.** L6-C and L6-D
-remain pending; this closure does not start L6-C.
+branch locally and remotely. **The entire L6 stage remains open.** At L6-B
+closure, L6-C and L6-D remained pending; subsequent L6-C acceptance is recorded
+below.
+
+## L6-C completion record
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L6-C implementation
+`122b1d22b4aad2414a117a4f4e65a27d48370c7f` based on automated checks and review
+of the [L6-C validation report](localization-l6c-validation.md). **L6-C is complete.**
+Manual visual acceptance and testing against a real server were not performed
+and are not claimed.
+
+Acceptance retains isolated authorization-response simulations, the absence of
+real authenticated/server account checks, the recorded visual-verification
+limitations and the known GitNexus FTS/BM25 failure. Browser metadata search uses
+the existing UTF-8 adapter for case-insensitive Russian letters, including Ё/ё;
+Е and Ё remain distinct. Full Unicode normalization is not provided, and MCP
+resource search remains unchanged.
+
+Closure changes documentation only. Production code, tests and catalogs are
+unchanged; builds and tests are not rerun, and the recorded implementation
+evidence remains applicable. The user authorizes a documentation commit and
+push, fast-forward-only integration into `main`, pushing `main`, synchronization
+and cleanliness verification, and deletion of the integrated feature branch
+locally and remotely. **The entire L6 stage remains open. L6-D is pending and
+has not been started or authorized.**
 
 ## Scope and sequencing
 
@@ -171,7 +197,7 @@ days; translation review effort can exceed code effort.
 | 8 / **Completed: L5-C** Controls and statistics | Temporal/spatial/location windows; `EvolutionDashboardWindow` metric labels, table and plots | High | Stable ImPlot series/card IDs and L5 terminology. Preserve selected lineage, plot visibility/ranges and history mode; long captions at multiple DPI levels; computation/CSV contracts stay canonical |
 | 9 / **Completed: L6-A** Remaining local dialogs and messages | About/network settings, autosave/log, file/preview errors and startup/application notices; remaining HelpStrings | Medium | L4–L5 shared controls. Trace callback producers to generic messages; open/queued message language policy documented; test autosave status without changing directory/peak identifiers |
 | 10 / **Completed: L6-B** Browser presentation | BrowserWindow/gallery/table/user list/login invitation, edit/upload/replace dialogs and related hints | High | L6-A message conventions. Use full simulation/genome sentence variants; preserve workspace/resource/folder IDs, sorting/reactions and user text. Test private/public/featured views, ownership, empty states and pagination |
-| 11 / L6-C Account flows and browser Unicode search | Login/create/activate/reset/new-password/delete dialogs, LoginController, NetworkTransferController; NetworkResourceRawTO filtering | High | L6-A/B; explicit UTF-8 search adapter, no global parser changes. Test mixed-case Cyrillic metadata and Yo, rejected input, resend/error callbacks and switch while forms open; credentials unchanged |
+| 11 / **Completed: L6-C** Account flows and browser Unicode search | Login/create/activate/reset/new-password/delete dialogs, LoginController; existing NetworkTransferController presentation retained; BrowserData and gallery metadata filtering | High | Accepted automated checks and report review; isolated authorization responses, stable form state and IDs, case-insensitive Russian letters with distinct Е/Ё. No full Unicode normalization or MCP search change; manual visual and real-server acceptance not performed |
 | 12 / L6-D MCP desktop UI | McpWindow, McpSettingsDialog, GUI connection instructions/status | Medium | L6-A errors. Commands/endpoint/schema keys remain literal; GUI translation does not change network tool contracts or command log payloads |
 | 13 / L7-A F1 locale resolution and Unicode navigation | Explicit reader locale/root, GUI reload/cache lifecycle, reader/renderer path pairing, search/snippet and anchor policy, format-reference reachability | High | L4 accepted vocabulary; inspect shared GUI/MCP callers before edits. EN default retained for MCP, canonical filenames stable. Validate missing chapter/tree fallback, active chapter across switch, links/anchors/images, mixed-case Russian, long UTF-8 tokens and duplicate headings |
 | 14 / L7-B First translated help batch | contents/entry/UI/keyboard chapters; genomes/neural/first-creature chapters and associated images | High editorial, medium code | L7-A plus accepted L4 UI. Chapter/title/search coverage, correct links and screenshots in both languages; no untranslated navigation/control captions |

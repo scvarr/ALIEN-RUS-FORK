@@ -191,8 +191,45 @@ switch language midway through their blocking call; asynchronous persister
 callbacks were tested with queued isolated responses.
 
 No additional manual-acceptance build was prepared. L6-D is untouched and the
-entire L6 stage is not declared closed. `main` remains at the requested baseline.
+entire L6 stage is not declared closed. At implementation delivery, `main`
+remained at the requested baseline; subsequent acceptance and integration are
+recorded below.
 `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 User worlds, genomes, autosaves, settings and dependencies are preserved.
 Pinned vcpkg is unchanged. No CodeQL, submodule update or IDE-tree build ran.
+
+## Acceptance and L6-C closure
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L6-C implementation
+`122b1d22b4aad2414a117a4f4e65a27d48370c7f` based on the recorded automated
+checks and review of this report. **L6-C is complete.** Manual visual acceptance
+and testing against a real server were not performed and are not claimed.
+
+Acceptance retains all recorded limitations: authorization coverage uses
+isolated link-time network and persister simulations; real login, registration,
+email delivery, password changes, account deletion and server-side account
+semantics remain unverified. Final desktop composition, hovered tooltips and
+unusually narrow saved windows still need ordinary-use visual verification.
+The known GitNexus FTS/BM25 index failure remains unresolved; successful graph
+analysis is separate evidence, with the recorded dispatch and completeness
+limitations still applicable.
+
+The accepted Unicode-search decision is preserved: browser metadata matching
+is case-insensitive for Russian А–Я/а–я and Ё/ё, while Е and Ё remain distinct.
+The implementation reuses `Utf8Search` without full Unicode normalization or
+full Unicode case folding. The documented malformed-input policy remains in
+effect. MCP resource search and the original metadata bytes are unchanged.
+
+Closure changes only this report and the roadmap. Production code, tests and
+catalogs are unchanged; builds and tests are not rerun, and the existing
+implementation evidence remains applicable. The user authorizes a documentation
+commit and push, fast-forward-only integration into `main`, pushing `main`,
+synchronization and cleanliness verification, and deletion of the integrated
+feature branch locally and remotely.
+
+`AGENTS.md`, its skip-worktree flag, user worlds/genomes/autosaves/settings and
+dependencies are preserved. **The entire L6 stage remains open. L6-D is pending
+and has not been started or authorized.**
