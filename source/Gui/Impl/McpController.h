@@ -36,6 +36,8 @@ class McpController
     : public MainLoopEntity
     , public McpToolContext
 {
+    friend class McpLocalizationTests;
+
     MAKE_SINGLETON(McpController);
 
 public:

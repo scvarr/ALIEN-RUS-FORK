@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include "AlienGui.h"
+#include "LocalizationGuiText.h"
 #include "McpController.h"
 #include "StyleService.h"
 
@@ -12,8 +13,10 @@ namespace
 }
 
 McpSettingsDialog::McpSettingsDialog()
-    : AlienDialog("MCP server settings")
-{}
+    : AlienDialog("MCP server settings", {530.0f, 180.0f})
+{
+    setTitleKey("mcp.settings.title");
+}
 
 void McpSettingsDialog::processIntern()
 {
@@ -22,22 +25,25 @@ void McpSettingsDialog::processIntern()
     AlienGui::InputInt(
         AlienGui::InputIntParameters()
             .name("Port")
+            .label(tr("mcp.port"))
             .textWidth(RightColumnWidth)
             .defaultValue(controller.getDefaultPort())
-            .tooltip("Local port on which the MCP server accepts connections. A running server is restarted on the new port."),
+            .tooltip(tr("mcp.port.help")),
         _port);
 
-    ImGui::Dummy({0, ImGui::GetContentRegionAvail().y - scale(50.0f)});
+    ImGui::Dummy({0, std::max(0.0f, ImGui::GetContentRegionAvail().y - scale(50.0f))});
     AlienGui::Separator();
 
-    if (AlienGui::Button("Adopt")) {
+    if (AlienGui::DisplayButton("Adopt", tr("common.apply"))) {
         close();
         controller.setPort(_port);
     }
     ImGui::SetItemDefaultFocus();
 
-    ImGui::SameLine();
-    if (AlienGui::Button("Cancel")) {
+    if (ImGui::GetContentRegionAvail().x > ImGui::CalcTextSize(tr("common.cancel").c_str()).x + scale(140.0f)) {
+        ImGui::SameLine();
+    }
+    if (AlienGui::DisplayButton("Cancel", tr("common.cancel"))) {
         close();
     }
 }

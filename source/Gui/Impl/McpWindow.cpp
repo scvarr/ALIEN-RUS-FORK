@@ -14,7 +14,9 @@
 #include <Base/StringHelper.h>
 
 #include "AlienGui.h"
+#include "LocalizationGuiText.h"
 #include "McpController.h"
+#include "McpPresentation.h"
 #include "McpSettingsDialog.h"
 #include "OverlayController.h"
 #include "StyleService.h"
@@ -31,7 +33,9 @@ namespace
 
 McpWindow::McpWindow()
     : AlienWindow("MCP server", "windows.mcp server", false, false, {60.0f, 60.0f}, {620.0f, 700.0f})
-{}
+{
+    setTitleKey("mcp.title");
+}
 
 void McpWindow::processIntern()
 {
@@ -46,9 +50,9 @@ void McpWindow::processIntern()
 
 namespace
 {
-    char const* getStatusText(bool running)
+    std::string getStatusText(bool running)
     {
-        return running ? "Running" : "Stopped";
+        return tr(running ? "mcp.running" : "mcp.stopped");
     }
 
     void processStatusChip(bool running)
@@ -68,20 +72,21 @@ void McpWindow::processToolbar()
     AlienGui::Toolbar(
         AlienGui::ToolbarParameters()
             .id("McpServer")
+            .overflowTooltip(tr("mcp.more"))
             .trailing([running] { processStatusChip(running); })
-            .trailingWidth(scaleInverse(ImGui::CalcTextSize(getStatusText(running)).x) + StatusChipPadding),
+            .trailingWidth(scaleInverse(ImGui::CalcTextSize(getStatusText(running).c_str()).x) + StatusChipPadding),
         {AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLAY).name("Start server").disabled(running).action([&] { controller.setServerRunning(true); })),
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_PLAY).name(tr("mcp.start")).disabled(running).action([&] { controller.setServerRunning(true); })),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_STOP).name("Stop server").disabled(!running).action([&] { controller.setServerRunning(false); })),
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_STOP).name(tr("mcp.stop")).disabled(!running).action([&] { controller.setServerRunning(false); })),
          AlienGui::ToolbarItem::createSeparator(),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_CLEAR).name("Clear command log").disabled(controller.getCommandLog().empty()).action([&] {
+             AlienGui::ToolbarItemParameters().icon(ICON_CLEAR).name(tr("mcp.clear")).disabled(controller.getCommandLog().empty()).action([&] {
                  controller.clearCommandLog();
              })),
          AlienGui::ToolbarItem::createSeparator(),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_COG).name("Settings").action([&] { McpSettingsDialog::get().open(); }))});
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_COG).name(tr("mcp.settings")).action([&] { McpSettingsDialog::get().open(); }))});
 }
 
 void McpWindow::processConnectionGuide()
@@ -90,51 +95,48 @@ void McpWindow::processConnectionGuide()
     auto const& style = ImGui::GetStyle();
 
     ImGui::Spacing();
-    AlienGui::Text(AlienGui::TextParameters().text("Connect your AI agent").style(AlienGui::TextStyle::Bold));
+    AlienGui::Text(AlienGui::TextParameters().text(tr("mcp.connect")).style(AlienGui::TextStyle::Bold));
 
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_Text, Const::TextInfoColor.Value);
     ImGui::TextUnformatted(ICON_FA_QUESTION_CIRCLE);
     ImGui::PopStyleColor();
-    AlienGui::Tooltip(
-        AlienGui::TooltipParameters()
-            .textFunc([&] {
-                std::string toolGroups;
-                for (auto const& toolGroup : controller.getToolGroups()) {
-                    toolGroups += std::format("\n\n{}:\n{}", toolGroup.name, boost::algorithm::join(toolGroup.toolNames, ", "));
-                }
-                return std::format(
-                    "Works with any AI agent or MCP client that supports MCP servers of type HTTP (also called Streamable HTTP), regardless of the AI "
-                    "provider.\n\nOnly agents on this computer can connect.\n\nAvailable tools{}",
-                    toolGroups);
-            })
-            .delay(false));
+    AlienGui::Tooltip(AlienGui::TooltipParameters()
+                          .textFunc([&] {
+                              std::string toolGroups;
+                              for (auto const& toolGroup : controller.getToolGroups()) {
+                                  toolGroups += std::format(
+                                      "\n\n{}:\n{}", McpPresentation::groupCaption(toolGroup.name), boost::algorithm::join(toolGroup.toolNames, ", "));
+                              }
+                              return LocalizationGuiText::format("mcp.help", {{"tools", toolGroups}});
+                          })
+                          .delay(false));
 
     processStepNumber(1);
-    ImGui::TextUnformatted("In your AI agent, add an MCP server of type HTTP.");
+    ImGui::TextWrapped("%s", tr("mcp.step1").c_str());
 
     processStepNumber(2);
-    ImGui::TextUnformatted("Use this URL:");
+    ImGui::TextWrapped("%s", tr("mcp.step2").c_str());
 
     auto url = controller.getServerUrl();
-    auto copyButtonWidth = ImGui::CalcTextSize(CopyButtonText).x + style.FramePadding.x * 2;
-    ImGui::SameLine();
+    auto copyLabel = std::string(ICON_FA_COPY "  ") + tr("mcp.copy");
+    auto copyButtonWidth = ImGui::CalcTextSize(copyLabel.c_str()).x + style.FramePadding.x * 2;
     ImGui::PushFont(StyleService::get().getMonospaceMediumFont());
     ImGui::PushStyleColor(ImGuiCol_FrameBg, Const::BackgroundColor.Value);
     ImGui::PushStyleColor(ImGuiCol_Border, Const::LineColor.Value);
     ImGui::PushStyleColor(ImGuiCol_Text, Const::AccentColor.Value);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     auto urlWidth = ImGui::CalcTextSize(url.c_str()).x + style.FramePadding.x * 2;
-    ImGui::SetNextItemWidth(std::min(urlWidth, ImGui::GetContentRegionAvail().x - copyButtonWidth - style.ItemSpacing.x));
+    ImGui::SetNextItemWidth(std::max(1.0f, std::min(urlWidth, ImGui::GetContentRegionAvail().x - copyButtonWidth - style.ItemSpacing.x)));
     ImGui::InputText("##url", url.data(), url.size() + 1, ImGuiInputTextFlags_ReadOnly);
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
     ImGui::PopFont();
 
     ImGui::SameLine();
-    if (ImGui::Button(CopyButtonText)) {
+    if (AlienGui::DisplayButton(CopyButtonText, copyLabel)) {
         ImGui::SetClipboardText(url.c_str());
-        printOverlayMessage("Copied to clipboard");
+        printOverlayMessage(tr("mcp.copied"));
     }
 }
 
@@ -162,14 +164,15 @@ void McpWindow::processCommandLog()
     auto const& commandLog = McpController::get().getCommandLog();
 
     ImGui::Spacing();
-    AlienGui::Group(AlienGui::GroupParameters().text(std::format("Command log ({})", commandLog.size())));
+    AlienGui::Group(AlienGui::GroupParameters().text(LocalizationGuiText::format("mcp.log", {{"count", std::to_string(commandLog.size())}})));
 
     auto flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_ScrollY;
     if (ImGui::BeginTable("##mcpCommands", 3, flags, ImVec2(-1, -1))) {
-        auto timeColumnWidth = ImGui::CalcTextSize(TimeColumnSample).x + ImGui::GetStyle().CellPadding.x * 2;
-        ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, timeColumnWidth);
-        ImGui::TableSetupColumn("Command", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Result", ImGuiTableColumnFlags_WidthStretch, ResultColumnWeight);
+        auto timeColumnWidth =
+            std::max(ImGui::CalcTextSize(TimeColumnSample).x, ImGui::CalcTextSize(tr("mcp.timestamp").c_str()).x) + ImGui::GetStyle().CellPadding.x * 2;
+        ImGui::TableSetupColumn(tr("mcp.timestamp").c_str(), ImGuiTableColumnFlags_WidthFixed, timeColumnWidth);
+        ImGui::TableSetupColumn(tr("mcp.command").c_str(), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn(tr("mcp.result").c_str(), ImGuiTableColumnFlags_WidthStretch, ResultColumnWeight);
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Const::TableHeaderColor);

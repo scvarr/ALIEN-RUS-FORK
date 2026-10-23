@@ -31,6 +31,8 @@ class L6cContracts(unittest.TestCase):
             before = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(before, {key: catalog[key] for key in before})
             for key in catalog.keys() - before.keys():
+                if key.startswith("mcp."):
+                    continue
                 self.assertTrue(key.startswith('account.'))
                 self.assertTrue(catalog[key])
                 self.assertNotIn('##', catalog[key])

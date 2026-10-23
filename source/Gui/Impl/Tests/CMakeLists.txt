@@ -15,3 +15,13 @@ target_include_directories(AccountLocalizationTests PRIVATE ${CMAKE_CUDA_TOOLKIT
 if (MSVC)
     target_compile_options(AccountLocalizationTests PRIVATE /utf-8)
 endif()
+
+add_executable(McpLocalizationTests McpLocalizationTests.cpp McpServerStub.cpp)
+set_target_properties(McpLocalizationTests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+add_dependencies(McpLocalizationTests LocalizationResources)
+target_link_libraries(McpLocalizationTests PRIVATE
+    GuiImpl RenderingImpl McpToolsImpl PersisterImpl EngineImpl EngineKernels GTest::gtest_main)
+target_include_directories(McpLocalizationTests PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+if (MSVC)
+    target_compile_options(McpLocalizationTests PRIVATE /utf-8)
+endif()

@@ -8,6 +8,7 @@
 
 class OverlayController
 {
+    friend class McpLocalizationTests;
     MAKE_SINGLETON(OverlayController);
     friend class LocalizationGuiTests;
 

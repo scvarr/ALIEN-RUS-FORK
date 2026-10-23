@@ -35,9 +35,9 @@ class L4a5Contracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {key: values[key] for key in old})
-            self.assertEqual(78, sum(not key.startswith(("inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.")) for key in values) - len(old))
+            self.assertEqual(78, sum(not key.startswith(("inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in values) - len(old))
             for key in values.keys() - old.keys():
-                if key.startswith(("inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.")):
+                if key.startswith(("inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")):
                     continue
                 self.assertTrue(key.startswith(PREFIXES))
                 self.assertTrue(values[key])

@@ -12,6 +12,7 @@
 
 class AlienDialog : public MainLoopEntity
 {
+    friend class McpLocalizationTests;
     friend class AccountLocalizationTests;
 
     friend class LocalizationGuiTests;

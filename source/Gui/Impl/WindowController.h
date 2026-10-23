@@ -10,6 +10,7 @@
 
 class WindowController : public MainLoopEntity
 {
+    friend class McpLocalizationTests;
     friend class AccountLocalizationTests;
 
     MAKE_SINGLETON(WindowController);

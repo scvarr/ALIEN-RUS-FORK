@@ -9,6 +9,7 @@
 
 class McpWindow : public AlienWindow
 {
+    friend class McpLocalizationTests;
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(McpWindow);
 
 private:

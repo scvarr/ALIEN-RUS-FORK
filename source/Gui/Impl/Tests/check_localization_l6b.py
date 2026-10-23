@@ -41,7 +41,7 @@ class L6bContracts(unittest.TestCase):
             before = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(before, {key: values[key] for key in before})
             for key in values.keys() - before.keys():
-                self.assertTrue(key.startswith(('browser.', 'account.')))
+                self.assertTrue(key.startswith(('browser.', 'account.', 'mcp.')))
                 self.assertTrue(values[key])
                 self.assertNotIn('##', values[key])
                 self.assertEqual(sorted(re.findall(r'\{\w+}', catalogs['en'][key])), sorted(re.findall(r'\{\w+}', catalogs['ru'][key])))
@@ -114,9 +114,15 @@ class L6bContracts(unittest.TestCase):
                                              'source/McpTools/', 'source/Apps/', 'external/')), path)
             self.assertNotIn('AGENTS.md', path)
         for name in ['McpWindow', 'McpSettingsDialog', 'PictureGuiService', 'NewSimulationService']:
-            self.assertEqual(original(GUI + name + '.cpp'), read(GUI + name + '.cpp'))
+            # MCP presentation is superseded by L6-D; shared machine diagnostics stay frozen.
+            actual = read(GUI + name + '.cpp')
+            if name in ['McpWindow', 'McpSettingsDialog']:
+                actual = subprocess.check_output(
+                    ['git', 'show', f'5f83ed9a4c6024f3cd325af8f930649ae8f3a7ea:{GUI}{name}.cpp'], cwd=ROOT
+                ).decode('utf8').replace('\r\n', '\n')
+            self.assertEqual(original(GUI + name + '.cpp'), actual)
         for path in ['docs/localization-roadmap.md', 'docs/localization-terminology.md', 'docs/localization-l3-audit.md']:
-            self.assertEqual(subprocess.check_output(['git', 'show', f'cfbde45fd0e086962e377b4c3e490cafcaeabfb6:{path}'], cwd=ROOT).decode('utf8').replace('\r\n', '\n'), read(path))
+            self.assertEqual(subprocess.check_output(['git', 'show', f'5f83ed9a4c6024f3cd325af8f930649ae8f3a7ea:{path}'], cwd=ROOT).decode('utf8').replace('\r\n', '\n'), read(path))
 
 
 if __name__ == '__main__':

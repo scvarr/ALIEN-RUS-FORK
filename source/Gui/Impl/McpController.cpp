@@ -20,6 +20,7 @@
 #include "BrowserWindow.h"
 #include "EditorModel.h"
 #include "GenericMessageDialog.h"
+#include "LocalizationGuiText.h"
 #include "MainLoopController.h"
 #include "NewSimulationService.h"
 #include "OverlayController.h"
@@ -56,11 +57,11 @@ void McpController::setServerRunning(bool value)
     if (value) {
         startServer();
         if (isServerRunning()) {
-            printOverlayMessage("MCP server running at " + getServerUrl());
+            printOverlayMessage(LocalizationGuiText::format("mcp.started", {{"url", getServerUrl()}}));
         }
     } else if (isServerRunning()) {
         stopServer();
-        printOverlayMessage("MCP server stopped");
+        printOverlayMessage(tr("mcp.serverstopped"));
     }
 }
 
@@ -217,7 +218,7 @@ void McpController::startServer()
     auto server = std::make_unique<McpServer>(ServerName, Const::ProgramVersion, _McpToolsFacade::get()->getInstructions(), createTools());
     if (!server->start(_port)) {
         log(Priority::Important, std::format("mcp: could not start server on port {}", _port));
-        GenericMessageDialog::get().information("MCP server", std::format("The MCP server could not be started because port {} is not available.", _port));
+        GenericMessageDialog::get().localizedInformation("MCP server", "mcp.title", "mcp.startfailed", {{"port", std::to_string(_port)}});
         return;
     }
     _server = std::move(server);

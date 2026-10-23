@@ -7,6 +7,7 @@
 
 class McpSettingsDialog : public AlienDialog
 {
+    friend class McpLocalizationTests;
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(McpSettingsDialog);
 
 private:
