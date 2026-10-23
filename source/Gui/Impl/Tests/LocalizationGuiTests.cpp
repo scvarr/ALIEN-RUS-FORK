@@ -6,6 +6,8 @@
 #include <set>
 
 #include <imgui_internal.h>
+#include <implot.h>
+#include <implot_internal.h>
 
 #include <Fonts/IconsFontAwesome5.h>
 
@@ -25,12 +27,14 @@
 #include <Gui/Impl/AlienGui.h>
 #include <Gui/Impl/AlienWindow.h>
 #include <Gui/Impl/ChangeColorDialog.h>
+#include <Gui/Impl/ControlStatisticsPresentation.h>
 #include <Gui/Impl/CreatorWidget.h>
 #include <Gui/Impl/CreaturePreviewWidget.h>
 #include <Gui/Impl/DelayedExecutionController.h>
 #include <Gui/Impl/EditorModel.h>
 #include <Gui/Impl/EditorWidget.h>
 #include <Gui/Impl/EntityAttributeHelp.h>
+#include <Gui/Impl/EvolutionDashboardWindow.h>
 #include <Gui/Impl/ExitDialog.h>
 #include <Gui/Impl/GeneEditorWidget.h>
 #include <Gui/Impl/GeneGraphWidget.h>
@@ -46,6 +50,8 @@
 #include <Gui/Impl/InspectionPresentation.h>
 #include <Gui/Impl/InspectionWindow.h>
 #include <Gui/Impl/LocalizationGui.h>
+#include <Gui/Impl/LocationController.h>
+#include <Gui/Impl/LocationWindow.h>
 #include <Gui/Impl/MassEditDialog.h>
 #include <Gui/Impl/ModalWindow.h>
 #include <Gui/Impl/MultiplierWidget.h>
@@ -67,9 +73,12 @@
 #include <Gui/Impl/SimulationParametersGuiText.h>
 #include <Gui/Impl/SimulationParametersMainWindow.h>
 #include <Gui/Impl/SimulationParametersPresentation.h>
+#include <Gui/Impl/SpatialControlWindow.h>
 #include <Gui/Impl/SpecificationGuiService.h>
 #include <Gui/Impl/StyleService.h>
+#include <Gui/Impl/TemporalControlWindow.h>
 #include <Gui/Impl/Utf8Search.h>
+#include <Gui/Impl/Viewport.h>
 #include <Gui/Impl/WindowController.h>
 #include <Gui/Impl/WorldToolPresentation.h>
 
@@ -90,6 +99,92 @@ namespace
 class LocalizationGuiTests : public ::testing::Test
 {
 protected:
+    void prepareEvolutionDashboard(int mode, bool overall)
+    {
+        auto& window = EvolutionDashboardWindow::get();
+        window._timelineMode = mode;
+        window._lastSteps = 25000;
+        window._plotHeight = 60;
+        window._colorFilter = 3;
+        window._sortColumnIndex = 4;
+        window._sortAscending = true;
+        window._selectedLineageIds = overall ? std::set<int64_t>{} : std::set<int64_t>{42, 84};
+        window._lineages.clear();
+        window._plottedLineages.clear();
+        for (auto id : {42, 84}) {
+            EvolutionDashboardWindow::LineageDisplayData lineage;
+            lineage.id = id;
+            lineage.colorBitset = id == 42 ? 1 : 2;
+            lineage.timePoints = {12000, 24000, 36000};
+            lineage.systemClockPoints = {1700000000, 1700000001, 1700000002};
+            for (int metric = 0; metric < EvolutionDashboardWindow::NumMetrics; ++metric) {
+                lineage.series.at(metric) = {metric + 1.0, metric + 2.0, metric + 3.0};
+                lineage.currentValues.at(metric) = metric + 3.0;
+            }
+            window._lineages.emplace_back(lineage);
+            window._plottedLineages.emplace_back(lineage);
+        }
+        window._allLineages = window._lineages.front();
+        window._allLineages.id = -1;
+    }
+
+    void evolutionFrame(float factor, bool overall)
+    {
+        auto& window = EvolutionDashboardWindow::get();
+        ImGui::NewFrame();
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({1000 * factor, 2200 * factor});
+        ImGui::Begin("Evolution test");
+        window.processTimelineHeader();
+        EXPECT_LE(GImGui->LastItemData.Rect.Max.x, ImGui::GetCurrentWindow()->WorkRect.Max.x + 1);
+        if (ImGui::BeginChild("##lineageTable", {0, 150 * factor})) {
+            window.processLineageTable();
+        }
+        ImGui::EndChild();
+        std::vector<EvolutionDashboardWindow::LineageDisplayData const*> lineages;
+        if (overall) {
+            lineages.emplace_back(&window._allLineages);
+        } else {
+            for (auto const& lineage : window._plottedLineages) {
+                lineages.emplace_back(&lineage);
+            }
+        }
+        window.processTimelinePlots(lineages);
+        window.processTimeAxis(lineages, 0);
+        ImGui::End();
+        ImGui::Render();
+        EXPECT_EQ(0, GImGui->ErrorCountCurrentFrame);
+        EXPECT_EQ(overall ? std::set<int64_t>{} : (std::set<int64_t>{42, 84}), window._selectedLineageIds);
+        EXPECT_EQ(25000, window._lastSteps);
+        EXPECT_EQ(3, window._colorFilter);
+        EXPECT_EQ(4, window._sortColumnIndex);
+        EXPECT_TRUE(window._sortAscending);
+    }
+
+    void temporalPanel()
+    {
+        ImGui::PushID("Temporal panel");
+        TemporalControlWindow::get().processIntern();
+        auto child = ImGui::GetCurrentWindow()->DC.ChildWindows.back();
+        EXPECT_LE(child->ContentSize.x, child->InnerRect.GetWidth() + 1);
+        ImGui::PopID();
+    }
+    void spatialPanel()
+    {
+        ImGui::PushID("Spatial panel");
+        SpatialControlWindow::get().processIntern();
+        auto child = ImGui::GetCurrentWindow()->DC.ChildWindows.back();
+        EXPECT_LE(child->ContentSize.x, child->InnerRect.GetWidth() + 1);
+        ImGui::PopID();
+    }
+    int temporalRestriction() { return TemporalControlWindow::get()._tpsRestriction; }
+    bool& spatialTracking() { return SpatialControlWindow::get()._centerSelection; }
+    int evolutionMode() { return EvolutionDashboardWindow::get()._timelineMode; }
+    void emptyEvolutionSeries() { EvolutionDashboardWindow::get()._allLineages.timePoints.clear(); }
+
+    void evolutionCards() { EvolutionDashboardWindow::get().processHeader(); }
+    void missingRepresentative() { EvolutionDashboardWindow::get().onOpenRepresentativeGenome(123); }
+
     void SetUp() override
     {
         _language = GlobalSettings::get().getValue("settings.language", std::string("en"));
@@ -8422,5 +8517,203 @@ TEST_F(LocalizationGuiTests, l5bWorldHudKeepsToolsSelectionAndWindowIds)
     EditorModel::get().clear();
     EditorModel::get().setTool(originalTool);
     SimulationInteractionController::get().setEditMode(editMode);
+    _SimulationFacadeImpl::set(originalFacade);
+}
+
+TEST_F(LocalizationGuiTests, l5cProductionImPlotObjectsVisibilityAndRangesSurviveLanguageSwitch)
+{
+    ImGui::GetIO().DisplaySize = {4000, 6000};
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (int mode : {0, 1}) {
+            for (bool overall : {false, true}) {
+                auto context = std::unique_ptr<ImPlotContext, decltype(&ImPlot::DestroyContext)>(ImPlot::CreateContext(), ImPlot::DestroyContext);
+                prepareEvolutionDashboard(mode, overall);
+                select("en");
+                for (int pass = 0; pass < 2; ++pass) {
+                    evolutionFrame(factor, overall);
+                }
+                ASSERT_EQ(11, GImPlot->Plots.GetBufSize());
+                struct PlotState
+                {
+                    ImPlotPlot* plot;
+                    ImPlotRange x;
+                    ImPlotRange y;
+                    std::vector<ImPlotItem*> items;
+                };
+                std::map<ImGuiID, PlotState> saved;
+                int itemCount = 0;
+                for (int i = 0; i < GImPlot->Plots.GetBufSize(); ++i) {
+                    auto plot = GImPlot->Plots.GetByIndex(i);
+                    PlotState state{plot, plot->Axes[ImAxis_X1].Range, plot->Axes[ImAxis_Y1].Range, {}};
+                    EXPECT_DOUBLE_EQ(mode == 0 ? 11000 : 12000, state.x.Min);
+                    EXPECT_DOUBLE_EQ(36000, state.x.Max);
+                    for (int itemIndex = 0; itemIndex < plot->Items.GetItemCount(); ++itemIndex) {
+                        auto item = plot->Items.GetItemByIndex(itemIndex);
+                        item->Show = itemIndex % 2 != 0;
+                        state.items.emplace_back(item);
+                        ++itemCount;
+                    }
+                    saved.emplace(plot->ID, state);
+                }
+                ASSERT_EQ(overall ? 20 : 40, itemCount);
+                for (auto language : {"ru", "en", "ru"}) {
+                    select(language);
+                    for (int pass = 0; pass < 2; ++pass) {
+                        evolutionFrame(factor, overall);
+                    }
+                    EXPECT_EQ(mode, evolutionMode());
+                    ASSERT_EQ(saved.size(), GImPlot->Plots.GetBufSize());
+                    for (auto const& [id, state] : saved) {
+                        auto plot = GImPlot->Plots.GetByKey(id);
+                        ASSERT_EQ(state.plot, plot);
+                        EXPECT_DOUBLE_EQ(state.x.Min, plot->Axes[ImAxis_X1].Range.Min);
+                        EXPECT_DOUBLE_EQ(state.x.Max, plot->Axes[ImAxis_X1].Range.Max);
+                        EXPECT_DOUBLE_EQ(state.y.Min, plot->Axes[ImAxis_Y1].Range.Min);
+                        EXPECT_DOUBLE_EQ(state.y.Max, plot->Axes[ImAxis_Y1].Range.Max);
+                        ASSERT_EQ(state.items.size(), plot->Items.GetItemCount());
+                        for (int itemIndex = 0; itemIndex < plot->Items.GetItemCount(); ++itemIndex) {
+                            auto item = plot->Items.GetItemByIndex(itemIndex);
+                            EXPECT_EQ(state.items.at(itemIndex), item);
+                            EXPECT_EQ(itemIndex % 2 != 0, item->Show);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5cLongPlotCaptionsTooltipsAndEmptyStatesAtEveryScale)
+{
+    auto context = std::unique_ptr<ImPlotContext, decltype(&ImPlot::DestroyContext)>(ImPlot::CreateContext(), ImPlot::DestroyContext);
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        prepareEvolutionDashboard(1, true);
+        emptyEvolutionSeries();
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            evolutionFrame(factor, true);
+            frame([&] {
+                for (auto name : {"Avg mutation rate", "Internal energy", "Avg generation", "Avg attacks /1K", "Avg muscles /1K"}) {
+                    auto caption = ControlStatisticsPresentation::text(name);
+                    auto size = ImGui::CalcTextSize(caption.c_str(), nullptr, false, 150 * factor);
+                    EXPECT_LE(size.x, 150 * factor + 1);
+                    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 150 * factor);
+                    AlienGui::Text(caption);
+                    EXPECT_LE(GImGui->LastItemData.Rect.GetWidth(), 150 * factor + 1);
+                    ImGui::PopTextWrapPos();
+                }
+                auto help = ControlStatisticsPresentation::text(
+                    "Loading in-memory flashback: It loads the saved world from the memory. Static simulation parameters will not be changed. Non-static "
+                    "parameters (such as the position of moving layers) will be restored as well.");
+                EXPECT_LE(ImGui::CalcTextSize(help.c_str(), nullptr, false, 500 * factor).x, 500 * factor + 1);
+            });
+            int emptyPlots = 0;
+            for (int i = 0; i < GImPlot->Plots.GetBufSize(); ++i) {
+                auto plot = GImPlot->Plots.GetByIndex(i);
+                if (plot->Items.GetItemCount() == 0 && plot->Axes[ImAxis_Y1].Range.Max < 1) {
+                    ++emptyPlots;
+                }
+            }
+            EXPECT_EQ(10, emptyPlots);
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, l5cControlsCardsNotificationsAndLocationUseExistingState)
+{
+    class World : public _SimulationFacadeImpl
+    {
+    public:
+        bool isSimulationRunning() const override { return false; }
+        IntVector2D getWorldSize() const override { return {1024, 768}; }
+        SimulationParameters getSimulationParameters() const override { return *_parameters; }
+        float getTps() const override { return 123.5f; }
+        uint64_t getCurrentTimestep() const override { return 1234567; }
+        std::chrono::milliseconds getRealTime() const override { return std::chrono::milliseconds(12345); }
+        std::optional<int> getTpsRestriction() const override { return 321; }
+        bool isSyncSimulationWithRendering() const override { return true; }
+        int getSyncSimulationWithRenderingRatio() const override { return 3; }
+        ContentDesc getInspectedSimulationData(std::vector<uint64_t>) override { return {}; }
+
+    private:
+        std::unique_ptr<SimulationParameters> _parameters = std::make_unique<SimulationParameters>();
+    };
+    auto originalFacade = _SimulationFacade::get();
+    _SimulationFacadeImpl::set(std::make_shared<World>());
+    class Location : public _LocationWidget
+    {
+    public:
+        void process(ParametersFilter const&) override
+        {
+            currentWindow = ImGui::GetCurrentWindow();
+            ImGui::TextUnformatted("User / Координаты 100% {name} ### unchanged");
+        }
+        std::string getLocationName() override
+        {
+            return SimulationParametersGuiText::named("parameters.window.layer", "User / Координаты 100% {name} ### unchanged");
+        }
+        int getOrderNumber() const override { return 0; }
+        void setOrderNumber(int order) override { EXPECT_EQ(0, order); }
+        ImGuiWindow* currentWindow = nullptr;
+    };
+    auto locationWidget = std::make_shared<Location>();
+    LocationWindow location;
+    location.init(locationWidget, {40, 50});
+    ImGuiWindow* originalLocation = nullptr;
+    auto originalTracking = spatialTracking();
+    auto originalZoom = Viewport::get().getZoomFactor();
+    auto originalCenter = Viewport::get().getCenterInWorldPos();
+    auto originalSensitivity = Viewport::get().getZoomSensitivity();
+    spatialTracking() = true;
+    Viewport::get().setZoomFactor(3.25f);
+    Viewport::get().setCenterInWorldPos({234.5f, 345.25f});
+    Viewport::get().setZoomSensitivity(1.025f);
+    std::map<std::string, ImGuiWindow*> cards;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        for (auto language : {"en", "ru", "en"}) {
+            select(language);
+            for (int pass = 0; pass < 2; ++pass) {
+                switcherFrame(341 * factor, [&] { temporalPanel(); });
+                switcherFrame(330 * factor, [&] { spatialPanel(); });
+                switcherFrame(700 * factor, [&] { evolutionCards(); });
+            }
+            for (auto name : {"Entities", "Lineages", "Creatures", "Total energy"}) {
+                auto current = std::ranges::find_if(
+                    GImGui->Windows, [&](auto window) { return std::string(window->Name).find(std::string("##card") + name + "_") != std::string::npos; });
+                ASSERT_NE(GImGui->Windows.end(), current);
+                if (!cards.contains(name)) {
+                    cards.emplace(name, *current);
+                }
+                EXPECT_EQ(cards.at(name), *current);
+                EXPECT_LE((*current)->Pos.x + (*current)->Size.x, (*current)->ParentWindow->WorkRect.Max.x + 1);
+            }
+            missingRepresentative();
+            EXPECT_EQ(ControlStatisticsPresentation::text("The creature no longer exists"), overlayMessage());
+            EXPECT_EQ(321, temporalRestriction());
+            EXPECT_TRUE(spatialTracking());
+            EXPECT_FLOAT_EQ(3.25f, Viewport::get().getZoomFactor());
+            EXPECT_FLOAT_EQ(234.5f, Viewport::get().getCenterInWorldPos().x);
+            EXPECT_FLOAT_EQ(345.25f, Viewport::get().getCenterInWorldPos().y);
+            EXPECT_FLOAT_EQ(1.025f, Viewport::get().getZoomSensitivity());
+            frame([&] { location.process(); });
+            ASSERT_NE(nullptr, locationWidget->currentWindow);
+            if (!originalLocation) {
+                originalLocation = locationWidget->currentWindow;
+                ImGui::SetWindowPos(originalLocation, {120, 230});
+            }
+            EXPECT_EQ(originalLocation, locationWidget->currentWindow);
+            EXPECT_EQ(120, originalLocation->Pos.x);
+            EXPECT_EQ(230, originalLocation->Pos.y);
+            EXPECT_TRUE(location.isOn());
+            EXPECT_NE(std::string::npos, locationWidget->getLocationName().find("User / Координаты 100% {name} ### unchanged"));
+        }
+    }
+    spatialTracking() = originalTracking;
+    Viewport::get().setZoomFactor(originalZoom);
+    Viewport::get().setCenterInWorldPos(originalCenter);
+    Viewport::get().setZoomSensitivity(originalSensitivity);
     _SimulationFacadeImpl::set(originalFacade);
 }

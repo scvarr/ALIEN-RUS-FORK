@@ -35,7 +35,7 @@ class L2b3cContracts(unittest.TestCase):
     def test_all_twenty_one_typed_bindings_and_exact_english(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.")) for key in en))
         blocks = declarations()
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         self.assertEqual(21, len(MEMBERS))

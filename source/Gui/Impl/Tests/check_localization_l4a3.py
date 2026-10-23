@@ -34,10 +34,10 @@ class L4a3Contracts(unittest.TestCase):
         for language, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{language}.json'))
             self.assertEqual(old, {key: values[key] for key in old})
-            self.assertEqual(138, sum(not k.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.")) for k in values) - len(old))
+            self.assertEqual(138, sum(not k.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.")) for k in values) - len(old))
             source = read(GUI / 'NodeEditorWidget.cpp') + read(GUI / 'GenomeEditorPresentation.cpp')
             for key in values.keys() - old.keys():
-                if key.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.")):
+                if key.startswith(("mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.")):
                     continue
                 self.assertTrue(key.startswith('node.'))
                 self.assertRegex(key, r'^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$')

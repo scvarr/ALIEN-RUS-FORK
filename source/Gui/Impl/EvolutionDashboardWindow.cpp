@@ -10,6 +10,7 @@
 
 #include <imgui.h>
 #include <implot.h>
+#include <implot_internal.h>
 
 #include <Fonts/IconsFontAwesome5.h>
 
@@ -24,13 +25,16 @@
 #include <Engine/Interface/SimulationFacade.h>
 
 #include "AlienGui.h"
+#include "ControlStatisticsPresentation.h"
 #include "GenomeEditorWindow.h"
 #include "LiveStatisticsService.h"
+#include "LocalizationGuiText.h"
 #include "OverlayController.h"
 #include "StyleService.h"
 
 namespace
 {
+    using ControlStatisticsPresentation::text;
     auto constexpr LiveStatisticsDeltaTime = 50;  // In millisec
     auto constexpr RateAveragingTimesteps = LiveStatisticsService::RateAveragingTimesteps;
 
@@ -115,7 +119,7 @@ namespace
             return "-";
         }
         if (value >= toDouble(Infinity<float>::value)) {  // Parameters use FLT_MAX to represent infinity
-            return "infinity";
+            return text("infinity");
         }
         return StringHelper::format(value, decimals);
     }
@@ -314,7 +318,9 @@ namespace
 
 EvolutionDashboardWindow::EvolutionDashboardWindow()
     : AlienWindow("Evolution dashboard", "windows.evolution dashboard", false, true, {60.0f, 60.0f}, {700.0f, 500.0f}, {700.0f, 500.0f})
-{}
+{
+    setTitleKey("menu.evolution");
+}
 
 void EvolutionDashboardWindow::initIntern()
 {
@@ -624,7 +630,8 @@ void EvolutionDashboardWindow::rebuildPlotSeries(StatisticsHistoryData const& so
 void EvolutionDashboardWindow::processHeader()
 {
     auto const& style = ImGui::GetStyle();
-    auto cardWidth = (ImGui::GetContentRegionAvail().x - 3 * style.ItemSpacing.x) / 6;
+    auto compact = ImGui::GetContentRegionAvail().x < scale(6 * ControlStatisticsPresentation::textWidth(130, "Lineages"));
+    auto cardWidth = (ImGui::GetContentRegionAvail().x - (compact ? 1 : 3) * style.ItemSpacing.x) / (compact ? 3 : 6);
     auto cardHeight =
         style.WindowPadding.y * 2 + ImGui::GetTextLineHeight() * 3 + StyleService::get().getLargeFont()->FontSize + style.ItemSpacing.y * 3 + scale(6.0f);
 
@@ -672,7 +679,9 @@ void EvolutionDashboardWindow::processHeader()
          {"> 5% creatures", formatMetricValue(toDouble(numLineagesAbove5Percent), 0)}},
         cardWidth,
         cardHeight);
-    ImGui::SameLine();
+    if (!compact) {
+        ImGui::SameLine();
+    }
 
     processCard("Creatures", formatMetricValue(numCreatures, 0), {}, cardWidth, cardHeight);
     ImGui::SameLine();
@@ -699,7 +708,9 @@ void EvolutionDashboardWindow::processCard(
     ImGui::PushStyleColor(ImGuiCol_Border, (ImU32)Const::DashboardCardBorderColor);
     if (ImGui::BeginChild(("##card" + label).c_str(), {width, height}, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::TextDecentColor);
-        AlienGui::Text(label);
+        ImGui::PushTextWrapPos(0);
+        AlienGui::Text(text(label));
+        ImGui::PopTextWrapPos();
         ImGui::PopStyleColor();
 
         ImGui::PushFont(StyleService::get().getLargeFont());
@@ -714,17 +725,22 @@ void EvolutionDashboardWindow::processCard(
             firstSubValue = false;
 
             // Draw an ellipsis instead of sub-values that do not fit into the card
-            auto groupWidth = std::max(ImGui::CalcTextSize(subLabel.c_str()).x, ImGui::CalcTextSize(subValue.c_str()).x);
+            auto groupWidth = std::max(ImGui::CalcTextSize(text(subLabel).c_str()).x, ImGui::CalcTextSize(subValue.c_str()).x);
             if (ImGui::GetContentRegionAvail().x < groupWidth) {
                 ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::TextDecentColor);
                 AlienGui::Text("...");
+                std::string details;
+                for (auto const& [name, number] : subValues) {
+                    details += text(name) + ": " + number + "\n";
+                }
+                AlienGui::Tooltip(AlienGui::TooltipParameters().text(details));
                 ImGui::PopStyleColor();
                 break;
             }
 
             ImGui::BeginGroup();
             ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::TextDecentColor);
-            AlienGui::Text(subLabel);
+            AlienGui::Text(text(subLabel));
             ImGui::PopStyleColor();
             AlienGui::Text(subValue);
             ImGui::EndGroup();
@@ -739,8 +755,10 @@ void EvolutionDashboardWindow::processFilterBar()
 {
     ImGui::Spacing();
     AlienGui::Separator();
-    AlienGui::Text("Filter by customizations");
-    ImGui::SameLine(0, scale(12.0f));
+    AlienGui::Text(text("Filter by customizations"));
+    if (ImGui::GetContentRegionAvail().x > scale(MAX_COLORS * (ColorChipSize + 5.0f) + 12.0f)) {
+        ImGui::SameLine(0, scale(12.0f));
+    }
 
     auto drawList = ImGui::GetWindowDrawList();
     auto chipSize = scale(ColorChipSize);
@@ -783,10 +801,14 @@ void EvolutionDashboardWindow::processLineageTable()
     auto flags = ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
     if (ImGui::BeginTable("##lineages", NumColumns, flags)) {
         ImGui::TableSetupScrollFreeze(1, 2);
-        ImGui::TableSetupColumn("Lineage", ImGuiTableColumnFlags_WidthFixed, scale(150.0f));
-        ImGui::TableSetupColumn("Customizations", ImGuiTableColumnFlags_WidthFixed, scale(105.0f));
+        ImGui::TableSetupColumn(text("Lineage").c_str(), ImGuiTableColumnFlags_WidthFixed, scale(ControlStatisticsPresentation::textWidth(150, "Lineage")));
+        ImGui::TableSetupColumn(
+            text("Customizations").c_str(), ImGuiTableColumnFlags_WidthFixed, scale(ControlStatisticsPresentation::textWidth(105, "Customizations")));
         for (auto const& metric : Metrics) {
-            ImGui::TableSetupColumn(metric.tableHeader, ImGuiTableColumnFlags_WidthFixed, scale(metric.tableColumnWidth));
+            ImGui::TableSetupColumn(
+                text(metric.tableHeader).c_str(),
+                ImGuiTableColumnFlags_WidthFixed,
+                scale(ControlStatisticsPresentation::textWidth(metric.tableColumnWidth, metric.tableHeader)));
         }
 
         auto drawList = ImGui::GetWindowDrawList();
@@ -818,6 +840,7 @@ void EvolutionDashboardWindow::processLineageTable()
                 }
                 sortLineages();
             }
+            AlienGui::Tooltip(AlienGui::TooltipParameters().text(label));
             auto visibleMinX = std::max(cellPos.x, drawList->GetClipRectMin().x);
             auto visibleMaxX = std::min(cellMaxX, drawList->GetClipRectMax().x);
             auto textPosX = std::clamp(cellPos.x, visibleMinX, std::max(visibleMinX, visibleMaxX - textWidth));
@@ -847,7 +870,7 @@ void EvolutionDashboardWindow::processLineageTable()
         auto iconWidth = ImGui::GetFont()->CalcTextSizeA(iconSize, FLT_MAX, 0.0f, ICON_FA_THUMBTACK).x;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconWidth + scale(7.0f));
         auto numFilteredLineages = std::ranges::count_if(_lineages, [this](auto const& lineage) { return (_colorFilter & lineage.colorBitset) != 0; });
-        AlienGui::Text("All filtered (" + std::to_string(numFilteredLineages) + ")");
+        AlienGui::Text(LocalizationGuiText::format("simulationui.allfiltered", {{"count", std::to_string(numFilteredLineages)}}));
         if (_allLineages.colorBitset != 0) {
             ImGui::TableSetColumnIndex(CustomizationsColumn);
             auto pos = ImGui::GetCursorScreenPos();
@@ -878,7 +901,7 @@ void EvolutionDashboardWindow::processLineageTable()
             auto triggerOpenGenome =
                 AlienGui::ActionButton(AlienGui::ActionButtonParameters()
                                            .buttonText(ICON_FA_DNA)
-                                           .tooltip("Open the genome of a representative creature (highest generation) in the genome editor"));
+                                           .tooltip(text("Open the genome of a representative creature (highest generation) in the genome editor")));
             ImGui::PopStyleVar();
             ImGui::SetWindowFontScale(1.0f);
             if (triggerOpenGenome && lineage.representativeCellId != 0) {
@@ -888,7 +911,7 @@ void EvolutionDashboardWindow::processLineageTable()
             // The lineage color corresponds to the rendering of the simulation with lineage coloring enabled
             ImGui::TableSetColumnIndex(LineageColumn);
             AlienGui::Chip(AlienGui::ChipParameters().dotColor(getLineageColor(lineage.id)).dotSize(LineageChipSize).spacing(LineageChipSpacing));
-            AlienGui::Text("Lineage #" + std::to_string(lineage.id));
+            AlienGui::Text(LocalizationGuiText::format("simulationui.lineage", {{"id", std::to_string(lineage.id)}}));
             ImGui::SameLine();
             auto selected = _selectedLineageIds.contains(lineage.id);
             if (AlienGui::TableRowSelectable("##row", selected)) {
@@ -930,7 +953,7 @@ void EvolutionDashboardWindow::onOpenRepresentativeGenome(uint64_t cellId)
             return;
         }
     }
-    printOverlayMessage("The creature no longer exists");
+    printOverlayMessage(text("The creature no longer exists"));
 }
 
 void EvolutionDashboardWindow::processTimelineSection()
@@ -970,18 +993,40 @@ void EvolutionDashboardWindow::processTimelineHeader()
     ImGui::Spacing();
 
     std::vector<std::string> modeValues{"Last time steps", "Entire history"};
-    AlienGui::Switcher(AlienGui::SwitcherParameters().name("Mode").width(260.0f).textWidth(45.0f).values(modeValues), &_timelineMode);
+    std::vector<std::string> modeLabels{text("Last time steps"), text("Entire history")};
+    auto modeWidth = ControlStatisticsPresentation::textWidth(45, "Mode")
+        + std::max(ControlStatisticsPresentation::textWidth(0, "Last time steps"), ControlStatisticsPresentation::textWidth(0, "Entire history")) + 70.0f;
+    auto availableWidth = ImGui::GetContentRegionAvail().x;
+    AlienGui::Switcher(
+        AlienGui::SwitcherParameters()
+            .name("Mode")
+            .label(text("Mode"))
+            .width(modeWidth)
+            .textWidth(ControlStatisticsPresentation::textWidth(45, "Mode"))
+            .values(modeValues)
+            .displayValues(modeLabels),
+        &_timelineMode);
 
     // Sliders keep their default width and only shrink when the window gets too narrow
     auto numSliders = _timelineMode == TimelineMode_EntireHistory ? 1.0f : 2.0f;
-    ImGui::SameLine(0, scale(20.0f));
-    AlienGui::VerticalSeparator();
-    ImGui::SameLine(0, scale(20.0f));
-    auto sliderWidth = std::clamp((ImGui::GetContentRegionAvail().x - scale(20.0f) * (numSliders - 1.0f)) / numSliders, scale(140.0f), scale(320.0f));
+    auto sliderGap = scale(42.0f) + ImGui::GetStyle().FramePadding.x;
+    auto inlineSliders = availableWidth >= scale(modeWidth + numSliders * 240.0f) + sliderGap * numSliders;
+    if (inlineSliders) {
+        ImGui::SameLine(0, scale(20.0f));
+        AlienGui::VerticalSeparator();
+        ImGui::SameLine(0, scale(20.0f));
+    }
+    auto sliderWidth = std::clamp((ImGui::GetContentRegionAvail().x - sliderGap * (numSliders - 1.0f)) / numSliders, scale(240.0f), scale(320.0f));
     if (_timelineMode == TimelineMode_LastSteps) {
         if (ImGui::BeginChild("##lastSteps", {sliderWidth, ImGui::GetFrameHeight()})) {
             AlienGui::SliderInt(
-                AlienGui::SliderIntParameters().name("Steps").min(1000).max(LiveStatisticsService::MaxLiveSteps).logarithmic(true).textWidth(100.0f),
+                AlienGui::SliderIntParameters()
+                    .name("Steps")
+                    .label(text("Steps"))
+                    .min(1000)
+                    .max(LiveStatisticsService::MaxLiveSteps)
+                    .logarithmic(true)
+                    .textWidth(ControlStatisticsPresentation::textWidth(100, "Steps")),
                 &_lastSteps);
             validateAndCorrect();
         }
@@ -992,7 +1037,14 @@ void EvolutionDashboardWindow::processTimelineHeader()
     }
     if (ImGui::BeginChild("##plotHeight", {sliderWidth, ImGui::GetFrameHeight()})) {
         AlienGui::SliderFloat(
-            AlienGui::SliderFloatParameters().name("Plot height").min(MinPlotHeight).max(MaxPlotHeight).format("%.0f").textWidth(100.0f), &_plotHeight);
+            AlienGui::SliderFloatParameters()
+                .name("Plot height")
+                .label(text("Plot height"))
+                .min(MinPlotHeight)
+                .max(MaxPlotHeight)
+                .format("%.0f")
+                .textWidth(ControlStatisticsPresentation::textWidth(100, "Plot height")),
+            &_plotHeight);
         validateAndCorrect();
     }
     ImGui::EndChild();
@@ -1011,7 +1063,9 @@ void EvolutionDashboardWindow::processTimelinePlots(std::vector<LineageDisplayDa
             processTimelinePlot(plottedLineages, i);
 
             ImGui::TableSetColumnIndex(1);
-            AlienGui::Text(Metrics[i].plotName);
+            ImGui::PushTextWrapPos(0);
+            AlienGui::Text(text(Metrics[i].plotName));
+            ImGui::PopTextWrapPos();
             for (auto const* lineage : plottedLineages) {
                 ImGui::PushFont(StyleService::get().getMediumBoldFont());
                 ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)getPlotColor(lineage->id, i));
@@ -1070,8 +1124,14 @@ void EvolutionDashboardWindow::processTimelinePlot(std::vector<LineageDisplayDat
             auto color = getPlotColor(lineage->id, metricIndex);
             ImPlot::PushStyleColor(ImPlotCol_Line, (ImU32)color);
             ImPlot::PushStyleColor(ImPlotCol_Fill, (ImU32)color);
+            // ImPlot otherwise forces items with hidden labels visible on every registration.
+            ImPlot::SetupLock();
+            auto lineItem = ImPlot::GetItem("##line");
+            ImPlot::HideNextItem(lineItem && !lineItem->Show, ImPlotCond_Always);
             ImPlot::PlotLine("##line", lineage->timePoints.data() + offset, series.data() + offset, count);
             ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f * ImGui::GetStyle().Alpha);
+            auto shadedItem = ImPlot::GetItem("##shaded");
+            ImPlot::HideNextItem(shadedItem && !shadedItem->Show, ImPlotCond_Always);
             ImPlot::PlotShaded("##shaded", lineage->timePoints.data() + offset, series.data() + offset, count);
             ImPlot::PopStyleVar();
             ImPlot::PopStyleColor(2);
@@ -1086,6 +1146,9 @@ void EvolutionDashboardWindow::processTimelinePlot(std::vector<LineageDisplayDat
                     formatMetricValue(series.back(), Metrics[metricIndex].plotDecimals).c_str());
             }
             ImGui::PopID();
+        }
+        if (std::ranges::none_of(plottedLineages, [](auto lineage) { return lineage->timePoints.size() >= 2; })) {
+            ImPlot::PlotText(text("No data").c_str(), (minTime + maxTime) / 2, (upperBound + NEAR_ZERO) / 2);
         }
         if (ImGui::GetStyle().Alpha == 1.0f && ImPlot::IsPlotHovered() && plottedLineages.size() == 1 && plottedLineages.front()->timePoints.size() >= 2) {
             auto const* lineage = plottedLineages.front();
@@ -1189,17 +1252,12 @@ void EvolutionDashboardWindow::drawValuesAtMouseCursor(
     ImPlot::PlotInfLines("", &mousePos.x, 1);
     ImPlot::PopStyleColor();
 
-    char label[256];
     auto leftSideFactor = mousePos.x > (startTime + endTime) / 2 ? -1.0f : 1.0f;
     auto dateTimeString = systemClockEntry != 0 ? convertSystemClockToString(systemClockEntry) : std::string("-");
-    snprintf(
-        label,
-        sizeof(label),
-        "Time step: %s\nTimestamp: %s\nValue: %s",
-        StringHelper::format(toFloat(mousePos.x), 0).c_str(),
-        dateTimeString.c_str(),
-        formatMetricValue(valueAtCursor, fracPartDecimals).c_str());
-    ImPlot::PlotText(label, mousePos.x, upperBound, {leftSideFactor * (scale(5.0f) + ImGui::CalcTextSize(label).x / 2), scale(28.0f)});
+    auto label = LocalizationGuiText::format(
+        "simulationui.cursor",
+        {{"step", StringHelper::format(toFloat(mousePos.x), 0)}, {"timestamp", dateTimeString}, {"value", formatMetricValue(valueAtCursor, fracPartDecimals)}});
+    ImPlot::PlotText(label.c_str(), mousePos.x, upperBound, {leftSideFactor * (scale(5.0f) + ImGui::CalcTextSize(label.c_str()).x / 2), scale(28.0f)});
 }
 
 void EvolutionDashboardWindow::validateAndCorrect()

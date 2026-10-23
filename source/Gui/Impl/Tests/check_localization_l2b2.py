@@ -27,7 +27,7 @@ class L2b2Contracts(unittest.TestCase):
     def test_nine_declarations_have_separate_complete_catalog_entries(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.")) for key in en))
+        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.")) for key in en))
         slugs = ["general.project", "general.layer", "general.source", "general.opacity", "general.share",
                  "location.layerposition", "location.layervelocity", "location.sourceposition", "location.sourcevelocity"]
         for slug in slugs:

@@ -37,7 +37,7 @@ class L5bContracts(unittest.TestCase):
         for lang, values in [('en', en), ('ru', ru)]:
             old = json.loads(original(f'resources/locales/{lang}.json'))
             self.assertEqual(old, {key: values[key] for key in old})
-            added = values.keys() - old.keys()
+            added = {key for key in values.keys() - old.keys() if not key.startswith('simulationui.')}
             self.assertEqual(132, len(added))
             for key in added:
                 self.assertTrue(key.startswith('worldtools.'))
@@ -79,8 +79,7 @@ class L5bContracts(unittest.TestCase):
                      'source/Gui/Impl/ChangeColorDialog.cpp', 'source/Gui/Impl/EntityAttributeHelp.cpp',
                      'source/Data/CreatorService.cpp', 'source/Data/MultiplierService.cpp',
                      'source/Data/MassEditService.cpp', 'source/Persister/Interface/SerializerService.cpp',
-                     'source/Gui/Impl/TemporalControlWindow.cpp', 'source/Gui/Impl/SpatialControlWindow.cpp',
-                     'source/Gui/Impl/EvolutionDashboardWindow.cpp', 'docs/localization-terminology.md']:
+                     'docs/localization-terminology.md']:
             self.assertEqual(original(path), read(ROOT / path), path)
 
     def test_canonical_input_scopes_options_ranges_formats_and_file_contracts(self):

@@ -222,7 +222,7 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
     auto english = boost::json::parse(read(LOCALES / "en.json")).as_object();
     auto russian = boost::json::parse(read(LOCALES / "ru.json")).as_object();
     ASSERT_EQ(english.size(), russian.size());
-    ASSERT_EQ(1176, english.size());
+    ASSERT_EQ(1232, english.size());
     _service.load(LOCALES);  // Also validates UTF-8, duplicates, key syntax and types in both shipped files.
     ASSERT_TRUE(_service.getDiagnostics().empty());
     for (auto const& member : english) {
@@ -264,6 +264,10 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
           "InspectionPresentation.h",
           "InspectionWindow.cpp",
           "InspectionController.cpp",
+          "TemporalControlWindow.cpp",
+          "SpatialControlWindow.cpp",
+          "EvolutionDashboardWindow.cpp",
+          "ControlStatisticsPresentation.h",
           "GenomeIssueDescription.cpp",
           "GeneGraphWidget.cpp",
           "PreviewDescView.cpp",

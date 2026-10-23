@@ -10,6 +10,7 @@
 #include <Engine/Interface/SimulationFacade.h>
 
 #include "AlienGui.h"
+#include "ControlStatisticsPresentation.h"
 #include "ResizeWorldDialog.h"
 #include "StyleService.h"
 #include "Viewport.h"
@@ -17,6 +18,7 @@
 
 namespace
 {
+    using ControlStatisticsPresentation::text;
     void drawCoordinatePair(std::string const& first, std::string const& second)
     {
         ImGui::TextUnformatted(first.c_str());
@@ -40,7 +42,9 @@ void SpatialControlWindow::initIntern()
 
 SpatialControlWindow::SpatialControlWindow()
     : AlienWindow("Spatial control", "windows.spatial control", true, false, {1517.0f, 162.0f}, {330.0f, 397.0f})
-{}
+{
+    setTitleKey("menu.spatial");
+}
 
 void SpatialControlWindow::shutdownIntern()
 {
@@ -61,7 +65,7 @@ void SpatialControlWindow::processIntern()
     if (ImGui::BeginChild("##", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
 
         ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDecentColor.Value);
-        ImGui::Text("World size");
+        ImGui::TextUnformatted(text("World size").c_str());
         ImGui::PopStyleColor();
         ImGui::PushFont(StyleService::get().getLargeFont());
         auto worldSize = _SimulationFacade::get()->getWorldSize();
@@ -69,14 +73,14 @@ void SpatialControlWindow::processIntern()
         ImGui::PopFont();
 
         ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDecentColor.Value);
-        ImGui::Text("Zoom factor");
+        ImGui::TextUnformatted(text("Zoom factor").c_str());
         ImGui::PopStyleColor();
         ImGui::PushFont(StyleService::get().getLargeFont());
         ImGui::TextUnformatted(StringHelper::format(Viewport::get().getZoomFactor(), 2).c_str());
         ImGui::PopFont();
 
         ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDecentColor.Value);
-        ImGui::Text("Center position");
+        ImGui::TextUnformatted(text("Center position").c_str());
         ImGui::PopStyleColor();
         ImGui::PushFont(StyleService::get().getLargeFont());
         auto centerPos = Viewport::get().getCenterInWorldPos();
@@ -84,11 +88,11 @@ void SpatialControlWindow::processIntern()
         ImGui::PopFont();
 
         AlienGui::Separator();
-        AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Autotracking on selection"), _centerSelection);
+        AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Autotracking on selection").label(text("Autotracking on selection")), _centerSelection);
         ImGui::Spacing();
         ImGui::Spacing();
         float sensitivity = Viewport::get().getZoomSensitivity();
-        if (AlienGui::SliderFloat(AlienGui::SliderFloatParameters().name("Zoom sensitivity").min(1.0f).max(1.1f).textWidth(130).format(""), &sensitivity)) {
+        if (AlienGui::SliderFloat(AlienGui::SliderFloatParameters().name("Zoom sensitivity").label(text("Zoom sensitivity")).min(1.0f).max(1.1f).textWidth(ControlStatisticsPresentation::textWidth(130, "Zoom sensitivity")).format(""), &sensitivity)) {
             Viewport::get().setZoomSensitivity(sensitivity);
         }
     }
@@ -103,21 +107,21 @@ void SpatialControlWindow::processBackground()
 void SpatialControlWindow::processToolbar()
 {
     AlienGui::Toolbar(
-        AlienGui::ToolbarParameters().id("SpatialControl").bottomSeparator(false),
-        {AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_SEARCH_PLUS).name("Zoom in").action([&] {
+        AlienGui::ToolbarParameters().id("SpatialControl").overflowTooltip(tr("parameters.overflow")).bottomSeparator(false),
+        {AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_SEARCH_PLUS).name(text("Zoom in")).action([&] {
              Viewport::get().setZoomFactor(Viewport::get().getZoomFactor() * 2);
          })),
-         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_SEARCH_MINUS).name("Zoom out").action([&] {
+         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_SEARCH_MINUS).name(text("Zoom out")).action([&] {
              Viewport::get().setZoomFactor(Viewport::get().getZoomFactor() / 2);
          })),
-         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_CROSSHAIRS).name("Center").action([&] {
+         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters().icon(ICON_FA_CROSSHAIRS).name(text("Center")).action([&] {
              Viewport::get().setZoomFactor(1.0f);
              auto worldSize = toRealVector2D(_SimulationFacade::get()->getWorldSize());
              Viewport::get().setCenterInWorldPos({worldSize.x / 2, worldSize.y / 2});
          })),
          AlienGui::ToolbarItem::createSeparator(),
          AlienGui::ToolbarItem::createButton(
-             AlienGui::ToolbarItemParameters().icon(ICON_FA_CROP_ALT).name("Resize").action([&] { ResizeWorldDialog::get().open(); }))});
+             AlienGui::ToolbarItemParameters().icon(ICON_FA_CROP_ALT).name(text("Resize")).action([&] { ResizeWorldDialog::get().open(); }))});
 }
 
 void SpatialControlWindow::processCenterOnSelection()
