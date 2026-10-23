@@ -184,3 +184,35 @@ requested baseline. `AGENTS.md` retains skip-worktree and SHA-256
 User data/settings/dependencies and pinned vcpkg are unchanged. No CodeQL,
 submodule update or IDE-tree build was run. Manual visual acceptance and closure
 of the entire L6 stage are not claimed.
+
+## Acceptance and L6-B closure
+
+Date: 2026-10-23 (Europe/Moscow).
+
+The user accepted L6-B implementation
+`c1e86f2d9100ef8de0208a708c922d140848df72` based on the recorded automated
+checks and review of this validation report. **L6-B is complete.** Manual visual
+acceptance and testing of an actual authenticated session were not performed
+and are not claimed.
+
+Acceptance retains the implementation's aggregate **HIGH** graph risk and all
+recorded limitations. Runtime network coverage uses isolated facade stubs;
+authenticated owner/non-owner permissions, server-side ownership rules and
+successful remote mutations were not exercised against a real session. The
+source-preservation checks and simulated failures do not replace that coverage.
+Final desktop composition, hovered tooltips, unusually narrow saved windows,
+vendor/native controls and English raw diagnostics retain their recorded
+limitations. The known GitNexus full-text/BM25 index failure remains unresolved;
+successful graph analysis is separate evidence. Unicode metadata search,
+including Cyrillic case folding and Yo handling, remains deferred to L6-C.
+
+Closure changes only this report and the roadmap. Production code, tests and
+catalogs are unchanged; builds and tests are not rerun, and the existing
+implementation validation evidence remains applicable. The user authorizes a
+documentation commit and push, fast-forward-only integration into `main`,
+pushing `main`, synchronization/cleanliness verification and deletion of the
+integrated feature branch locally and remotely.
+
+`AGENTS.md`, its skip-worktree flag, user worlds/genomes/autosaves/settings and
+dependencies are preserved. **The entire L6 stage remains open.** L6-C and L6-D
+remain pending; this closure does not start L6-C.
