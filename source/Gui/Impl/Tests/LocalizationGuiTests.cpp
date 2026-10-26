@@ -73,6 +73,7 @@
 #include <Gui/Impl/OverlayController.h>
 #include <Gui/Impl/PictureGuiService.h>
 #include <Gui/Impl/PreviewSettingsDialog.h>
+#include <Gui/Impl/PreviewWidget.h>
 #include <Gui/Impl/ResizeWorldDialog.h>
 #include <Gui/Impl/SavePictureDialog.h>
 #include <Gui/Impl/SelectionWidget.h>
@@ -675,6 +676,71 @@ protected:
 
     void localAutosavePanel() { AutosaveWindow::get().processIntern(); }
     void localLogPanel() { LogWindow::get().processIntern(); }
+
+    CreaturePreviewWidget prepareSelectionPreview(GenomeTabWidget const& tab)
+    {
+        tab->getEditData()->run = false;
+        auto preview = _CreaturePreviewWidget::create(tab->getEditData(), {0, 1}, {});
+        preview->setCreatureId(100);
+        tab->_simulatedPreviewWidget->_creatureWidgets = {preview};
+        return preview;
+    }
+
+    void selectionTabs(std::vector<GenomeTabWidget> const& tabs)
+    {
+        auto& window = GenomeEditorWindow::get();
+        window._tabs = tabs;
+        window._tabsToAdd.clear();
+        window._selectedTabIndex = 0;
+        window._tabIndexToSelect = 0;
+    }
+
+    void selectionFrame(float factor, GenomeTabWidget const& tab, bool nodeRow, ImVec2& treePosition)
+    {
+        auto& io = ImGui::GetIO();
+        io.DisplaySize = {3600 * factor, 2000 * factor};
+        ImGui::NewFrame();
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({600 * factor, 150 * factor});
+        ImGui::Begin("Selection tree rows");
+        if (nodeRow) {
+            if (ImGui::BeginTable("Structure list", 4)) {
+                auto start = ImGui::GetCursorScreenPos();
+                auto const& gene = tab->getEditData()->genome._genes.at(1);
+                tab->_genomeEditorWidget->processNodeLeaf(1, 0, gene, gene._nodes.at(0), {}, getDefaultCustomizationColorVector());
+                treePosition = {start.x + ImGui::GetFontSize() * 3, start.y + ImGui::GetTextLineHeight() / 2 + ImGui::GetStyle().CellPadding.y};
+                ImGui::EndTable();
+            }
+        } else {
+            drawGenomeGeneRow(tab->_genomeEditorWidget, 1, treePosition);
+        }
+        ImGui::End();
+        ImGui::SetNextWindowPos({0, 160 * factor});
+        ImGui::SetNextWindowSize({3500 * factor, 1800 * factor});
+        ImGui::Begin("Selection genome editor");
+        GenomeEditorWindow::get().processTabWidget();
+        ImGui::End();
+        ImGui::Render();
+        EXPECT_EQ(0, GImGui->ErrorCountCurrentFrame);
+    }
+
+    ImVec2 previewCellPosition(CreaturePreviewWidget const& preview, int index)
+    {
+        auto pos = preview->_viewport.mapWorldToViewPosition(preview->getPreviewDesc()._cells.at(index)._pos);
+        return {pos.x, pos.y};
+    }
+
+    std::optional<uint64_t> previewSelection(CreaturePreviewWidget const& preview) { return preview->_selectedCellIdFromPreview; }
+
+    ImGuiWindow* selectionWindow(std::string const& part)
+    {
+        for (auto window : GImGui->Windows) {
+            if (window->Active && std::string(window->Name).find(part) != std::string::npos) {
+                return window;
+            }
+        }
+        return nullptr;
+    }
 
     float _originalScale = 1;
     std::string _language;
@@ -6521,6 +6587,214 @@ namespace
                 {GeneDesc().name("User gene / Пользовательский ген").shape(ConstructorShape_Segment).nodes({NodeDesc(), NodeDesc()}),
                  GeneDesc().name("Second / Второй").shape(ConstructorShape_Triangle).nodes({NodeDesc()})});
     }
+}
+
+namespace
+{
+    class PreviewSelectionWorldScope
+    {
+        class World : public _SimulationFacadeImpl
+        {
+        public:
+            explicit World(std::shared_ptr<ContentDesc> data)
+                : _data(std::move(data))
+            {}
+            int getSessionId() const override { return 1; }
+            IntVector2D getWorldSize() const override { return {1024, 768}; }
+            SimulationParameters getSimulationParameters() const override { return *_parameters; }
+            ContentDesc getPreviewData() override { return *_data; }
+            uint64_t getCurrentTimestepForPreview() override { return 0; }
+
+        private:
+            std::shared_ptr<ContentDesc> _data;
+            std::unique_ptr<SimulationParameters> _parameters = std::make_unique<SimulationParameters>();
+        };
+
+    public:
+        explicit PreviewSelectionWorldScope(std::shared_ptr<ContentDesc> const& data)
+            : _original(_SimulationFacade::get())
+        {
+            _SimulationFacadeImpl::set(std::make_shared<World>(data));
+        }
+        ~PreviewSelectionWorldScope() { _SimulationFacadeImpl::set(_original); }
+
+    private:
+        SimulationFacade _original;
+    };
+
+    ContentDesc selectionPhenotype(GenomeDesc const& genome)
+    {
+        ContentDesc result;
+        result._genomes = {genome};
+        result._creatures = {CreatureDesc().id(100).genomeId(genome._id), CreatureDesc().id(101).ancestorId(100).generation(1).genomeId(genome._id)};
+        result._objects = {
+            ObjectDesc().id(201).pos({-4, 0}).type(CellDesc().creatureId(101).geneIndex(0).nodeIndex(0)),
+            ObjectDesc().id(202).pos({0, 0}).type(CellDesc().creatureId(101).geneIndex(0).nodeIndex(1)),
+            ObjectDesc().id(203).pos({4, 0}).type(CellDesc().creatureId(101).geneIndex(1).nodeIndex(0))};
+        return result;
+    }
+}
+
+TEST_F(LocalizationGuiTests, genomePreviewSelectionRestoresNodeInspectorAcrossLanguagesScalesAndTabs)
+{
+    auto phenotype = std::make_shared<ContentDesc>();
+    PreviewSelectionWorldScope world(phenotype);
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    for (float factor : {1.0f, 1.5f, 2.0f}) {
+        setTestScale(factor);
+        auto windowData = std::make_shared<_GenomeWindowEditData>();
+        auto tab = _GenomeTabWidget::create(windowData, syntheticEditorGenome());
+        auto other = _GenomeTabWidget::create(windowData, syntheticEditorGenome());
+        auto data = tab->getEditData();
+        *phenotype = selectionPhenotype(data->genome);
+        auto originalPhenotype = *phenotype;
+        auto originalGenome = data->genome;
+        auto otherGenome = other->getGenomeDesc();
+        auto preview = prepareSelectionPreview(tab);
+        prepareSelectionPreview(other);
+        selectionTabs({tab, other});
+        bool nodeRow = false;
+        ImVec2 treePosition;
+        auto draw = [&] { selectionFrame(factor, tab, nodeRow, treePosition); };
+        auto click = [&](ImVec2 position) {
+            io.AddMousePosEvent(position.x, position.y);
+            draw();
+            io.AddMouseButtonEvent(0, true);
+            draw();
+            io.AddMouseButtonEvent(0, false);
+            draw();
+        };
+        draw();
+        draw();
+        auto previewWindow = selectionWindow("/CellGraphWidget_");
+        ASSERT_NE(nullptr, previewWindow);
+        auto previewId = previewWindow->ID;
+        ImGuiID inspectorId = 0;
+        for (auto language : {"en", "ru", "en"}) {
+            SCOPED_TRACE(std::string(language) + " scale=" + std::to_string(factor));
+            select(language);
+            nodeRow = false;
+            draw();
+            click(treePosition);
+            ASSERT_EQ(GenomeSelectionLevel::Gene, data->selectionLevel);
+            ASSERT_EQ(1, data->selectedGeneIndex);
+            ASSERT_NE(nullptr, selectionWindow("/GeneEditor_"));
+            for (int index : {0, 2, 1, 0, 0, 2}) {
+                click(previewCellPosition(preview, index));
+                auto const& cell = preview->getPreviewDesc()._cells.at(index);
+                EXPECT_EQ(cell._id, previewSelection(preview));
+                EXPECT_EQ(cell._geneIndex, data->selectedGeneIndex);
+                EXPECT_EQ(cell._nodeIndex, data->getSelectedNodeIndex());
+                EXPECT_TRUE(data->isNodeLevelSelected());
+                auto inspector = selectionWindow("/NodeEditor_");
+                ASSERT_NE(nullptr, inspector);
+                if (!inspectorId) {
+                    inspectorId = inspector->ID;
+                }
+                EXPECT_EQ(inspectorId, inspector->ID);
+                EXPECT_EQ(previewId, selectionWindow("/CellGraphWidget_")->ID);
+                EXPECT_EQ(originalGenome, data->genome);
+                EXPECT_EQ(originalPhenotype, *phenotype);
+                EXPECT_FALSE(data->changesMade);
+            }
+            nodeRow = true;
+            draw();
+            click(treePosition);
+            EXPECT_EQ(1, data->selectedGeneIndex);
+            EXPECT_TRUE(data->isNodeLevelSelected());
+            click(previewCellPosition(preview, 1));
+            EXPECT_EQ(0, data->selectedGeneIndex);
+            EXPECT_EQ(1, data->getSelectedNodeIndex());
+            auto selectedCell = previewSelection(preview);
+            selectGenomeTab(1);
+            draw();
+            draw();
+            selectGenomeTab(0);
+            draw();
+            draw();
+            EXPECT_EQ(selectedCell, previewSelection(preview));
+            EXPECT_EQ(0, data->selectedGeneIndex);
+            EXPECT_EQ(1, data->getSelectedNodeIndex());
+            ASSERT_NE(nullptr, selectionWindow("/NodeEditor_"));
+            click(previewCellPosition(preview, 2));
+            EXPECT_EQ(1, data->selectedGeneIndex);
+            EXPECT_EQ(0, data->getSelectedNodeIndex());
+            EXPECT_EQ(otherGenome, other->getGenomeDesc());
+        }
+    }
+}
+
+TEST_F(LocalizationGuiTests, genomePreviewSelectionClearsStaleCellAcrossGenesAndPreviewRefresh)
+{
+    setTestScale(1);
+    auto phenotype = std::make_shared<ContentDesc>();
+    PreviewSelectionWorldScope world(phenotype);
+    auto windowData = std::make_shared<_GenomeWindowEditData>();
+    auto tab = _GenomeTabWidget::create(windowData, syntheticEditorGenome());
+    auto data = tab->getEditData();
+    *phenotype = selectionPhenotype(data->genome);
+    auto preview = prepareSelectionPreview(tab);
+    selectionTabs({tab});
+    bool nodeRow = true;
+    ImVec2 treePosition;
+    auto& io = ImGui::GetIO();
+    io.ConfigInputTrickleEventQueue = false;
+    auto draw = [&] { selectionFrame(1, tab, nodeRow, treePosition); };
+    auto click = [&](ImVec2 position) {
+        io.AddMousePosEvent(position.x, position.y);
+        draw();
+        io.AddMouseButtonEvent(0, true);
+        draw();
+        io.AddMouseButtonEvent(0, false);
+        draw();
+    };
+    draw();
+    draw();
+    click(treePosition);
+    ASSERT_EQ(1, data->selectedGeneIndex);
+    click(previewCellPosition(preview, 0));
+    ASSERT_EQ(201, previewSelection(preview)) << "cell=" << previewCellPosition(preview, 0).x << "," << previewCellPosition(preview, 0).y
+                                              << " gene=" << data->selectedGeneIndex.value_or(-1) << " node=" << data->getSelectedNodeIndex().value_or(-1);
+    click(treePosition);
+    EXPECT_EQ(1, data->selectedGeneIndex);
+    EXPECT_EQ(0, data->getSelectedNodeIndex());
+    EXPECT_FALSE(previewSelection(preview).has_value());
+    click(previewCellPosition(preview, 2));
+    ASSERT_EQ(203, previewSelection(preview));
+    nodeRow = false;
+    draw();
+    click(treePosition);
+    EXPECT_EQ(GenomeSelectionLevel::Gene, data->selectionLevel);
+    EXPECT_FALSE(previewSelection(preview).has_value());
+    click(previewCellPosition(preview, 2));
+    EXPECT_TRUE(data->isNodeLevelSelected());
+
+    data->genome._genes.at(1)._nodes.at(0)._color = 1;
+    phenotype->_objects.at(2)._pos = {6, 2};
+    auto originalGenome = data->genome;
+    draw();
+    EXPECT_EQ(203, previewSelection(preview));
+    EXPECT_EQ(1, preview->getPreviewDesc()._cells.at(2)._color);
+    phenotype->_objects.at(2)._id = 204;
+    draw();
+    EXPECT_FALSE(previewSelection(preview).has_value());
+    auto originalPhenotype = *phenotype;
+    click(previewCellPosition(preview, 2));
+    EXPECT_EQ(204, previewSelection(preview));
+    EXPECT_EQ(1, data->selectedGeneIndex);
+    EXPECT_EQ(0, data->getSelectedNodeIndex());
+    EXPECT_TRUE(data->isNodeLevelSelected());
+    EXPECT_EQ(originalGenome, data->genome);
+    EXPECT_EQ(originalPhenotype, *phenotype);
+    EXPECT_NE(nullptr, selectionWindow("/NodeEditor_"));
+
+    data->genome._genes.at(1)._nodes.clear();
+    draw();
+    EXPECT_FALSE(previewSelection(preview).has_value());
+    click(previewCellPosition(preview, 2));
+    EXPECT_FALSE(previewSelection(preview).has_value());
+    EXPECT_FALSE(data->isNodeLevelSelected());
 }
 
 TEST_F(LocalizationGuiTests, l4a1PresentationRetainsCanonicalOrderAndAttributeFallback)

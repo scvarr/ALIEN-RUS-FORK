@@ -13,6 +13,8 @@
 
 class _PreviewWidget
 {
+    friend class LocalizationGuiTests;
+
 public:
     static PreviewWidget create(GenomeWindowEditData const& genomeEditData, GenomeTabEditData const& editData);
 

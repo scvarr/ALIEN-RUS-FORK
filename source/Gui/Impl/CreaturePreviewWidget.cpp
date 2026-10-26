@@ -213,14 +213,15 @@ void _CreaturePreviewWidget::updateSelection()
     auto clickedOnPreviewWindow = ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
 
     // Clear selection if another node has been selected outside of this widget or if cell id does not exist in preview
-    auto selectedCellIdExists = false;
+    auto selectedCellMatchesSelection = false;
     for (auto const& cell : _previewDesc._cells) {
         if (_selectedCellIdFromPreview.has_value() && _selectedCellIdFromPreview.value() == cell._id) {
-            selectedCellIdExists = true;
+            selectedCellMatchesSelection =
+                _editData->isNodeLevelSelected() && cell._geneIndex == _editData->selectedGeneIndex && cell._nodeIndex == _editData->getSelectedNodeIndex();
             break;
         }
     }
-    if (!selectedCellIdExists || _selectedNodeFromPreview != _editData->getSelectedNodeIndex()) {
+    if (!selectedCellMatchesSelection || _selectedNodeFromPreview != _editData->getSelectedNodeIndex()) {
         _selectedCellIdFromPreview.reset();
         _selectedNodeFromPreview.reset();
     }
@@ -236,8 +237,7 @@ void _CreaturePreviewWidget::updateSelection()
                 _selectedNodeFromPreview = cell._nodeIndex;
                 _selectedCellIdFromPreview = cell._id;
 
-                _editData->selectedGeneIndex = cell._geneIndex;
-                _editData->setSelectedNodeIndex(cell._nodeIndex);
+                _editData->selectNode(cell._geneIndex, cell._nodeIndex);
             } else {
                 _selectedNodeFromPreview.reset();
                 _selectedCellIdFromPreview.reset();
