@@ -6,10 +6,40 @@ Branch: `feat/ru-localization-l7c`.
 
 ## Scope and delivery status
 
-This implements the five requested L7-C chapters. It does not record user
-acceptance or close the entire L7 stage. L7-D is not started. English Markdown,
+This implements the five requested L7-C chapters, accepted as recorded below.
+The entire L7 stage remains open. L7-D is not started. English Markdown,
 all original images, catalogs, production code, MCP, genomes, world parameters,
 serialization, user data/settings and dependencies are unchanged.
+
+## Acceptance and closure
+
+Date: 2026-10-26 (Europe/Moscow).
+
+The user accepted implementation
+`ff501d8bf0a25909214702cda788f5ad9a667634` based on the automated checks,
+review of this report and selective review across all five Russian chapters.
+**L7-C is complete. The entire L7 stage remains open; L7-D remains open and
+is not started.** This acceptance does not claim exhaustive manual visual review.
+
+The complete C01–C20 register below remains unchanged: original assertions,
+confirmed code behavior and proposed clarifications are retained. These
+discrepancies are not fixed by acceptance. The separate L7-B observations about
+velocity telemetry, constructor timing and the shapes image's node counts also
+remain unchanged and unresolved.
+
+Final image-content verification and image localization remain L7-D work,
+including embedded English labels and the clipped text in `cell-injector.png`.
+All recorded limitations on manual visual review, end-to-end Vulkan textures,
+installer packaging and the absence of a new GPU run remain applicable.
+
+This closure edits only this report and the localization roadmap. Production
+code, tests and help resources are unchanged from the accepted implementation;
+builds and tests are not rerun, and their recorded implementation evidence
+remains applicable. The user authorizes a documentation commit and push,
+fast-forward-only integration into `main`, pushing `main`, synchronization and
+cleanliness verification, and deletion of the integrated feature branch locally
+and remotely. `AGENTS.md`, its skip-worktree flag, English documentation, MCP,
+user data/settings and dependencies are preserved. No L7-D work is authorized.
 
 The translation follows the roadmap, L3 audit, normative terminology and the
 L7-A/L7-B validation records. The existing Russian contents already has the

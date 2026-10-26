@@ -3,7 +3,7 @@
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
 Original L3 planning baseline; completion status updated on 2026-10-26.
-L4-A1–A5, L5-A–C, L6-A–D and L7-A–B are complete. L4, L5 and the entire L6 stage are closed. L7-C is implemented under its separate user authorization; acceptance is pending. The entire L7 stage remains open; L7-D and later stages remain pending and are not started.
+L4-A1–A5, L5-A–C, L6-A–D and L7-A–C are complete. L4, L5 and the entire L6 stage are closed. The entire L7 stage remains open; L7-D remains open and is not started. Later stages remain pending.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
@@ -319,7 +319,7 @@ days; translation review effort can exceed code effort.
 | 12 / **Completed: L6-D** MCP desktop UI | McpWindow, McpSettingsDialog, GUI connection instructions/status | Medium | Accepted automated checks and report review; EN/RU state and 100/150/200% layout, isolated server states and exact baseline contract checks. Commands/endpoint/schema keys and log payloads remain literal; manual visual acceptance and real-agent interoperability remain unverified |
 | 13 / **Completed: L7-A** F1 locale resolution and Unicode navigation | Explicit reader locale/root, GUI reload/cache lifecycle, reader/renderer path pairing, search/snippet and anchor policy, format-reference reachability | High | Accepted automated checks and report review; user confirmed F1 opens and works. EN default and canonical MCP filenames retained; fallback, language switching, links/anchors/images and Unicode search covered. Full visual, end-to-end texture, translated-image and installer-packaging limitations remain in the L7-A report |
 | 14 / **Completed: L7-B** First translated help batch | Seven Russian contents/entry/UI/keyboard/genomes/neural/first-creature files; mixed-language GUI section metadata correction | High editorial, medium code | Accepted automated checks and report/document/DocumentationReader review. Real-resource links, anchors, Unicode search, EN/RU/EN and 100/150/200% checks passed. Eight English-labelled images and source-content discrepancies remain recorded; image localization and final content verification are deferred to L7-D. No manual visual acceptance or repeat full GPU run |
-| 15 / **Implemented: L7-C**, acceptance pending | cell-types, energy, simulation-parameters, glossary, how-life-works | High editorial | Five full translations, source discrepancy register and per-image decisions; real-parser/F1/link/search/scale and preservation contracts. See the L7-C validation report; no L7-D work |
+| 15 / **Completed: L7-C** | cell-types, energy, simulation-parameters, glossary, how-life-works | High editorial | Accepted automated checks, report review and selective review across all five chapters. C01–C20, separate L7-B source issues and per-image decisions remain unresolved as recorded. Final image verification/localization remains L7-D work; visual/Vulkan/installer/new-GPU-run limitations remain |
 | 16 / L7-D Workflow and support help | sandbox/evolution/generative-art, ai-agents/files/troubleshooting/format-reference; localize images and finish content verification of all 28 images, including the eight reused L7-B images and shapes node-count mismatch | Medium–high | Accepted tool/browser/statistics vocabulary and L7-B/C. All 19 files accounted for; English embedded image text explicitly replaced or justified; MCP/CLI examples remain runnable contracts |
 | 17 / L8-A Console and CLI | ConsoleModeController, ConsoleUi, Alien-cli human help/status/error output and explicit locale selection policy | Medium–high | Reuse catalogs only where appropriate; retain option names, machine output and numeric formats. Test console entry/exit and missing-resource errors; avoid introducing GUI dependency into CLI |
 | 18 / L8-B Vendor and diagnostic closure | ImFileDialog integration; exposed ImGui/ImPlot menus; user-facing Base/Network/Persister/Rendering/startup errors | High | Trace exposed consumers; choose supported adapter or narrowly maintained patch. No pinned-vcpkg modification. Catalog-owned explanations translated, raw vendor diagnostics documented; validate early startup before locale initialization |
@@ -333,8 +333,21 @@ support node editing and live inspection. Each row may be split further if its
 review diff becomes too large; preserve this priority order.
 
 L7-A and L7-B are complete under their separate implementation and acceptance authorizations.
-L7-C implementation and remaining source/image limitations are recorded in
-[L7-C validation](localization-l7c-validation.md); acceptance is not implied.
+L7-C is complete under the user's separate acceptance of implementation
+`ff501d8bf0a25909214702cda788f5ad9a667634` on 2026-10-26 (Europe/Moscow),
+based on automated checks, report review and selective review across all five
+Russian chapters. See [L7-C validation](localization-l7c-validation.md).
+The entire L7 stage remains open; L7-D remains open and is not started.
+The full C01–C20 register and separate L7-B velocity telemetry, constructor timing
+and shapes node-count observations are retained, not declared fixed. Final image
+verification/localization, including English labels and clipped `cell-injector.png`
+text, remains L7-D work. Manual visual, Vulkan-texture, installer-packaging and
+no-new-GPU-run limitations remain applicable. This closure changes only the two
+reports; builds and tests are not rerun. The user authorizes documentation commit
+and push, fast-forward-only integration into `main`, pushing `main`, synchronization
+and cleanliness checks, and local/remote deletion of the integrated feature branch.
+`AGENTS.md`, its skip-worktree flag, English documentation, MCP, user data/settings
+and dependencies are preserved. No L7-D work is authorized by this closure.
 The pending L7-D translations must use accepted UI terms. The numbered order is
 the recommended delivery sequence, not an instruction to start parallel branches.
 No later-stage source edits are authorized by this audit or the L7-A/L7-B closures.
