@@ -144,6 +144,19 @@ synthetic facade snapshots and the real converter; live CUDA regeneration and
 simulation timing are outside this test. The full GPU engine suite was not run:
 no engine, shared data, kernel, or simulation algorithm dependencies changed.
 
-`main` stays at the specified base. `AGENTS.md` and its skip-worktree flag are
+During implementation, `main` remained at the specified base. `AGENTS.md` and its skip-worktree flag are
 preserved. Dependencies, user settings/data, and IDE build trees are untouched;
 builds use `build-agent`. L7 was not started.
+
+## Acceptance
+
+On 2026-10-26, the user accepted implementation commit
+`451246a26e085fe3a0db86cc78c27eb7b6244c98` based on code review, the recorded
+automated test results, and confirmed reproduction of both defects against the
+original implementation. The user authorized fast-forward-only integration into
+`main` and removal of the integrated feature branch.
+
+Manual visual verification in the running application was not performed. GPU
+testing was not required because the changes do not affect engine dependencies.
+These limitations remain part of the acceptance. This acceptance update changes
+documentation only; builds and tests were not rerun. L7 remains outside scope.
