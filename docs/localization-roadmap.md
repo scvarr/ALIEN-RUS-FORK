@@ -3,7 +3,7 @@
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
 Original L3 planning baseline; completion status updated on 2026-10-26.
-L4-A1–A5, L5-A–C, L6-A–D and L7-A are complete. L4, L5 and the entire L6 stage are closed. The entire L7 stage remains open; L7-B–D and later stages remain pending. L7-B has not been started or authorized.
+L4-A1–A5, L5-A–C, L6-A–D and L7-A–B are complete. L4, L5 and the entire L6 stage are closed. The entire L7 stage remains open; L7-C/D and later stages remain pending. L7-C has not been started or authorized.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
@@ -233,7 +233,8 @@ of every language, scale, navigation or image scenario.
 
 **The entire L7 stage remains open.** No mass translation of real chapters was
 performed in L7-A. Production chapter translation begins with L7-B and continues
-in L7-C/D. L7-B has not been started or authorized by this closure.
+in L7-C/D. At L7-A closure, L7-B had not been started or authorized; its subsequent
+acceptance is recorded below.
 
 Acceptance retains the report's limits: texture lifecycle tests use a rendering-
 facade double, with no new end-to-end Vulkan allocation/presentation acceptance;
@@ -249,6 +250,37 @@ evidence remains applicable. The user authorizes a documentation commit and push
 fast-forward-only integration into `main`, pushing `main`, synchronization and
 cleanliness verification, and deletion of the integrated feature branch locally
 and remotely. `AGENTS.md`, its skip-worktree flag, user data/settings and
+dependencies are preserved.
+
+## L7-B completion record
+
+Date: 2026-10-26 (Europe/Moscow).
+
+The user accepted L7-B implementation
+`34f261efdee6d34e32da7479142453fe6163e0ee` based on automated checks and review
+of the [L7-B validation report](localization-l7b-validation.md), the seven Russian
+documents and the `DocumentationReader` correction for translated section names
+in mixed English/Russian contents. **L7-B is complete. The entire L7 stage remains
+open.** L7-C is not started or authorized by this closure.
+
+Acceptance retains all known limitations: eight reused images have English
+embedded text; the shapes image and text disagree on node counts; the simplified
+velocity-telemetry description omits the `* 20` scaling; constructor auto-trigger
+timing depends on the minimum cell-function cycle interval and creature phase.
+Manual visual acceptance and a repeat full GPU run were not performed and are
+not claimed. The report retains the exact discrepancies, individual image
+decisions, automated evidence and other validation boundaries.
+
+**Image localization and final verification of image contents remain L7-D work**,
+including reconciliation of the shapes image/text mismatch and review of all
+28 images. Completion of L7-B does not constitute image-localization acceptance.
+
+Closure changes only documentation. Production code, tests, catalogs, English
+documentation, MCP and the accepted Russian help package remain unchanged;
+builds and tests are not rerun. The user authorizes a documentation commit and
+push, fast-forward-only integration into `main`, pushing `main`, synchronization
+and cleanliness verification, and deletion of the integrated feature branch
+locally and remotely. `AGENTS.md`, its skip-worktree flag, user data/settings and
 dependencies are preserved.
 
 ## Scope and sequencing
@@ -286,9 +318,9 @@ days; translation review effort can exceed code effort.
 | 11 / **Completed: L6-C** Account flows and browser Unicode search | Login/create/activate/reset/new-password/delete dialogs, LoginController; existing NetworkTransferController presentation retained; BrowserData and gallery metadata filtering | High | Accepted automated checks and report review; isolated authorization responses, stable form state and IDs, case-insensitive Russian letters with distinct Е/Ё. No full Unicode normalization or MCP search change; manual visual and real-server acceptance not performed |
 | 12 / **Completed: L6-D** MCP desktop UI | McpWindow, McpSettingsDialog, GUI connection instructions/status | Medium | Accepted automated checks and report review; EN/RU state and 100/150/200% layout, isolated server states and exact baseline contract checks. Commands/endpoint/schema keys and log payloads remain literal; manual visual acceptance and real-agent interoperability remain unverified |
 | 13 / **Completed: L7-A** F1 locale resolution and Unicode navigation | Explicit reader locale/root, GUI reload/cache lifecycle, reader/renderer path pairing, search/snippet and anchor policy, format-reference reachability | High | Accepted automated checks and report review; user confirmed F1 opens and works. EN default and canonical MCP filenames retained; fallback, language switching, links/anchors/images and Unicode search covered. Full visual, end-to-end texture, translated-image and installer-packaging limitations remain in the L7-A report |
-| 14 / L7-B First translated help batch | contents/entry/UI/keyboard chapters; genomes/neural/first-creature chapters and associated images | High editorial, medium code | L7-A plus accepted L4 UI. Chapter/title/search coverage, correct links and screenshots in both languages; no untranslated navigation/control captions |
+| 14 / **Completed: L7-B** First translated help batch | Seven Russian contents/entry/UI/keyboard/genomes/neural/first-creature files; mixed-language GUI section metadata correction | High editorial, medium code | Accepted automated checks and report/document/DocumentationReader review. Real-resource links, anchors, Unicode search, EN/RU/EN and 100/150/200% checks passed. Eight English-labelled images and source-content discrepancies remain recorded; image localization and final content verification are deferred to L7-D. No manual visual acceptance or repeat full GPU run |
 | 15 / L7-C Cell, energy and parameter reference | cell-types, energy, simulation-parameters, glossary, how-life-works | High editorial | L2/L4 terminology accepted. Distinguish energy forms and signal control accurately; preserve technical values/code and validate all internal links |
-| 16 / L7-D Workflow and support help | sandbox/evolution/generative-art, ai-agents/files/troubleshooting/format-reference; finish 28-image review | Medium–high | Accepted tool/browser/statistics vocabulary and L7-B/C. All 19 files accounted for; English embedded image text explicitly replaced or justified; MCP/CLI examples remain runnable contracts |
+| 16 / L7-D Workflow and support help | sandbox/evolution/generative-art, ai-agents/files/troubleshooting/format-reference; localize images and finish content verification of all 28 images, including the eight reused L7-B images and shapes node-count mismatch | Medium–high | Accepted tool/browser/statistics vocabulary and L7-B/C. All 19 files accounted for; English embedded image text explicitly replaced or justified; MCP/CLI examples remain runnable contracts |
 | 17 / L8-A Console and CLI | ConsoleModeController, ConsoleUi, Alien-cli human help/status/error output and explicit locale selection policy | Medium–high | Reuse catalogs only where appropriate; retain option names, machine output and numeric formats. Test console entry/exit and missing-resource errors; avoid introducing GUI dependency into CLI |
 | 18 / L8-B Vendor and diagnostic closure | ImFileDialog integration; exposed ImGui/ImPlot menus; user-facing Base/Network/Persister/Rendering/startup errors | High | Trace exposed consumers; choose supported adapter or narrowly maintained patch. No pinned-vcpkg modification. Catalog-owned explanations translated, raw vendor diagnostics documented; validate early startup before locale initialization |
 | 19 / L9 Release qualification | Complete bilingual inventory, packaging, ID/search/DPI regression and source coverage gate | High integration | All desktop stages; explicit disposition for CLI/MCP/vendor exceptions. EN/RU catalogs/embedded fallback agree, packaged resources complete, runtime language persistence and layout verified |
@@ -300,10 +332,10 @@ weakening its compile-time completeness checks. A2's shared channel labels then
 support node editing and live inspection. Each row may be split further if its
 review diff becomes too large; preserve this priority order.
 
-L7-A is complete under its separate implementation and acceptance authorization.
-The pending L7-B–D translations must use accepted UI terms. The numbered order is
+L7-A and L7-B are complete under their separate implementation and acceptance authorizations.
+The pending L7-C/D translations must use accepted UI terms. The numbered order is
 the recommended delivery sequence, not an instruction to start parallel branches.
-No later-stage source edits are authorized by this audit or the L7-A closure.
+No later-stage source edits are authorized by this audit or the L7-A/L7-B closures.
 
 ## Cross-stage contracts
 

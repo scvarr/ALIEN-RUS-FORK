@@ -4,6 +4,34 @@ Date: 2026-10-26 (Europe/Moscow).
 Base: `9ab2171ef8e13d8b1d2dc56791152cf24a3fe0e7`.
 Branch: `feat/ru-localization-l7b`. L7-C/D are not started.
 
+## Acceptance and closure
+
+Date: 2026-10-26 (Europe/Moscow).
+
+The user accepted implementation
+`34f261efdee6d34e32da7479142453fe6163e0ee` based on automated checks and review
+of this report, the Russian documents and the `DocumentationReader` change.
+**L7-B is complete. The entire L7 stage remains open.** L7-C is not started.
+
+Acceptance retains all implementation limitations: the eight reused illustrations
+still contain English text; the shapes image and paragraph disagree on node
+counts; velocity telemetry omits the `* 20` scaling in its simplified description;
+constructor auto-trigger timing has a minimum cycle interval and creature-dependent
+phase. The detailed image decisions and source issues below remain applicable.
+Manual visual acceptance and a repeat full GPU run were not performed and are
+not claimed. Image localization and final verification of image contents,
+including reconciliation of the shapes illustration, remain L7-D work.
+
+This closure changes only this report and the localization roadmap. Production
+code, tests, catalogs, Russian help resources, English documentation and MCP are
+unchanged from the accepted implementation. Builds and tests are not rerun;
+the recorded implementation evidence remains applicable. The user authorizes a
+documentation commit and push, fast-forward-only integration into `main`, pushing
+`main`, synchronization and cleanliness verification, and deletion of the
+integrated feature branch locally and remotely. `AGENTS.md`, its skip-worktree
+flag, user data/settings and dependencies are preserved. No later-stage work is
+authorized by this closure.
+
 ## Translation inventory
 
 The seven requested UTF-8 Markdown files are under `resources/docs/ru/`.
@@ -186,8 +214,9 @@ including fragment requests and continued exclusion of format-reference.md.
 `AGENTS.md` retains skip-worktree and SHA-256
 `090c381a6f2b1f62597108de236e53131559ffef796146011a5796dbb7ef3368`.
 User data, settings and dependencies are not edited. No submodule update or
-CodeQL scan was run. Main remains at the stated base; only the feature branch is
-committed/pushed.
+CodeQL scan was run. At implementation delivery, main remained at the stated base
+and only the feature branch was committed/pushed. Subsequent integration is
+authorized in the acceptance record above.
 
 ## GitNexus
 
