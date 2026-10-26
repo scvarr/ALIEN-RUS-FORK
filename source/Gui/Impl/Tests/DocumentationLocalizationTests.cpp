@@ -462,7 +462,18 @@ protected:
     {
         window._docsPath = Const::DocsPath;
         auto const translatedFiles = {
-            "contents.md", "getting-started.md", "user-interface.md", "keyboard-and-mouse.md", "genomes.md", "neural-networks.md", "first-creature.md"};
+            "contents.md",
+            "getting-started.md",
+            "user-interface.md",
+            "keyboard-and-mouse.md",
+            "genomes.md",
+            "neural-networks.md",
+            "first-creature.md",
+            "cell-types.md",
+            "energy.md",
+            "simulation-parameters.md",
+            "glossary.md",
+            "how-life-works.md"};
         for (auto const& filename : translatedFiles) {
             SCOPED_TRACE(filename);
             auto english = DocumentationReader::loadChapter(filename, DocumentationLanguage::English, window._docsPath);
@@ -567,7 +578,13 @@ protected:
         }
         select("ru");
         window.processBackground();
-        for (auto const& pair : {std::pair{"нейросети", "НЕЙРОСЕТИ"}, {"жёсткость", "ЖЁСТКОСТЬ"}, {"соединённых", "СОЕДИНЁННЫХ"}}) {
+        for (auto const& pair :
+             {std::pair{"нейросети", "НЕЙРОСЕТИ"},
+              {"жёсткость", "ЖЁСТКОСТЬ"},
+              {"соединённых", "СОЕДИНЁННЫХ"},
+              {"запасённая", "ЗАПАСЁННАЯ"},
+              {"конвертер", "КОНВЕРТЕР"},
+              {"зарезервированная", "ЗАРЕЗЕРВИРОВАННАЯ"}}) {
             search(pair.first);
             ASSERT_FALSE(window._searchResults.empty()) << pair.first;
             auto count = window._searchResults.size();
@@ -602,7 +619,16 @@ protected:
             StyleService::get().setup();
             ImGui::SetWindowSize(host, {1040 * scale, 720 * scale});
             window._navigationWidth = 275 * scale;
-            for (auto const& filename : {"user-interface.md", "genomes.md", "neural-networks.md", "first-creature.md"}) {
+            for (auto const& filename :
+                 {"user-interface.md",
+                  "genomes.md",
+                  "neural-networks.md",
+                  "first-creature.md",
+                  "cell-types.md",
+                  "energy.md",
+                  "simulation-parameters.md",
+                  "glossary.md",
+                  "how-life-works.md"}) {
                 select("en");
                 draw();
                 window.openLink(filename);

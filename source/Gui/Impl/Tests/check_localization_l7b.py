@@ -23,7 +23,9 @@ def git(*args):
 class L7bContracts(unittest.TestCase):
     def test_exact_package_and_utf8(self):
         root = ROOT / 'resources/docs/ru'
-        self.assertEqual(set(FILES), {path.name for path in root.glob('*.md')})
+        expected = set(FILES) | {'cell-types.md', 'energy.md', 'simulation-parameters.md',
+                                 'glossary.md', 'how-life-works.md'}
+        self.assertEqual(expected, {path.name for path in root.glob('*.md')})
         for filename in FILES:
             text = (root / filename).read_bytes().decode('utf8')
             self.assertFalse(text.startswith('\ufeff'), filename)
