@@ -5,6 +5,38 @@ Base: `8d20e14c593efbf73a8a80d021658d870f3343ac`.
 Branch: `feat/ru-localization-l7a`.
 Scope: L7-A implementation; L7-B–D translation batches are not started.
 
+## Acceptance and L7-A completion
+
+Date: 2026-10-26 (Europe/Moscow).
+Accepted implementation: `190592478405d1388852a82146542b0b0136cf98`.
+
+The user accepted L7-A based on the automated checks, review of this report and
+user verification that F1 opens and works in the running application.
+**L7-A is complete. The entire L7 stage remains open.** This launch confirmation
+is limited user acceptance evidence; it does not constitute full manual visual
+acceptance of all scenarios, language switches, scales, links or images.
+
+Acceptance retains the recorded limitations. Texture lifecycle tests use a
+rendering-facade double and do not establish end-to-end Vulkan texture allocation,
+decoding or presentation for every image. The English image assets remain
+unchanged; translated images/screenshots and embedded English text still require
+review in L7-B–D. Installer-specific packaging and delivery of both language trees
+have not been validated. Automated ImGui checks at 100/150/200% and the user's F1
+launch confirmation do not replace a complete manual visual review. The existing
+external-browser and GitNexus analysis limitations also remain applicable.
+
+No mass translation of real chapters was performed. Production chapter translation
+starts with L7-B and continues in L7-C/D; this closure does not start or authorize
+L7-B. No claim of complete Russian documentation is made.
+
+This closure changes only this report and the roadmap. Code, tests, catalogs,
+English documentation, image assets and dependencies are unchanged. Builds and
+tests are not rerun; the accepted implementation evidence below remains applicable.
+The user authorizes a documentation commit and push, fast-forward-only integration
+into `main`, pushing `main`, synchronization/cleanliness verification and deletion
+of the integrated feature branch locally and remotely. `AGENTS.md`, its
+skip-worktree flag, user data and settings are preserved.
+
 ## Loading architecture and MCP isolation
 
 `DocumentationReader::getChapters`, `parseChapters` and `readChapter` retain their
