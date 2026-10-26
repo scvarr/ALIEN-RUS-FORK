@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <ranges>
 #include <string_view>
 #include <utility>
@@ -17,6 +18,7 @@
 #include <Rendering/Interface/RenderingFacade.h>
 
 #include "AlienGui.h"
+#include "LocalizationGuiText.h"
 #include "StyleService.h"
 
 namespace
@@ -47,14 +49,16 @@ namespace
 
 std::optional<std::string> MarkdownRenderer::render(MarkdownDocument const& document, std::filesystem::path const& basePath)
 {
-    if (&document != _renderedDocument) {
+    if (&document != _renderedDocument || basePath != _basePath) {
         releaseTextures();
+        _imageInfoByPath.clear();
         _renderedDocument = &document;
     }
     _basePath = basePath;
     _clickedLink.reset();
     _hoveredLink = std::exchange(_nextHoveredLink, std::nullopt);
     _textureCreatedInFrame = false;
+    _currentAnchor.reset();
 
     ImGui::PushID(&document);
     for (auto const& [index, block] : std::views::enumerate(document.blocks)) {
@@ -89,7 +93,7 @@ std::optional<std::string> MarkdownRenderer::render(MarkdownDocument const& docu
 
 void MarkdownRenderer::scrollToAnchor(std::string const& anchor)
 {
-    _pendingAnchor = anchor;
+    _pendingAnchor = anchor.empty() ? std::nullopt : std::make_optional(anchor);
 }
 
 void MarkdownRenderer::releaseTextures()
@@ -102,8 +106,24 @@ void MarkdownRenderer::releaseTextures()
     }
 }
 
+void MarkdownRenderer::reset()
+{
+    releaseTextures();
+    _imageInfoByPath.clear();
+    _renderedDocument = nullptr;
+    _basePath.clear();
+    _pendingAnchor.reset();
+    _currentAnchor.reset();
+    _clickedLink.reset();
+    _hoveredLink.reset();
+    _nextHoveredLink.reset();
+}
+
 void MarkdownRenderer::renderHeading(MarkdownHeading const& heading)
 {
+    if (!_currentAnchor || ImGui::GetCursorScreenPos().y <= ImGui::GetWindowPos().y + ImGui::GetStyle().WindowPadding.y) {
+        _currentAnchor = heading.anchor;
+    }
     auto& styleService = StyleService::get();
     if (heading.level > 1) {
         ImGui::Dummy({0.0f, scale(heading.level == 2 ? 10.0f : 4.0f)});
@@ -168,7 +188,9 @@ void MarkdownRenderer::renderImage(MarkdownImage const& image)
     auto path = _basePath / image.source;
     auto& imageInfo = getImageInfo(path);
     if (!imageInfo.has_value()) {
-        renderTextFlow({{.text = "Image not found: " + image.source}}, {.font = StyleService::get().getDefaultFont(), .color = Const::WarningColor});
+        renderTextFlow(
+            {{.text = LocalizationGuiText::format("documentation.imagemissing", {{"path", image.source}})}},
+            {.font = StyleService::get().getDefaultFont(), .color = Const::WarningColor});
         return;
     }
     auto availableWidth = ImGui::GetContentRegionAvail().x;
@@ -467,7 +489,11 @@ std::optional<MarkdownRenderer::ImageInfo>& MarkdownRenderer::getImageInfo(std::
         auto width = 0;
         auto height = 0;
         auto numChannels = 0;
-        if (stbi_info(path.string().c_str(), &width, &height, &numChannels) != 0 && width > 0 && height > 0) {
+        std::ifstream stream(path, std::ios::binary);
+        std::string encoded{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+        if (!stream.bad() && encoded.size() <= std::numeric_limits<int>::max()
+            && stbi_info_from_memory(reinterpret_cast<stbi_uc const*>(encoded.data()), static_cast<int>(encoded.size()), &width, &height, &numChannels) != 0
+            && width > 0 && height > 0) {
             iterator->second = ImageInfo{.width = width, .height = height};
         }
     }

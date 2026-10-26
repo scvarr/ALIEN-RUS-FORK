@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Base/MarkdownDocument.h>
+#include <Base/Resources.h>
 #include <Base/Singleton.h>
 
 #include <Engine/Interface/Definitions.h>
@@ -11,6 +12,7 @@
 
 class DocumentationWindow : public AlienWindow
 {
+    friend class DocumentationLocalizationTests;
     MAKE_SINGLETON_NO_DEFAULT_CONSTRUCTION(DocumentationWindow);
 
 private:
@@ -22,6 +24,7 @@ private:
     void processBackground() override;
 
     void loadChapters();
+    void reloadLanguage();
     void updateSearchResults();
 
     void processNavigation(float width);
@@ -36,6 +39,7 @@ private:
     struct Section
     {
         std::string title;
+        std::string id;
         std::string anchor;
         std::string text;
     };
@@ -44,10 +48,17 @@ private:
         std::string filename;
         std::string title;
         std::string part;
+        std::string id;
         std::vector<Section> sections;
         MarkdownDocument document;
+        std::filesystem::path basePath;
+        bool englishFallback = false;
+        std::map<std::string, std::string> anchorAliases;
     };
     std::vector<Chapter> _chapters;
+    std::filesystem::path _docsPath = Const::DocsPath;
+    std::string _language;
+    std::optional<std::string> _linkError;
     size_t _currentChapterIndex = 0;
     bool _scrollToTop = false;
 

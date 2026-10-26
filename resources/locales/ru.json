@@ -1502,5 +1502,14 @@
     "mcp.group.editing": "Редактирование мира",
     "mcp.group.inspection": "Инспекция и вид",
     "mcp.group.parameters": "Параметры симуляции",
-    "mcp.group.documentation": "Документация"
+    "mcp.group.documentation": "Документация",
+    "documentation.title": "Справка",
+    "documentation.showafterstartup": "Показывать при запуске",
+    "documentation.search": "Поиск",
+    "documentation.nomatches": "Совпадений не найдено.",
+    "documentation.missing": "Документация не найдена в {path}.",
+    "documentation.chaptermissing": "Не удалось прочитать главу {chapter}.",
+    "documentation.imagemissing": "Изображение не найдено: {path}",
+    "documentation.englishfallback": "Показан английский оригинал: перевод этой главы пока недоступен.",
+    "documentation.invalidlink": "Ссылка в справке не найдена: {link}"
 }

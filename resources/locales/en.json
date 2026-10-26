@@ -1502,5 +1502,14 @@
     "mcp.group.editing": "World editing",
     "mcp.group.inspection": "Inspection and view",
     "mcp.group.parameters": "Simulation parameters",
-    "mcp.group.documentation": "Documentation"
+    "mcp.group.documentation": "Documentation",
+    "documentation.title": "Documentation",
+    "documentation.showafterstartup": "Show after startup",
+    "documentation.search": "Search",
+    "documentation.nomatches": "No matches found.",
+    "documentation.missing": "No documentation found in {path}.",
+    "documentation.chaptermissing": "The chapter {chapter} could not be read.",
+    "documentation.imagemissing": "Image not found: {path}",
+    "documentation.englishfallback": "English original shown: this chapter has not been translated.",
+    "documentation.invalidlink": "Documentation link not found: {link}"
 }

@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <iterator>
 #include <ranges>
-#include <cctype>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <Fonts/IconsFontAwesome5.h>
 
@@ -16,7 +16,9 @@
 #include <Base/WebLinkHelper.h>
 
 #include "AlienGui.h"
+#include "LocalizationGuiText.h"
 #include "StyleService.h"
+#include "Utf8Search.h"
 #include "WindowController.h"
 
 namespace
@@ -29,17 +31,30 @@ namespace
     constexpr float SectionIndent = 12.0f;
     constexpr size_t SnippetLeadLength = 30;
     constexpr size_t SnippetLength = 100;
+
+    bool selectable(std::string const& name, std::string const& label, bool selected = false)
+    {
+        auto pos = ImGui::GetCursorScreenPos();
+        ImGui::PushOverrideID(ImGui::GetID(name.c_str()));
+        auto pressed = ImGui::Selectable("", selected);
+        ImGui::PopID();
+        ImGui::GetWindowDrawList()->AddText(pos, ImGui::GetColorU32(ImGuiCol_Text), label.c_str());
+        return pressed;
+    }
 }
 
 DocumentationWindow::DocumentationWindow()
     : AlienWindow("Documentation", "windows.documentation", true, true, {420.0f, 120.0f}, {1040.0f, 720.0f})
-{}
+{
+    setTitleKey("documentation.title");
+}
 
 void DocumentationWindow::initIntern()
 {
     _showAfterStartup = _on;
     _navigationWidth =
         GlobalSettings::get().getValue("windows.documentation.navigation width", scale(NavigationWidth)) * WindowController::get().getContentScaleCorrection();
+    _language = LocalizationService::get().getLanguage();
     loadChapters();
 
     auto chapterFilename = GlobalSettings::get().getValue("windows.documentation.chapter", std::string());
@@ -80,11 +95,12 @@ void DocumentationWindow::processIntern()
     ImGui::EndChild();
 
     AlienGui::Separator();
-    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Show after startup"), _showAfterStartup);
+    AlienGui::ToggleButton(AlienGui::ToggleButtonParameters().name("Show after startup").label(tr("documentation.showafterstartup")), _showAfterStartup);
 }
 
 void DocumentationWindow::processBackground()
 {
+    reloadLanguage();
     if (!isShown()) {
         _renderer.releaseTextures();
     }
@@ -142,39 +158,71 @@ namespace
 
 void DocumentationWindow::loadChapters()
 {
+    _renderer.reset();
+    _searchResults.clear();
+    _linkError.reset();
     _chapters.clear();
-
-    for (auto const& contentsChapter : DocumentationReader::getChapters()) {
+    auto language = _language == "ru" ? DocumentationLanguage::Russian : DocumentationLanguage::English;
+    auto canonicalChapters = DocumentationReader::getGuiChapters(DocumentationLanguage::English, _docsPath);
+    for (auto const& contentsChapter : DocumentationReader::getGuiChapters(language, _docsPath)) {
         Chapter chapter{.filename = contentsChapter.filename, .title = contentsChapter.title, .part = contentsChapter.part};
-        chapter.document = MarkdownParser::parse(DocumentationReader::readChapter(contentsChapter));
-        chapter.sections.emplace_back(Section{.title = chapter.title});
+        chapter.id = std::ranges::find(canonicalChapters, chapter.filename, &DocumentationChapter::filename)->title;
+        auto content = DocumentationReader::loadChapter(contentsChapter.filename, language, _docsPath);
+        chapter.document = MarkdownParser::parse(content.text);
+        chapter.basePath = content.basePath;
+        chapter.englishFallback = content.englishFallback;
+        auto english = MarkdownParser::parse(DocumentationReader::loadChapter(contentsChapter.filename, DocumentationLanguage::English, _docsPath).text);
+        auto headings = [](MarkdownDocument const& document) {
+            std::vector<MarkdownHeading const*> result;
+            for (auto const& block : document.blocks) {
+                if (auto heading = std::get_if<MarkdownHeading>(&block)) {
+                    result.emplace_back(heading);
+                }
+            }
+            return result;
+        };
+        auto sourceHeadings = headings(english);
+        auto targetHeadings = headings(chapter.document);
+        // English fragments remain stable aliases only for an unchanged heading structure.
+        if (sourceHeadings.size() == targetHeadings.size()
+            && std::ranges::equal(sourceHeadings, targetHeadings, [](auto source, auto target) { return source->level == target->level; })) {
+            for (size_t i = 0; i < sourceHeadings.size(); ++i) {
+                chapter.anchorAliases.emplace(sourceHeadings.at(i)->anchor, targetHeadings.at(i)->anchor);
+            }
+        }
+        chapter.sections.emplace_back(Section{.title = chapter.title, .id = chapter.id});
         for (auto const& block : chapter.document.blocks) {
             auto heading = std::get_if<MarkdownHeading>(&block);
             if (heading && heading->level == 1) {
                 continue;
             }
             if (heading && heading->level == 2) {
-                chapter.sections.emplace_back(Section{.title = MarkdownParser::toPlainText(heading->spans), .anchor = heading->anchor});
+                auto title = MarkdownParser::toPlainText(heading->spans);
+                auto id = title;
+                for (auto source : sourceHeadings) {
+                    auto alias = chapter.anchorAliases.find(source->anchor);
+                    if (alias != chapter.anchorAliases.end() && alias->second == heading->anchor) {
+                        id = MarkdownParser::toPlainText(source->spans);
+                        break;
+                    }
+                }
+                chapter.sections.emplace_back(Section{.title = title, .id = id, .anchor = heading->anchor});
                 continue;
             }
             appendText(chapter.sections.back().text, getPlainText(block));
         }
         _chapters.emplace_back(std::move(chapter));
     }
+    _currentChapterIndex = 0;
+    updateSearchResults();
 }
 
 namespace
 {
-    std::string toLowerCase(std::string text)
-    {
-        std::ranges::transform(text, text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        return text;
-    }
-
     std::vector<std::string> splitIntoTerms(std::string const& text)
     {
         std::vector<std::string> result;
-        for (auto const& term : toLowerCase(text) | std::views::split(' ')) {
+        for (auto const& term : text | std::views::split(' ')) {
             if (!term.empty()) {
                 result.emplace_back(term.begin(), term.end());
             }
@@ -182,36 +230,28 @@ namespace
         return result;
     }
 
-    // The snippet is cut at spaces so that multi-byte characters stay intact
-    std::string createSnippet(std::string const& text, std::string const& lowerCaseText, std::vector<std::string> const& terms)
+    std::string createSnippet(std::string const& text, std::vector<std::string> const& terms)
     {
-        auto matchPos = std::string::npos;
-        for (auto const& term : terms) {
-            matchPos = std::min(matchPos, lowerCaseText.find(term));
+        auto characters = Utf8Search::decode(text);
+        if (!characters || characters->empty()) {
+            return {};
         }
-        if (matchPos == std::string::npos) {
+        auto matchPos = text.size();
+        for (auto const& term : terms) {
+            if (auto match = Utf8Search::find(text, term)) {
+                matchPos = std::min(matchPos, match->begin);
+            }
+        }
+        if (matchPos == text.size()) {
             matchPos = 0;
         }
-
-        size_t start = 0;
-        if (matchPos > SnippetLeadLength) {
-            auto spacePos = text.find(' ', matchPos - SnippetLeadLength);
-            start = spacePos < matchPos ? spacePos + 1 : matchPos;
-        }
-        auto end = text.size();
-        if (start + SnippetLength < text.size()) {
-            auto spacePos = text.rfind(' ', start + SnippetLength);
-            end = spacePos != std::string::npos && spacePos > matchPos ? spacePos : start + SnippetLength;
-        }
-
-        auto result = text.substr(start, end - start);
-        if (start > 0) {
-            result = "..." + result;
-        }
-        if (end < text.size()) {
-            result += "...";
-        }
-        return result;
+        auto match = std::ranges::lower_bound(*characters, matchPos, {}, &Utf8Search::Character::begin);
+        auto index = static_cast<size_t>(std::distance(characters->begin(), match));
+        auto startIndex = index > SnippetLeadLength ? index - SnippetLeadLength : 0;
+        auto endIndex = std::min(characters->size(), startIndex + SnippetLength);
+        auto start = characters->at(startIndex).begin;
+        auto end = characters->at(endIndex - 1).end;
+        return (start > 0 ? "..." : "") + text.substr(start, end - start) + (end < text.size() ? "..." : "");
     }
 }
 
@@ -228,16 +268,16 @@ void DocumentationWindow::updateSearchResults()
     std::vector<SearchResult> textMatches;
     for (auto const& [chapterIndex, chapter] : std::views::enumerate(_chapters)) {
         for (auto const& [sectionIndex, section] : std::views::enumerate(chapter.sections)) {
-            auto lowerCaseTitle = toLowerCase(section.title);
-            auto lowerCaseText = toLowerCase(section.text);
-            if (!std::ranges::all_of(terms, [&](auto const& term) { return lowerCaseTitle.contains(term) || lowerCaseText.contains(term); })) {
+            if (!std::ranges::all_of(terms, [&](auto const& term) {
+                    return Utf8Search::find(section.title, term).has_value() || Utf8Search::find(section.text, term).has_value();
+                })) {
                 continue;
             }
             SearchResult result{
                 .chapterIndex = static_cast<size_t>(chapterIndex),
                 .sectionIndex = static_cast<size_t>(sectionIndex),
-                .snippet = createSnippet(section.text, lowerCaseText, terms)};
-            if (std::ranges::all_of(terms, [&](auto const& term) { return lowerCaseTitle.contains(term); })) {
+                .snippet = createSnippet(section.text, terms)};
+            if (std::ranges::all_of(terms, [&](auto const& term) { return Utf8Search::find(section.title, term).has_value(); })) {
                 _searchResults.emplace_back(std::move(result));
             } else {
                 textMatches.emplace_back(std::move(result));
@@ -250,7 +290,7 @@ void DocumentationWindow::updateSearchResults()
 void DocumentationWindow::processNavigation(float width)
 {
     if (ImGui::BeginChild("##navigation", {width, 0})) {
-        if (AlienGui::InputFilter(AlienGui::InputFilterParameters().hint("Search"), _searchText)) {
+        if (AlienGui::InputFilter(AlienGui::InputFilterParameters().id("Search").hint(tr("documentation.search")), _searchText)) {
             updateSearchResults();
         }
         if (ImGui::BeginChild("##navigationList", {0, 0})) {
@@ -285,7 +325,7 @@ void DocumentationWindow::processTableOfContents()
 
         auto isCurrentChapter = static_cast<size_t>(chapterIndex) == _currentChapterIndex;
         ImGui::PushFont(isCurrentChapter ? StyleService::get().getSmallBoldFont() : StyleService::get().getDefaultFont());
-        if (ImGui::Selectable(chapter.title.c_str(), isCurrentChapter)) {
+        if (selectable(chapter.id, chapter.title, isCurrentChapter)) {
             openChapter(chapterIndex);
         }
         ImGui::PopFont();
@@ -295,7 +335,7 @@ void DocumentationWindow::processTableOfContents()
             ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDimColor.Value);
             for (auto const& [sectionIndex, section] : chapter.sections | std::views::enumerate | std::views::drop(1)) {
                 ImGui::PushID(static_cast<int>(sectionIndex));
-                if (ImGui::Selectable(section.title.c_str())) {
+                if (selectable(section.id, section.title)) {
                     openChapter(chapterIndex, section.anchor);
                 }
                 ImGui::PopID();
@@ -311,7 +351,7 @@ void DocumentationWindow::processSearchResults()
 {
     if (_searchResults.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, Const::TextDimColor.Value);
-        ImGui::TextUnformatted("No matches found.");
+        ImGui::TextUnformatted(tr("documentation.nomatches").c_str());
         ImGui::PopStyleColor();
         return;
     }
@@ -321,7 +361,7 @@ void DocumentationWindow::processSearchResults()
         auto const& section = chapter.sections.at(result.sectionIndex);
 
         ImGui::PushFont(StyleService::get().getSmallBoldFont());
-        if (ImGui::Selectable(section.title.c_str())) {
+        if (selectable(section.id, section.title)) {
             openChapter(result.chapterIndex, section.anchor.empty() ? std::nullopt : std::make_optional(section.anchor));
         }
         ImGui::PopFont();
@@ -350,9 +390,19 @@ void DocumentationWindow::processContent()
             _scrollToTop = false;
         }
         if (_chapters.empty()) {
-            AlienGui::Text("No documentation found in " + Const::DocsPath.string() + ".");
+            AlienGui::Text(LocalizationGuiText::format("documentation.missing", {{"path", _docsPath.string()}}));
         } else {
-            auto clickedLink = _renderer.render(_chapters.at(_currentChapterIndex).document, Const::DocsPath);
+            auto const& chapter = _chapters.at(_currentChapterIndex);
+            if (chapter.englishFallback && !chapter.document.blocks.empty()) {
+                AlienGui::Text(tr("documentation.englishfallback"));
+            }
+            if (_linkError) {
+                AlienGui::Text(LocalizationGuiText::format("documentation.invalidlink", {{"link", *_linkError}}));
+            }
+            if (chapter.document.blocks.empty()) {
+                AlienGui::Text(LocalizationGuiText::format("documentation.chaptermissing", {{"chapter", chapter.filename}}));
+            }
+            auto clickedLink = _renderer.render(chapter.document, chapter.basePath);
             processChapterButtons();
             if (clickedLink.has_value()) {
                 openLink(*clickedLink);
@@ -373,18 +423,20 @@ void DocumentationWindow::processChapterButtons()
 
     AlienGui::Separator();
     if (hasPreviousChapter) {
-        if (AlienGui::Button(ICON_FA_CHEVRON_LEFT "  " + _chapters.at(chapterIndex - 1).title)) {
+        auto const& previous = _chapters.at(chapterIndex - 1);
+        if (AlienGui::DisplayButton(ICON_FA_CHEVRON_LEFT "  " + previous.id, ICON_FA_CHEVRON_LEFT "  " + previous.title)) {
             openChapter(chapterIndex - 1);
         }
     }
     if (hasNextChapter) {
         auto text = _chapters.at(chapterIndex + 1).title + "  " ICON_FA_CHEVRON_RIGHT;
         auto buttonWidth = ImGui::CalcTextSize(text.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
-        if (hasPreviousChapter) {
+        auto rightEdge = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+        if (hasPreviousChapter && ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + buttonWidth <= rightEdge) {
             ImGui::SameLine();
         }
         ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth));
-        if (AlienGui::Button(text)) {
+        if (AlienGui::DisplayButton(_chapters.at(chapterIndex + 1).id + "  " ICON_FA_CHEVRON_RIGHT, text)) {
             openChapter(chapterIndex + 1);
         }
     }
@@ -401,26 +453,73 @@ void DocumentationWindow::openLink(std::string const& link)
     auto filename = link.substr(0, separatorPos);
     auto anchor = separatorPos != std::string::npos ? std::make_optional(link.substr(separatorPos + 1)) : std::nullopt;
 
-    if (filename.empty()) {
-        if (anchor.has_value()) {
-            _renderer.scrollToAnchor(*anchor);
-        }
+    if (filename.empty() && !_chapters.empty()) {
+        openChapter(_currentChapterIndex, anchor);
         return;
     }
     auto findResult = std::ranges::find(_chapters, filename, &Chapter::filename);
     if (findResult != _chapters.end()) {
         openChapter(std::distance(_chapters.begin(), findResult), anchor);
+    } else {
+        _linkError = link;
     }
 }
 
 void DocumentationWindow::openChapter(size_t chapterIndex, std::optional<std::string> const& anchor)
 {
-    // A found anchor overrides the scroll position in the same frame
-    if (chapterIndex != _currentChapterIndex || !anchor.has_value()) {
+    if (chapterIndex >= _chapters.size()) {
+        return;
+    }
+    _linkError.reset();
+    auto const& chapter = _chapters.at(chapterIndex);
+    auto resolvedAnchor = anchor;
+    if (resolvedAnchor && !resolvedAnchor->empty()) {
+        auto found = std::ranges::any_of(chapter.document.blocks, [&](auto const& block) {
+            auto heading = std::get_if<MarkdownHeading>(&block);
+            return heading && heading->anchor == *resolvedAnchor;
+        });
+        if (!found) {
+            auto alias = chapter.anchorAliases.find(*resolvedAnchor);
+            if (alias != chapter.anchorAliases.end()) {
+                resolvedAnchor = alias->second;
+            } else {
+                _linkError = chapter.filename + "#" + *resolvedAnchor;
+                resolvedAnchor.reset();
+            }
+        }
+    }
+    if (chapterIndex != _currentChapterIndex || !resolvedAnchor || resolvedAnchor->empty()) {
         _scrollToTop = true;
     }
     _currentChapterIndex = chapterIndex;
-    if (anchor.has_value()) {
-        _renderer.scrollToAnchor(*anchor);
+    _renderer.scrollToAnchor(resolvedAnchor.value_or(""));
+}
+
+void DocumentationWindow::reloadLanguage()
+{
+    auto language = LocalizationService::get().getLanguage();
+    if (_language == language) {
+        return;
+    }
+    std::string filename;
+    auto anchor = _renderer.getCurrentAnchor();
+    if (!_chapters.empty()) {
+        auto const& chapter = _chapters.at(_currentChapterIndex);
+        filename = chapter.filename;
+        if (anchor) {
+            for (auto const& [source, target] : chapter.anchorAliases) {
+                if (target == *anchor) {
+                    anchor = source;
+                    break;
+                }
+            }
+        }
+    }
+    _language = language;
+    loadChapters();
+    auto chapter = std::ranges::find(_chapters, filename, &Chapter::filename);
+    if (chapter != _chapters.end()) {
+        openChapter(std::distance(_chapters.begin(), chapter), anchor);
+        _linkError.reset();
     }
 }

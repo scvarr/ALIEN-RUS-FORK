@@ -15,6 +15,8 @@
 
 class MarkdownRenderer
 {
+    friend class DocumentationLocalizationTests;
+
 public:
     // Image sources are resolved relative to basePath. Returns the target of a clicked link.
     std::optional<std::string> render(MarkdownDocument const& document, std::filesystem::path const& basePath);
@@ -22,6 +24,8 @@ public:
     void scrollToAnchor(std::string const& anchor);
 
     void releaseTextures();
+    void reset();
+    std::optional<std::string> const& getCurrentAnchor() const { return _pendingAnchor ? _pendingAnchor : _currentAnchor; }
 
 private:
     void renderHeading(MarkdownHeading const& heading);
@@ -50,6 +54,7 @@ private:
 
     std::filesystem::path _basePath;
     std::optional<std::string> _pendingAnchor;
+    std::optional<std::string> _currentAnchor;
     std::optional<std::string> _clickedLink;
     std::optional<std::string> _hoveredLink;
     std::optional<std::string> _nextHoveredLink;

@@ -10,6 +10,7 @@
 
 class WindowController : public MainLoopEntity
 {
+    friend class DocumentationLocalizationTests;
     friend class McpLocalizationTests;
     friend class AccountLocalizationTests;
 
