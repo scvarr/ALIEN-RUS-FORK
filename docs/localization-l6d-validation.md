@@ -170,11 +170,59 @@ new GUI tests. Existing unchanged NetworkTests and MCP suites also passed.
 Linux/HIP execution was not performed. No separate manual-acceptance build was
 prepared.
 
-`main` remains at the requested base. L7 is not started, and this report does not
-declare user acceptance or closure of the entire L6 stage. The roadmap, audit and
-terminology documents remain unchanged.
+At implementation delivery, `main` remained at the requested base and L7 was
+not started. Acceptance and final L6 closure are recorded below. The audit and
+terminology documents remain unchanged; closure updates this report and the roadmap.
 
 `AGENTS.md` retains skip-worktree and SHA-256
 `090C381A6F2B1F62597108DE236E53131559FFEF796146011A5796DBB7EF3368`.
 User worlds, genomes, autosaves, settings and dependencies are preserved. The
 pinned vcpkg submodule is unchanged. No CodeQL or submodule update was run.
+
+## Acceptance and L6-D closure; entire L6 stage closed
+
+Date: 2026-10-26 (Europe/Moscow).
+
+The user accepted L6-D implementation
+`edb337e07cac6a917d553a1e6b3aeefa0621dddd` based on the recorded automated
+checks and review of this report. **L6-D is complete.** Manual visual acceptance
+and connection of real MCP agents were not performed and are not claimed.
+
+**L6-A, L6-B, L6-C and L6-D are complete; the entire L6 stage is closed.**
+The [roadmap](localization-roadmap.md) records final closure; the
+[L6-A](localization-l6a-validation.md), [L6-B](localization-l6b-validation.md) and
+[L6-C](localization-l6c-validation.md) reports retain their accepted evidence and
+stage-specific limitations.
+
+Acceptance preserves all limitations above. Automated 100/150/200% ImGui checks
+are accepted evidence, not manual Vulkan desktop or screenshot acceptance.
+Final desktop composition, hovered tooltips, vendor/native controls and narrow
+saved windows still require ordinary-use visual verification. L6-A did not
+inject real asynchronous disk/network failures through a running GUI. Browser
+and account coverage in L6-B/C used isolated network/persister responses; actual
+authenticated ownership, successful remote mutations, real login/registration,
+email delivery, password changes/deletion and server-side account semantics
+remain unverified. L6-D's isolated server simulation does not validate actual
+socket conflicts, real MCP-client interoperability or concurrent live transport
+behavior. Raw diagnostics, machine descriptions, commands and JSON remain
+literal. Browser search preserves the documented Е/Ё distinction and Unicode
+limits; MCP search remains unchanged. Linux/HIP execution remains unperformed.
+
+The latest recorded GitNexus refresh succeeded during L6-D, and keyword queries
+returned definitions without the earlier FTS/BM25 failure. This records the
+latest successful refresh rather than claiming exhaustive analysis or erasing
+the earlier reports' historical failures. The dispatch/UNKNOWN, candidate-flow,
+traversal, cross-language, cached-fact and skipped-file limits documented above
+remain applicable. L6-B's aggregate HIGH risk and the shared-header HIGH/CRITICAL
+warnings remain part of the accepted evidence despite L6-D's aggregate LOW result.
+No index refresh is needed for this documentation-only closure, and no new
+runtime-coverage claim is made.
+
+Closure changes only this report and the roadmap. Production code, tests and
+catalogs are unchanged; builds and tests are not rerun. Existing implementation
+validation remains applicable. The user authorizes a documentation commit and
+push, fast-forward-only integration into `main`, pushing `main`, verification of
+synchronization and cleanliness, and deletion of the integrated feature branch
+locally and remotely. `AGENTS.md` retains its recorded bytes and skip-worktree;
+user worlds, genomes, autosaves, settings, dependencies and pinned vcpkg are
+preserved. **L7 is not started or authorized by this closure.**
