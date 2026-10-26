@@ -1,8 +1,55 @@
 # L7-D complete Russian F1 documentation validation
 
 Date: 2026-10-26 (Europe/Moscow).
-Base and unchanged main: `27d9d82a2c4a5a506db5947c8464ab76f406b413`.
+Implementation base (main at implementation delivery): `27d9d82a2c4a5a506db5947c8464ab76f406b413`.
 Branch: `feat/ru-localization-l7d`.
+
+## Acceptance and L7 closure
+
+Date: 2026-10-26 (Europe/Moscow).
+Accepted implementation: `5045f629e67ad91c76884aca8d5f8ebf808f3c70`.
+
+The user accepted L7-D based on automated implementation checks, report review
+and selective review of the Russian documents. **L7-D is complete. L7-A, L7-B,
+L7-C and L7-D are complete; the entire L7 stage is closed as completed text
+localization of the built-in F1 help, with an explicit exception for graphics.**
+All nineteen Markdown files, including contents, are translated; eighteen content
+chapters are available in GUI F1. English documentation, MCP contracts, technical
+commands and formats are preserved. All recorded automated implementation checks
+passed; acceptance retains their actual scope and limitations.
+
+**Russian graphical localization of the twenty-five English-labelled diagrams
+has not been performed.** Three JPEG images and the logo contain no English
+labels and are justifiably reused. All image decisions and original inventory
+data remain in [localization-l7d-images.json](localization-l7d-images.json),
+unchanged by this closure. Closing L7 with this graphics exception does not mean
+complete visual localization of the help.
+
+Manual visual/Vulkan acceptance of all chapters and installer-package verification
+have not been performed and remain L9 work. L9 also owns final review of the
+twenty-five English-labelled diagrams. GitNexus limits and the documented limits
+of external-agent, CLI and network-interaction verification remain applicable.
+The open register C01–C20, B01–B04, D01–D06 and I01–I05 below is retained with its
+original evidence; no issue is removed or declared fixed by acceptance. Possible
+functional engine defects C02, C12 and C13 require independent investigation and
+are outside localization work.
+
+This closure edits only this report and the roadmap. Production code, tests,
+help resources, image inventory/artwork, English documents, MCP contracts,
+commands/formats, simulation algorithms and dependencies are unchanged from the
+accepted implementation. Builds and tests are not rerun; the implementation
+results below remain the evidence. No diagram is redrawn. User worlds, genomes,
+autosaves and settings, and AGENTS.md bytes and skip-worktree are preserved.
+The user authorizes a documentation acceptance commit and branch push,
+fast-forward-only integration into main, pushing main, synchronization/cleanliness
+checks and local/remote deletion of the integrated feature branch. L8 is not
+started or authorized by this closure.
+
+Closure-only GitNexus `detect_changes(scope="all")` reports two files, seven
+recognized changed section symbols, zero enumerated affected processes and LOW
+risk, with no partial/truncated flag. File-path impact targets are unresolved
+(UNKNOWN); documentation references and the complete diff were reviewed directly.
+This does not remove the implementation analyzer limitations recorded below.
 
 ## Scope and status
 
@@ -14,8 +61,9 @@ eighteen content chapters; contents supplies the navigation metadata. MCP still
 exposes the original seventeen English chapters and excludes the format reference.
 The original Russian contents bytes, chapter order and three part names are retained.
 
-This is an implementation and validation delivery, **not closure of L7** or final
-visual/release acceptance. L8 is not started. Production C++, parser, renderer,
+The implementation record below predates the acceptance and L7 closure above;
+its validation evidence and limitations remain applicable. Final visual/release
+acceptance is still pending in L9. L8 is not started. Production C++, parser, renderer,
 locales, CLI, MCP schemas/handlers, engine and dependencies are unchanged. Existing
 Russian chapter changes are restricted to image captions. Previous validation
 reports and their evidence are retained unchanged.
@@ -346,7 +394,7 @@ GUI tests use process-isolated temporary registry keys (`SettingsTestScope`) and
 temporary document trees. `AGENTS.md` remains byte-identical, SHA-256
 `090c381a6f2b1f62597108de236e53131559ffef796146011a5796dbb7ef3368`,
 with `S AGENTS.md` skip-worktree. Dependencies and pinned vcpkg are unchanged.
-No submodule update or CodeQL scan was run. Main stays at the stated base.
+No submodule update or CodeQL scan was run. At implementation delivery, main remained at the stated base.
 
 ## GitNexus analysis
 
@@ -393,5 +441,7 @@ analysis.
 5. Validate installer/archive packaging of both language trees and all images on a
    clean installation. Agent Release copying is verified; installer acceptance is not.
 
-Final L7 acceptance/closure requires a separate decision. This delivery does not
-merge into main, close the overall stage or begin L8.
+L7 text-localization closure is recorded above with the explicit graphics and
+release-acceptance exceptions. The open technical register remains for later
+adjudication. L9 visual/Vulkan, diagram and installer acceptance is pending;
+L8 is not started.
