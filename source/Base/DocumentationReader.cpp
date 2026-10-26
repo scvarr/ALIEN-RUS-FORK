@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iterator>
+#include <map>
 
 #include "MarkdownParser.h"
 #include "Resources.h"
@@ -107,7 +108,17 @@ std::vector<DocumentationChapter> DocumentationReader::getGuiChapters(Documentat
     }
     if (language == DocumentationLanguage::Russian) {
         auto translated = parseChapters(readDocument(englishRoot / "ru" / ContentsFilename));
+        std::map<std::string, std::string> translatedParts;
+        for (auto const& chapter : chapters) {
+            auto entry = std::ranges::find(translated, chapter.filename, &DocumentationChapter::filename);
+            if (entry != translated.end() && !entry->part.empty()) {
+                translatedParts.try_emplace(chapter.part, entry->part);
+            }
+        }
         for (auto& chapter : chapters) {
+            if (auto part = translatedParts.find(chapter.part); part != translatedParts.end()) {
+                chapter.part = part->second;
+            }
             auto entry = std::ranges::find(translated, chapter.filename, &DocumentationChapter::filename);
             auto content = loadChapter(chapter.filename, language, englishRoot);
             if (content.englishFallback || content.text.empty()) {
@@ -115,9 +126,6 @@ std::vector<DocumentationChapter> DocumentationReader::getGuiChapters(Documentat
             }
             if (entry != translated.end() && !entry->title.empty()) {
                 chapter.title = entry->title;
-                if (!entry->part.empty()) {
-                    chapter.part = entry->part;
-                }
             } else {
                 for (auto const& block : MarkdownParser::parse(content.text).blocks) {
                     if (auto heading = std::get_if<MarkdownHeading>(&block); heading && heading->level == 1) {

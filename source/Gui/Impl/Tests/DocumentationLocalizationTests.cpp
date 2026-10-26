@@ -458,6 +458,190 @@ protected:
         EXPECT_EQ("format-reference.md", window._chapters.at(window._currentChapterIndex).filename);
     }
 
+    void checkShippedRussianPackage()
+    {
+        window._docsPath = Const::DocsPath;
+        auto const translatedFiles = {
+            "contents.md", "getting-started.md", "user-interface.md", "keyboard-and-mouse.md", "genomes.md", "neural-networks.md", "first-creature.md"};
+        for (auto const& filename : translatedFiles) {
+            SCOPED_TRACE(filename);
+            auto english = DocumentationReader::loadChapter(filename, DocumentationLanguage::English, window._docsPath);
+            auto russian = DocumentationReader::loadChapter(filename, DocumentationLanguage::Russian, window._docsPath);
+            ASSERT_FALSE(russian.englishFallback);
+            EXPECT_EQ(window._docsPath / "ru", russian.basePath);
+            EXPECT_TRUE(Utf8Search::decode(russian.text));
+            EXPECT_NE(english.text, russian.text);
+            auto source = MarkdownParser::parse(english.text);
+            auto target = MarkdownParser::parse(russian.text);
+            ASSERT_EQ(source.blocks.size(), target.blocks.size());
+            auto links = [](MarkdownSpans const& spans) {
+                std::vector<std::string> result;
+                for (auto const& span : spans) {
+                    if (span.link) {
+                        result.emplace_back(*span.link);
+                    }
+                }
+                return result;
+            };
+            for (size_t i = 0; i < source.blocks.size(); ++i) {
+                auto const& sourceBlock = source.blocks.at(i);
+                auto const& targetBlock = target.blocks.at(i);
+                ASSERT_EQ(sourceBlock.index(), targetBlock.index()) << i;
+                std::visit(
+                    [&](auto const& value) {
+                        using T = std::decay_t<decltype(value)>;
+                        auto const& translated = std::get<T>(targetBlock);
+                        if constexpr (requires { value.spans; }) {
+                            EXPECT_EQ(links(value.spans), links(translated.spans));
+                        }
+                        if constexpr (std::is_same_v<T, MarkdownHeading>) {
+                            EXPECT_EQ(value.level, translated.level);
+                            EXPECT_NE(value.anchor, translated.anchor);
+                        } else if constexpr (std::is_same_v<T, MarkdownListItem>) {
+                            EXPECT_EQ(value.depth, translated.depth);
+                            EXPECT_EQ(value.number, translated.number);
+                        } else if constexpr (std::is_same_v<T, MarkdownCodeBlock>) {
+                            EXPECT_EQ(value.text, translated.text);
+                        } else if constexpr (std::is_same_v<T, MarkdownImage>) {
+                            EXPECT_EQ("../" + value.source, translated.source);
+                            EXPECT_NE(value.caption, translated.caption);
+                            EXPECT_TRUE(window._renderer.getImageInfo(russian.basePath / translated.source));
+                        } else if constexpr (std::is_same_v<T, MarkdownTable>) {
+                            ASSERT_EQ(value.header.size(), translated.header.size());
+                            EXPECT_EQ(value.alignments, translated.alignments);
+                            ASSERT_EQ(value.rows.size(), translated.rows.size());
+                            for (size_t column = 0; column < value.header.size(); ++column) {
+                                EXPECT_EQ(links(value.header.at(column)), links(translated.header.at(column)));
+                            }
+                            for (size_t row = 0; row < value.rows.size(); ++row) {
+                                ASSERT_EQ(value.rows.at(row).size(), translated.rows.at(row).size());
+                                for (size_t column = 0; column < value.rows.at(row).size(); ++column) {
+                                    EXPECT_EQ(links(value.rows.at(row).at(column)), links(translated.rows.at(row).at(column)));
+                                }
+                            }
+                        } else if constexpr (std::is_same_v<T, MarkdownNote>) {
+                            ASSERT_EQ(value.blocks.size(), translated.blocks.size());
+                            for (size_t noteIndex = 0; noteIndex < value.blocks.size(); ++noteIndex) {
+                                auto const& note = value.blocks.at(noteIndex);
+                                auto const& translatedNote = translated.blocks.at(noteIndex);
+                                ASSERT_EQ(note.index(), translatedNote.index());
+                                std::visit(
+                                    [&](auto const& noteValue) {
+                                        using N = std::decay_t<decltype(noteValue)>;
+                                        if constexpr (requires { noteValue.spans; }) {
+                                            EXPECT_EQ(links(noteValue.spans), links(std::get<N>(translatedNote).spans));
+                                        }
+                                    },
+                                    note);
+                            }
+                        }
+                    },
+                    sourceBlock);
+            }
+        }
+        for (auto const& language : {"en", "ru", "en"}) {
+            select(language);
+            window.processBackground();
+            checkShippedTree();
+            for (auto const& chapter : window._chapters) {
+                auto translated = std::ranges::find(translatedFiles, chapter.filename) != translatedFiles.end();
+                EXPECT_EQ(language == std::string("ru") && !translated, chapter.englishFallback) << chapter.filename;
+                if (language == std::string("ru")) {
+                    EXPECT_TRUE(chapter.part == "Начало работы" || chapter.part == "Изучение возможностей" || chapter.part == "Справочник");
+                }
+                if (language == std::string("ru") && translated) {
+                    EXPECT_NE(chapter.id, chapter.title);
+                    EXPECT_TRUE(
+                        Utf8Search::find(chapter.part, "начало") || Utf8Search::find(chapter.part, "изучение") || Utf8Search::find(chapter.part, "справочник"));
+                }
+                auto filename = chapter.filename;
+                auto aliases = chapter.anchorAliases;
+                for (auto const& [canonical, native] : aliases) {
+                    window.openLink(filename + "#" + canonical);
+                    EXPECT_FALSE(window._linkError);
+                    EXPECT_EQ(native, window._renderer._pendingAnchor);
+                    window.openLink(filename + "#" + native);
+                    EXPECT_FALSE(window._linkError);
+                }
+            }
+        }
+        select("ru");
+        window.processBackground();
+        for (auto const& pair : {std::pair{"нейросети", "НЕЙРОСЕТИ"}, {"жёсткость", "ЖЁСТКОСТЬ"}, {"соединённых", "СОЕДИНЁННЫХ"}}) {
+            search(pair.first);
+            ASSERT_FALSE(window._searchResults.empty()) << pair.first;
+            auto count = window._searchResults.size();
+            search(pair.second);
+            EXPECT_EQ(count, window._searchResults.size()) << pair.second;
+            for (auto const& result : window._searchResults) {
+                EXPECT_TRUE(Utf8Search::decode(result.snippet));
+            }
+        }
+        search("");
+    }
+
+    void checkShippedLongChaptersAtScales()
+    {
+        window._docsPath = Const::DocsPath;
+        window.loadChapters();
+        window.setOn(true);
+        auto draw = [&] {
+            ImGui::NewFrame();
+            static_cast<MainLoopEntity&>(window).process();
+            ImGui::Render();
+            EXPECT_EQ(0, GImGui->ErrorCountCurrentFrame);
+        };
+        draw();
+        auto host = ImGui::FindWindowByName("Documentation");
+        ASSERT_NE(nullptr, host);
+        for (float scale : {1.0f, 1.5f, 2.0f}) {
+            WindowController::get()._contentScaleFactor = scale;
+            ImGui::GetIO().Fonts->Clear();
+            ImGui::GetIO().FontDefault = nullptr;
+            ImGui::GetStyle() = ImGuiStyle();
+            StyleService::get().setup();
+            ImGui::SetWindowSize(host, {1040 * scale, 720 * scale});
+            window._navigationWidth = 275 * scale;
+            for (auto const& filename : {"user-interface.md", "genomes.md", "neural-networks.md", "first-creature.md"}) {
+                select("en");
+                draw();
+                window.openLink(filename);
+                for (auto const& language : {"en", "ru", "en"}) {
+                    select(language);
+                    draw();
+                    EXPECT_EQ(filename, window._chapters.at(window._currentChapterIndex).filename);
+                    auto aliases = window._chapters.at(window._currentChapterIndex).anchorAliases;
+                    for (auto const& [canonical, native] : aliases) {
+                        window.openLink(std::string(filename) + "#" + canonical);
+                        EXPECT_FALSE(window._linkError);
+                        EXPECT_EQ(native, window._renderer._pendingAnchor);
+                        draw();
+                        draw();
+                        EXPECT_FALSE(window._renderer._pendingAnchor);
+                        ImGuiWindow* content = nullptr;
+                        for (auto candidate : GImGui->Windows) {
+                            if (candidate->RootWindow == host && std::string(candidate->Name).contains("##content")) {
+                                content = candidate;
+                            }
+                        }
+                        ASSERT_NE(nullptr, content);
+                        auto scroll = content->Scroll.y;
+                        EXPECT_GE(scroll, 0);
+                        EXPECT_LE(scroll, content->ScrollMax.y);
+                        draw();
+                        EXPECT_FLOAT_EQ(scroll, content->Scroll.y);
+                    }
+                    EXPECT_EQ(host, ImGui::FindWindowByName("Documentation"));
+                    EXPECT_FLOAT_EQ(1040 * scale, host->Size.x);
+                    EXPECT_FLOAT_EQ(720 * scale, host->Size.y);
+                    for (auto const& [path, info] : window._renderer._imageInfoByPath) {
+                        EXPECT_TRUE(info) << path;
+                    }
+                }
+            }
+        }
+    }
+
     void pressChapterButton(std::string const& canonical)
     {
         ImVec2 target;
@@ -541,4 +725,12 @@ TEST_F(DocumentationLocalizationTests, shippedEnglishTreeLinksImagesAndFormatRef
 TEST_F(DocumentationLocalizationTests, chapterButtonsKeepEnglishIdsAndNavigateAcrossLanguages)
 {
     checkLegacyIdsAndButtons();
+}
+TEST_F(DocumentationLocalizationTests, shippedRussianPackageStructureFallbackLinksImagesAndSearch)
+{
+    checkShippedRussianPackage();
+}
+TEST_F(DocumentationLocalizationTests, shippedLongChaptersRenderAndNavigateAtEveryScale)
+{
+    checkShippedLongChaptersAtScales();
 }
