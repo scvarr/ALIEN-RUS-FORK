@@ -1,0 +1,441 @@
+[
+  {
+    "path": "resources/docs/images/art.jpg",
+    "width": 1440,
+    "height": 600,
+    "format": "JPEG",
+    "sha256": "3820abd8c94c0402194fd92713ce34d26e63005e8cf6d0b3ce2f2db1874babd8",
+    "chapters": [
+      "resources/docs/generative-art.md",
+      "resources/docs/ru/generative-art.md"
+    ],
+    "englishLabels": false,
+    "decision": "Reuse unchanged; no embedded language",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "No labels; artwork simulation view, not a UI instruction. No arrows/count claims; retain unchanged."
+  },
+  {
+    "path": "resources/docs/images/cell-attacker.png",
+    "width": 1440,
+    "height": 540,
+    "format": "PNG",
+    "sha256": "dd7d1fe0712bc338d1ce583ea266994f6a6a593383ada80362e9f49dc98bea84",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Tagging, loot direction and neighboring digestor agree; bottom labels overlap. Exact typography repair needs source, so retain with detailed RU sequence."
+  },
+  {
+    "path": "resources/docs/images/cell-base.png",
+    "width": 1440,
+    "height": 420,
+    "format": "PNG",
+    "sha256": "8c671d101acf308a1c839c46c585c2f6bd298eaa494509fe0dc3fd33bd03a4da",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Sensor to base to muscle signal arrows agree. Default neighbor-copy behavior. Retain flat raster with RU label/relationship explanation."
+  },
+  {
+    "path": "resources/docs/images/cell-communicator.png",
+    "width": 1440,
+    "height": 520,
+    "format": "PNG",
+    "sha256": "0469004ca715b418521e54738bf65c1da718dc44895301fc7f1b8b084dd85e39",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "All-eight-channel arrow and direction reference-frame conversion agree; range circle illustrative, filters/one-way gating omitted. Preserve exact geometry; RU explanation supplied."
+  },
+  {
+    "path": "resources/docs/images/cell-constructor.png",
+    "width": 1440,
+    "height": 540,
+    "format": "PNG",
+    "sha256": "0f4fc252541c120a0435f67de9c8b4a03c8dc6a73c62ffe15abd70a3a769e1a7",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/genomes.md",
+      "resources/docs/ru/cell-types.md",
+      "resources/docs/ru/genomes.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "New node inserted next to constructor; node zero farthest away. Module, not extra cell type. Exact order/arrows retained; RU explanation supplies labels pending editable source."
+  },
+  {
+    "path": "resources/docs/images/cell-defender.png",
+    "width": 1440,
+    "height": 460,
+    "format": "PNG",
+    "sha256": "87e8a20dc9ab0004cea43cd3c551786aeb823eb119994f756c1a2e7341460c12",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Per-defender divisor agrees with anti-attack mechanism. Labels overlap near attacker; does not describe anti-injection. Retain until separate typography repair."
+  },
+  {
+    "path": "resources/docs/images/cell-depot.png",
+    "width": 1440,
+    "height": 480,
+    "format": "PNG",
+    "sha256": "1b46ca3359b57d7c625da20bcc07ea765acbe55f51c248bdd92feadf4ea38ba3",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Store/release directions and two units per cycle agree. Embedded reserve means depot storage, not construction reserve. Retain; RU caption distinguishes pools."
+  },
+  {
+    "path": "resources/docs/images/cell-detonator.png",
+    "width": 1440,
+    "height": 540,
+    "format": "PNG",
+    "sha256": "de5574217a35fb842e88e44e5d3e20defb1cf30f888036326df7e5ce94de6b11",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Countdown/blast/outward wave schematic; not scale-accurate radius and exact zero timing is simplified (C14). Preserve numbers pending source revision."
+  },
+  {
+    "path": "resources/docs/images/cell-digestor.png",
+    "width": 1440,
+    "height": 460,
+    "format": "PNG",
+    "sha256": "dd3161e504d30c30775da7c1040bebd6b778eb804a8cb7c672faebda228bb790",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Raw to digestor to usable, direct-neighbor connection agrees. RU explains Конвертер and energy forms; retain topology pending editable source."
+  },
+  {
+    "path": "resources/docs/images/cell-generator.png",
+    "width": 1440,
+    "height": 480,
+    "format": "PNG",
+    "sha256": "be21ed2a9e544d2ab92af461fee072e22ef8d855c88a8636553683c75d2657cf",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Square and sawtooth channel-zero signals, period/min/max; no energy generation. Discrete phase simplified. Retain and explain in RU."
+  },
+  {
+    "path": "resources/docs/images/cell-injector.png",
+    "width": 1440,
+    "height": 500,
+    "format": "PNG",
+    "sha256": "65d5faf43de26e64584af58adbaabf5bfd9f350f4d0066592277136169c0ce50",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "I02: foreign-constructor genome arrow agrees with InjectorProcessor; right sentence clipped. Do not invent missing typography. Retain with code-backed RU explanation."
+  },
+  {
+    "path": "resources/docs/images/cell-memory.png",
+    "width": 1440,
+    "height": 500,
+    "format": "PNG",
+    "sha256": "51f89c6f7b89e424dfaeb2ecd9f75c7869fba6a2b714d3a14abe52b887dafcb7",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "I03/C01: four mechanisms, sign-only recorder labels omit strict thresholds; running average is weighted exponential smoothing. RU explains both; literal label replacement would preserve a disputed simplification."
+  },
+  {
+    "path": "resources/docs/images/cell-muscle.png",
+    "width": 1440,
+    "height": 540,
+    "format": "PNG",
+    "sha256": "0243581dfd9c1a6ca0ca1e0a4716a72441cf63c9cd4fc85f6e549fd030231454",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Three mechanical families/pivot and strength/direction agree; does not depict all six control modes. Retain original geometry and RU explanation."
+  },
+  {
+    "path": "resources/docs/images/cell-reconnector.png",
+    "width": 1440,
+    "height": 460,
+    "format": "PNG",
+    "sha256": "acb9cb32cd4cd5bd8d7b60289a240cb334b71340fd5c970fec22c0eec3e1f05b",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Positive connect/negative release and solid mesh agree; own-creature links retained on release. English solid means particles. Preserve topology, explain in RU."
+  },
+  {
+    "path": "resources/docs/images/cell-sensor.png",
+    "width": 1440,
+    "height": 600,
+    "format": "PNG",
+    "sha256": "a2e57be197908ab0394c15bac1ef9f9d5c7987948e67d003572eff5bd636813a",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Rays/front/angle/occlusion and channels zero to three agree. Sample mass/distance values are illustrative, not measurements of drawn organism. Preserve rays and values pending editable source."
+  },
+  {
+    "path": "resources/docs/images/cell-void.png",
+    "width": 1440,
+    "height": 480,
+    "format": "PNG",
+    "sha256": "e4eac1c0e67ed38b4fac043547943a1059b173da4b28f43e2d77eac364f8d08c",
+    "chapters": [
+      "resources/docs/cell-types.md",
+      "resources/docs/ru/cell-types.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Temporary scaffold vanishes and transfers energy to neighbors; not energy destruction. RU names Донор. Preserve topology pending source."
+  },
+  {
+    "path": "resources/docs/images/creature-schematic.png",
+    "width": 1440,
+    "height": 760,
+    "format": "PNG",
+    "sha256": "075c073249b7d598fdd246dce4b9583d7d6723b9d8cd0f362caad71b14a19303",
+    "chapters": [
+      "resources/docs/how-life-works.md",
+      "resources/docs/ru/how-life-works.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "I05: signals/bonds/genome relationship agree, but constructor appears as a separate type and no growing cells drawn. RU clarifies module semantics. Requires semantic layout review, not silent label replacement."
+  },
+  {
+    "path": "resources/docs/images/energy-flow.png",
+    "width": 1440,
+    "height": 864,
+    "format": "PNG",
+    "sha256": "9cae022d2b94e2a18618e9be4f47e300ba34097e4f0b00cb6e42bc2d3bc27fe8",
+    "chapters": [
+      "resources/docs/energy.md",
+      "resources/docs/ru/energy.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "I04/C03/C05/C06: conceptual cycle only; storage/reserve, infinite/Free/editor exceptions and backflow constraints missing. Full repair requires new topology and source approval; RU caption explicitly qualifies it."
+  },
+  {
+    "path": "resources/docs/images/evolution.jpg",
+    "width": 1440,
+    "height": 640,
+    "format": "JPEG",
+    "sha256": "1cb390f1472be24225ca4fca83cb4639ce3491700189ea944b384337596f0c38",
+    "chapters": [
+      "resources/docs/evolution.md",
+      "resources/docs/ru/evolution.md"
+    ],
+    "englishLabels": false,
+    "decision": "Reuse unchanged; no embedded language",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "No labels; illustrative evolved population, not proof of preset values or repeatable outcomes; retain unchanged."
+  },
+  {
+    "path": "resources/docs/images/genome-editor-layout.png",
+    "width": 1440,
+    "height": 800,
+    "format": "PNG",
+    "sha256": "eddce21448869848b9957071424cee9f8b6f15e5b67276264d39143f86504dde",
+    "chapters": [
+      "resources/docs/first-creature.md",
+      "resources/docs/ru/first-creature.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Toolbar/genome/tree/node/preview relationships agree; full-resolution inspection confirms six listed and six preview nodes. Placeholder values/control layout are schematic. Retain English source with detailed RU column explanation."
+  },
+  {
+    "path": "resources/docs/images/genome-structure.png",
+    "width": 1440,
+    "height": 760,
+    "format": "PNG",
+    "sha256": "c17b7cb1afac5f2e71dc2742ebcd9fea175e77f0fd42358e73e73c17b425d440",
+    "chapters": [
+      "resources/docs/genomes.md",
+      "resources/docs/how-life-works.md",
+      "resources/docs/ru/genomes.md",
+      "resources/docs/ru/how-life-works.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Genome/gene/node hierarchy, constructor reference arrows and root offspring agree. Leading sensor is not the default tutorial copying order. Exact arrow topology needs editable source; retain and explain."
+  },
+  {
+    "path": "resources/docs/images/neural-network.png",
+    "width": 1440,
+    "height": 840,
+    "format": "PNG",
+    "sha256": "7b8909acb929a69269d5b0f12316f0280d650077bb66ea9a7f017efc10562f9e",
+    "chapters": [
+      "resources/docs/neural-networks.md",
+      "resources/docs/ru/neural-networks.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Sixteen inputs/twelve outputs, memory and telemetry layout and formula retained. Memory gate omitted; velocity description lacks scaling (B02). Dense connection topology must not be regenerated without a verified source."
+  },
+  {
+    "path": "resources/docs/images/particles-to-ecosystems.png",
+    "width": 1440,
+    "height": 560,
+    "format": "PNG",
+    "sha256": "66a24f5cfd2d4eab6903aeb2d7e5a9241fe4ed739e0e8ae0d38720ec69f92d3c",
+    "chapters": [
+      "resources/docs/getting-started.md",
+      "resources/docs/ru/getting-started.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Hierarchy particles/cells/creatures/populations agrees conceptually; not a literal scale sequence. Flat raster, no verified source; retain English diagram with RU relationship explanation."
+  },
+  {
+    "path": "resources/docs/images/sandbox.jpg",
+    "width": 1440,
+    "height": 576,
+    "format": "JPEG",
+    "sha256": "9a1f7ccf711438b7809ddf5af18357bc6bc7a8d471983c4049804ec509cfe47d",
+    "chapters": [
+      "resources/docs/ru/sandbox.md",
+      "resources/docs/sandbox.md"
+    ],
+    "englishLabels": false,
+    "decision": "Reuse unchanged; no embedded language",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "No labels; physics scene of matter/fluid/energy. No controls or quantitative claims; retain unchanged."
+  },
+  {
+    "path": "resources/docs/images/shapes.png",
+    "width": 1440,
+    "height": 912,
+    "format": "PNG",
+    "sha256": "4a49b104633dce4b83e3721d114df514adb53b87e352a165b96e7ca799a13596",
+    "chapters": [
+      "resources/docs/genomes.md",
+      "resources/docs/ru/genomes.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "I01/B01: text and raster node counts differ. Shape order retained; do not choose new counts without exact genome reproduction. Localized redraw needs reconciled source."
+  },
+  {
+    "path": "resources/docs/images/signal-flow.png",
+    "width": 1440,
+    "height": 500,
+    "format": "PNG",
+    "sha256": "476847a991ff479c9adce049e01a1b25b0c61f99f8692c7930753e59dcebd971",
+    "chapters": [
+      "resources/docs/how-life-works.md",
+      "resources/docs/ru/how-life-works.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Node four towards zero, one connection per cycle, agrees with default copying. Separate five-node example, not the tutorial creature. Retain indices/arrows and explain in RU."
+  },
+  {
+    "path": "resources/docs/images/tutorial-hunter.png",
+    "width": 1440,
+    "height": 652,
+    "format": "PNG",
+    "sha256": "c54da33d776206fccb587c6d15af2dd804490f6a998ac35ad2caa95fb6db20d0",
+    "chapters": [
+      "resources/docs/first-creature.md",
+      "resources/docs/ru/first-creature.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Five muscles, sensor at node five, food/signal/motion arrows agree. Retain all indices/directions; detailed RU caption pending editable source."
+  },
+  {
+    "path": "resources/docs/images/ui-layout.png",
+    "width": 1440,
+    "height": 840,
+    "format": "PNG",
+    "sha256": "1ca80a4015195b61d7c385bb27658d62e71686a5e81ec1e56834ec0970dbf448",
+    "chapters": [
+      "resources/docs/ru/user-interface.md",
+      "resources/docs/user-interface.md"
+    ],
+    "englishLabels": true,
+    "decision": "Documented limitation; original diagram with detailed Russian caption",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "Menu/view/windows/edit-button/tools callouts are conceptual. Placeholder controls are not a current UI capture; retain with RU callout explanation until a verified localized layout is available."
+  },
+  {
+    "path": "resources/images/logo.png",
+    "width": 399,
+    "height": 399,
+    "format": "PNG",
+    "sha256": "a7d18b191c74ab2d851049039950c1b1940d41937db0365ad6b4b048e43e4a8b",
+    "chapters": [
+      "resources/docs/format-reference.md",
+      "resources/docs/ru/format-reference.md"
+    ],
+    "englishLabels": false,
+    "decision": "Reuse unchanged; no embedded language",
+    "provenance": "Original repository asset at 27d9d82a2c4a5a506db5947c8464ab76f406b413; original bytes and embedded metadata retained",
+    "assessment": "No labels; original ALIEN mark. No UI/mechanism claim; retain unchanged."
+  }
+]

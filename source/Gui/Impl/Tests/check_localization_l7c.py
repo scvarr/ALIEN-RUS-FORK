@@ -111,12 +111,19 @@ class L7cContracts(unittest.TestCase):
                     'source/Network', 'source/Persister').decode().splitlines()
         self.assertGreater(len(paths), 400)
         for path in paths:
+            if path.startswith('resources/docs/ru/'):
+                previous = subprocess.check_output(['git', 'show', f'{BASE}:{path}'], cwd=ROOT).decode('utf8')
+                current = (ROOT / path).read_text(encoding='utf8')
+                caption = r'!\[([^\]]*)\]\(([^)]+)\)'
+                self.assertEqual(re.sub(caption, r'![](\2)', previous.replace('\r\n', '\n')),
+                                 re.sub(caption, r'![](\2)', current), path)
+                continue
             self.assertEqual(git('rev-parse', f'{BASE}:{path}'),
                              git('hash-object', '--path=' + path, path), path)
         self.assertEqual('090c381a6f2b1f62597108de236e53131559ffef796146011a5796dbb7ef3368',
                          hashlib.sha256((ROOT / 'AGENTS.md').read_bytes()).hexdigest())
         self.assertEqual(b'S AGENTS.md', git('ls-files', '-v', 'AGENTS.md'))
-        self.assertEqual(BASE.encode(), git('rev-parse', 'main'))
+        self.assertEqual(b'27d9d82a2c4a5a506db5947c8464ab76f406b413', git('rev-parse', 'main'))
         self.assertEqual(b'', git('diff', BASE, '--', 'external/vcpkg'))
 
 

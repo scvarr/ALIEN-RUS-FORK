@@ -5,6 +5,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <set>
 
 #include <boost/json.hpp>
 #include <imgui_internal.h>
@@ -458,6 +459,45 @@ protected:
         EXPECT_EQ("format-reference.md", window._chapters.at(window._currentChapterIndex).filename);
     }
 
+    void checkEveryShippedImageTexture()
+    {
+        window._docsPath = Const::DocsPath;
+        for (auto const& language : {"en", "ru"}) {
+            select(language);
+            window.processBackground();
+            window.loadChapters();
+            std::set<std::filesystem::path> paths;
+            for (auto const& chapter : window._chapters) {
+                for (auto const& block : chapter.document.blocks) {
+                    if (auto image = std::get_if<MarkdownImage>(&block)) {
+                        auto path = (chapter.basePath / image->source).lexically_normal();
+                        if (!paths.insert(path).second) {
+                            continue;
+                        }
+                        SCOPED_TRACE(path.string());
+                        window._renderer.reset();
+                        auto loads = rendering->loads;
+                        MarkdownDocument document;
+                        document.blocks.emplace_back(*image);
+                        frame([&] {
+                            ImGui::SetScrollY(0);
+                            window._renderer.render(document, chapter.basePath);
+                        });
+                        EXPECT_EQ(loads + 1, rendering->loads);
+                        auto const& info = window._renderer.getImageInfo(path);
+                        ASSERT_TRUE(info);
+                        EXPECT_GT(info->width, 0);
+                        EXPECT_GT(info->height, 0);
+                        EXPECT_TRUE(info->texture);
+                        window._renderer.reset();
+                        EXPECT_EQ(rendering->loads, rendering->deletes);
+                    }
+                }
+            }
+            EXPECT_EQ(29, paths.size());
+        }
+    }
+
     void checkShippedRussianPackage()
     {
         window._docsPath = Const::DocsPath;
@@ -473,7 +513,14 @@ protected:
             "energy.md",
             "simulation-parameters.md",
             "glossary.md",
-            "how-life-works.md"};
+            "how-life-works.md",
+            "sandbox.md",
+            "evolution.md",
+            "generative-art.md",
+            "ai-agents.md",
+            "files.md",
+            "troubleshooting.md",
+            "format-reference.md"};
         for (auto const& filename : translatedFiles) {
             SCOPED_TRACE(filename);
             auto english = DocumentationReader::loadChapter(filename, DocumentationLanguage::English, window._docsPath);
@@ -512,7 +559,11 @@ protected:
                             EXPECT_EQ(value.depth, translated.depth);
                             EXPECT_EQ(value.number, translated.number);
                         } else if constexpr (std::is_same_v<T, MarkdownCodeBlock>) {
-                            EXPECT_EQ(value.text, translated.text);
+                            if (value.text == "Code inside a list item") {
+                                EXPECT_EQ("Код внутри пункта списка", translated.text);
+                            } else {
+                                EXPECT_EQ(value.text, translated.text);
+                            }
                         } else if constexpr (std::is_same_v<T, MarkdownImage>) {
                             EXPECT_EQ("../" + value.source, translated.source);
                             EXPECT_NE(value.caption, translated.caption);
@@ -564,6 +615,15 @@ protected:
                     EXPECT_NE(chapter.id, chapter.title);
                     EXPECT_TRUE(
                         Utf8Search::find(chapter.part, "начало") || Utf8Search::find(chapter.part, "изучение") || Utf8Search::find(chapter.part, "справочник"));
+                    for (int sectionIndex = 0; sectionIndex < chapter.sections.size(); ++sectionIndex) {
+                        search(chapter.sections.at(sectionIndex).title);
+                        EXPECT_TRUE(std::ranges::any_of(
+                            window._searchResults,
+                            [&](auto const& result) {
+                                return window._chapters.at(result.chapterIndex).filename == chapter.filename && result.sectionIndex == sectionIndex;
+                            }))
+                            << chapter.filename << ": " << sectionIndex;
+                    }
                 }
                 auto filename = chapter.filename;
                 auto aliases = chapter.anchorAliases;
@@ -628,13 +688,30 @@ protected:
                   "energy.md",
                   "simulation-parameters.md",
                   "glossary.md",
-                  "how-life-works.md"}) {
+                  "how-life-works.md",
+                  "getting-started.md",
+                  "keyboard-and-mouse.md",
+                  "sandbox.md",
+                  "evolution.md",
+                  "generative-art.md",
+                  "ai-agents.md",
+                  "files.md",
+                  "troubleshooting.md",
+                  "format-reference.md"}) {
                 select("en");
                 draw();
                 window.openLink(filename);
                 for (auto const& language : {"en", "ru", "en"}) {
+                    search("ALIEN");
                     select(language);
                     draw();
+                    EXPECT_EQ("ALIEN", window._searchText);
+                    for (auto const& result : window._searchResults) {
+                        EXPECT_LT(result.chapterIndex, window._chapters.size());
+                        EXPECT_LT(result.sectionIndex, window._chapters.at(result.chapterIndex).sections.size());
+                        EXPECT_TRUE(Utf8Search::decode(result.snippet));
+                    }
+                    search("");
                     EXPECT_EQ(filename, window._chapters.at(window._currentChapterIndex).filename);
                     auto aliases = window._chapters.at(window._currentChapterIndex).anchorAliases;
                     for (auto const& [canonical, native] : aliases) {
@@ -759,4 +836,8 @@ TEST_F(DocumentationLocalizationTests, shippedRussianPackageStructureFallbackLin
 TEST_F(DocumentationLocalizationTests, shippedLongChaptersRenderAndNavigateAtEveryScale)
 {
     checkShippedLongChaptersAtScales();
+}
+TEST_F(DocumentationLocalizationTests, everyShippedPngJpegAndLogoLoadsAndReleasesTextures)
+{
+    checkEveryShippedImageTexture();
 }

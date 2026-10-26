@@ -24,7 +24,9 @@ class L7bContracts(unittest.TestCase):
     def test_exact_package_and_utf8(self):
         root = ROOT / 'resources/docs/ru'
         expected = set(FILES) | {'cell-types.md', 'energy.md', 'simulation-parameters.md',
-                                 'glossary.md', 'how-life-works.md'}
+                                 'glossary.md', 'how-life-works.md', 'sandbox.md', 'evolution.md',
+                                 'generative-art.md', 'ai-agents.md', 'files.md',
+                                 'troubleshooting.md', 'format-reference.md'}
         self.assertEqual(expected, {path.name for path in root.glob('*.md')})
         for filename in FILES:
             text = (root / filename).read_bytes().decode('utf8')
