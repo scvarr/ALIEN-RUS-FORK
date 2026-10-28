@@ -3,7 +3,7 @@
 Date: 2026-10-22 (Europe/Moscow).
 Base: `7ccafa229d13cace74f7c9af49cd6ff609896fd8`.
 Original L3 planning baseline; completion status updated on 2026-10-26.
-L4-A1–A5, L5-A–C, L6-A–D and L7-A–D are complete. L4, L5, L6 and L7 are closed. L7 closure covers completed F1 text localization with an explicit graphics exception; it does not mean full visual localization. L8 is not started; L9 release acceptance remains pending.
+L1–L7 are complete. L7 closure covers completed F1 text localization with an explicit graphics exception; it does not mean full visual localization. By user decision, further localization work has stopped: L8-A, L8-B and L9 are removed from the current plan and are not complete. Their descriptions and outstanding issues below remain as historical records, not scheduled work.
 
 Evidence and per-file inventory: [localization-l3-audit.md](localization-l3-audit.md).
 Translation authority: [localization-terminology.md](localization-terminology.md).
@@ -318,12 +318,12 @@ days; translation review effort can exceed code effort.
 | 11 / **Completed: L6-C** Account flows and browser Unicode search | Login/create/activate/reset/new-password/delete dialogs, LoginController; existing NetworkTransferController presentation retained; BrowserData and gallery metadata filtering | High | Accepted automated checks and report review; isolated authorization responses, stable form state and IDs, case-insensitive Russian letters with distinct Е/Ё. No full Unicode normalization or MCP search change; manual visual and real-server acceptance not performed |
 | 12 / **Completed: L6-D** MCP desktop UI | McpWindow, McpSettingsDialog, GUI connection instructions/status | Medium | Accepted automated checks and report review; EN/RU state and 100/150/200% layout, isolated server states and exact baseline contract checks. Commands/endpoint/schema keys and log payloads remain literal; manual visual acceptance and real-agent interoperability remain unverified |
 | 13 / **Completed: L7-A** F1 locale resolution and Unicode navigation | Explicit reader locale/root, GUI reload/cache lifecycle, reader/renderer path pairing, search/snippet and anchor policy, format-reference reachability | High | Accepted automated checks and report review; user confirmed F1 opens and works. EN default and canonical MCP filenames retained; fallback, language switching, links/anchors/images and Unicode search covered. Full visual, end-to-end texture, translated-image and installer-packaging limitations remain in the L7-A report |
-| 14 / **Completed: L7-B** First translated help batch | Seven Russian contents/entry/UI/keyboard/genomes/neural/first-creature files; mixed-language GUI section metadata correction | High editorial, medium code | Accepted automated checks and report/document/DocumentationReader review. Real-resource links, anchors, Unicode search, EN/RU/EN and 100/150/200% checks passed. Eight English-labelled images and source-content discrepancies remain recorded; the L7-D inventory retains English diagram labels under the graphics exception, with final review assigned to L9. No manual visual acceptance or repeat full GPU run |
-| 15 / **Completed: L7-C** | cell-types, energy, simulation-parameters, glossary, how-life-works | High editorial | Accepted automated checks, report review and selective review across all five chapters. C01–C20, separate L7-B source issues and per-image decisions remain unresolved as recorded. L7-D image inventory is complete; Russian diagram artwork is not localized, and final diagram review belongs to L9; visual/Vulkan/installer/new-GPU-run limitations remain |
-| 16 / **Completed: L7-D** Workflow and support help | Seven final translations; all 19 Markdown files including contents, 18 GUI chapters; full 29-resource image inventory | Medium–high | Accepted implementation `5045f629e67ad91c76884aca8d5f8ebf808f3c70`: automated checks, report review and selective Russian-document review. L7 text localization is closed with a graphics exception: 25 diagrams remain English-labelled and are not graphically localized; three JPEG and the logo have no English labels and are reused. English docs, MCP contracts, commands and formats preserved; open C/B/D/I register and L9 acceptance obligations retained |
-| 17 / L8-A Console and CLI | ConsoleModeController, ConsoleUi, Alien-cli human help/status/error output and explicit locale selection policy | Medium–high | Reuse catalogs only where appropriate; retain option names, machine output and numeric formats. Test console entry/exit and missing-resource errors; avoid introducing GUI dependency into CLI |
-| 18 / L8-B Vendor and diagnostic closure | ImFileDialog integration; exposed ImGui/ImPlot menus; user-facing Base/Network/Persister/Rendering/startup errors | High | Trace exposed consumers; choose supported adapter or narrowly maintained patch. No pinned-vcpkg modification. Catalog-owned explanations translated, raw vendor diagnostics documented; validate early startup before locale initialization |
-| 19 / L9 Release qualification | Complete bilingual inventory, final review of 25 English-labelled diagrams, manual visual/Vulkan review of every F1 chapter, installer-package completeness, ID/search/DPI regression and source coverage gate | High integration | Pending: inherited L7 graphics exception and outstanding manual/Vulkan/installer acceptance. All desktop stages; explicit disposition for CLI/MCP/vendor exceptions. EN/RU catalogs/embedded fallback agree, packaged resources complete, runtime language persistence and layout verified |
+| 14 / **Completed: L7-B** First translated help batch | Seven Russian contents/entry/UI/keyboard/genomes/neural/first-creature files; mixed-language GUI section metadata correction | High editorial, medium code | Accepted automated checks and report/document/DocumentationReader review. Real-resource links, anchors, Unicode search, EN/RU/EN and 100/150/200% checks passed. Eight English-labelled images and source-content discrepancies remain recorded; the L7-D inventory retains English diagram labels under the graphics exception, with final review formerly assigned to L9. No manual visual acceptance or repeat full GPU run |
+| 15 / **Completed: L7-C** | cell-types, energy, simulation-parameters, glossary, how-life-works | High editorial | Accepted automated checks, report review and selective review across all five chapters. C01–C20, separate L7-B source issues and per-image decisions remain unresolved as recorded. L7-D image inventory is complete; Russian diagram artwork is not localized, and final diagram review was formerly assigned to L9; visual/Vulkan/installer/new-GPU-run limitations remain |
+| 16 / **Completed: L7-D** Workflow and support help | Seven final translations; all 19 Markdown files including contents, 18 GUI chapters; full 29-resource image inventory | Medium–high | Accepted implementation `5045f629e67ad91c76884aca8d5f8ebf808f3c70`: automated checks, report review and selective Russian-document review. L7 text localization is closed with a graphics exception: 25 diagrams remain English-labelled and are not graphically localized; three JPEG and the logo have no English labels and are reused. English docs, MCP contracts, commands and formats preserved; open C/B/D/I register and uncompleted former L9 acceptance scope retained |
+| 17 / Removed from current plan: L8-A Console and CLI | ConsoleModeController, ConsoleUi, Alien-cli human help/status/error output and explicit locale selection policy | Medium–high | Not completed. Retain option names, machine output and numeric formats if work resumes; avoid introducing GUI dependency into CLI |
+| 18 / Removed from current plan: L8-B Vendor and diagnostic closure | ImFileDialog integration; exposed ImGui/ImPlot menus; user-facing Base/Network/Persister/Rendering/startup errors | High | Not completed. Raw vendor diagnostics and other limitations remain open |
+| 19 / Removed from current plan: L9 Release qualification | Complete bilingual inventory, final review of 25 English-labelled diagrams, manual visual/Vulkan review of every F1 chapter, installer-package completeness, ID/search/DPI regression and source coverage gate | High integration | Not completed. The inherited graphics exception and outstanding manual/Vulkan/installer acceptance remain open |
 
 L4-A1/A2 are deliberately first even though A3/A4/A5 complete the same editor
 family. During A1, translate only the attribute descriptions it actually consumes;
@@ -339,7 +339,8 @@ Accepted L7-D implementation: `5045f629e67ad91c76884aca8d5f8ebf808f3c70`.
 The user accepted the automated checks, report review and selective review of
 Russian documents. **L7-A, L7-B, L7-C and L7-D are complete; the entire L7 stage
 is closed as completed text localization of the built-in F1 help, with an
-explicit exception for graphical resources and pending L9 release acceptance.**
+explicit exception for graphical resources. L9 release acceptance was not completed
+and has been removed from the current plan.**
 Earlier completion records describe their historical scope; this record supplies
 the current overall L7 status. L7-C implementation
 `ff501d8bf0a25909214702cda788f5ad9a667634` was accepted on 2026-10-26 through
@@ -360,7 +361,7 @@ data and all decisions remain unchanged in
 [localization-l7d-images.json](localization-l7d-images.json). Closing L7 with this
 graphics exception does not constitute full visual localization of the help.
 
-L9 explicitly inherits final review of all twenty-five English-labelled diagrams,
+The former L9 scope included final review of all twenty-five English-labelled diagrams,
 manual visual/Vulkan review of every chapter at 100/150/200%, and completeness
 checks of the installer package and both language trees. Manual visual/Vulkan
 acceptance and installer-package verification have not been performed. Existing
@@ -380,8 +381,8 @@ are preserved. Builds and tests are not rerun; accepted implementation evidence
 is retained. The user authorizes the documentation acceptance commit and branch
 push, fast-forward-only integration into main, pushing main, synchronization and
 cleanliness checks, and deletion of the integrated feature branch locally and
-remotely. L8 is not started or authorized. The numbered order remains the
-recommended delivery sequence, not an instruction to start later-stage work.
+remotely. At that time L8 was not started or authorized. The later user decision
+removes L8-A, L8-B and L9 from the current plan without marking them complete.
 
 ## Cross-stage contracts
 
