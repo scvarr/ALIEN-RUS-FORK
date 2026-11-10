@@ -21,6 +21,9 @@
 #include <Gui/Impl/StyleService.h>
 #include <Gui/Impl/UploadSimulationDialog.h>
 #include <Gui/Impl/WindowController.h>
+#include <Gui/Impl/RecorderController.h>
+#include <Gui/Impl/RecorderWindow.h>
+#include <Gui/Impl/ConsoleModeController.h>
 #include <Base/Tests/SettingsTestScope.h>
 
 class BrowserLocalizationTests : public ::testing::Test
@@ -90,7 +93,6 @@ protected:
         dialog._resourceName = "Мир/User 100% {name} ### literal";
         dialog._resourceDescription = "Описание / https://example.invalid/ ### literal";
         dialog._folder = "Папка/Folder";
-        dialog._share = true;
         dialog.changeTitle(type == NetworkResourceType_Simulation ? "Upload simulation" : "Upload genome");
         dialog.setTitleKey(type == NetworkResourceType_Simulation ? "browser.upload.title" : "genome.upload.title");
         openWithoutSimulation(dialog);
@@ -104,12 +106,32 @@ protected:
         dialog.setTitleKey(type == NetworkResourceType_Simulation ? "browser.replacesimulation" : "browser.replacegenome");
         openWithoutSimulation(dialog);
     }
+    void verifyConsoleRecordingGuard()
+    {
+        auto& recorder = RecorderController::get();
+        recorder.setWaypoints({CameraWaypoint{}, CameraWaypoint{}});
+        // State-only fixture: no encoder is created and no MP4 success is claimed.
+        recorder._recording = RecorderController::Recording{.schedule = recorder.createRecordingSchedule()};
+        EXPECT_TRUE(recorder.isRecording());
+        ConsoleModeController::get().activate();
+        EXPECT_FALSE(ConsoleModeController::get().isActive());
+        recorder._recording.reset();
+        recorder.setWaypoints({});
+    }
+    void submitUpload(WorkspaceType workspace) { UploadSimulationDialog::get().onUpload(workspace); }
+    void validUploadData()
+    {
+        UploadSimulationDialog::get()._resourceName = "Water world";
+        UploadSimulationDialog::get()._resourceDescription = "Experiment";
+    }
+    void invalidUploadName() { UploadSimulationDialog::get()._resourceName = "bad\\name"; }
+    std::string confirmation() { return GenericMessageDialog::get()._message; }
+    bool hasConfirmationAction() { return GenericMessageDialog::get()._actionText.has_value(); }
     void checkBrowserDialogData()
     {
         EXPECT_EQ("Папка/User 100% {name} ### literal", EditSimulationDialog::get()._newName);
         EXPECT_EQ("Мир/User 100% {name} ### literal", UploadSimulationDialog::get()._resourceName);
         EXPECT_EQ("Описание / https://example.invalid/ ### literal", UploadSimulationDialog::get()._resourceDescription);
-        EXPECT_TRUE(UploadSimulationDialog::get()._share);
     }
 
     void SetUp() override
@@ -176,6 +198,15 @@ namespace
         void drawSimulation(RenderView const& view) override {}
         void clearScreen(FloatColorRGB const& color) override {}
         void render(ImDrawData* drawData) override {}
+        void captureSimulationFrame(int numPrecedingRenderings) override
+        {
+            ADD_FAILURE() << "Unexpected frame capture in localization fixture";
+        }
+        std::optional<PictureData> fetchCapturedSimulationFrame() override
+        {
+            ADD_FAILURE() << "Unexpected frame capture result in localization fixture";
+            return std::nullopt;
+        }
         PictureData renderSimulationPicture(RenderView const& view) override { return {}; }
         PictureData renderDrawList(ImDrawList* drawList, IntVector2D const& resolution, ImColor const& backgroundColor, int supersampling) override
         {
@@ -195,6 +226,7 @@ namespace
         std::optional<PersisterRequestState> state = PersisterRequestState::InProgress;
         std::vector<PersisterErrorInfo> errors;
         int scheduled = 0;
+        std::optional<UploadNetworkResourceRequestData> uploaded;
         void setup() override {}
         void shutdown() override {}
         void restart() override {}
@@ -230,6 +262,7 @@ namespace
         DownloadNetworkResourceResultData fetchDownloadNetworkResourcesData(PersisterRequestId const& id) override { return {}; }
         PersisterRequestId scheduleUploadNetworkResource(SenderInfo const& senderInfo, UploadNetworkResourceRequestData const& data) override
         {
+            uploaded = data;
             return {"isolated-browser-" + std::to_string(++scheduled)};
         }
         UploadNetworkResourceResultData fetchUploadNetworkResourcesData(PersisterRequestId const& id) override { return {}; }
@@ -320,11 +353,12 @@ TEST_F(BrowserLocalizationTests, l6bBrowserKeepsWorkspaceTableSortSelectionFilte
                 raw->height = 200;
                 raw->particles = 12345;
                 raw->contentSize = 123456;
-                data->workspaces.at({type, workspace}).rawTOs.emplace_back(raw);
+                auto resources = data->getWorkspace({type, workspace}).rawTOs;
+                resources.emplace_back(raw);
+                data->setRawTOs({type, workspace}, resources);
             }
         }
     }
-    data->createTreeTOsForAllWorkspaces();
     auto& io = ImGui::GetIO();
     io.DisplaySize = {4000, 3000};
     std::map<int, ImGuiTable*> tables;
@@ -332,15 +366,14 @@ TEST_F(BrowserLocalizationTests, l6bBrowserKeepsWorkspaceTableSortSelectionFilte
         setTestScale(factor);
         for (int type : {NetworkResourceType_Simulation, NetworkResourceType_Genome}) {
             for (int workspace : {WorkspaceType_AlienProject, WorkspaceType_Public, WorkspaceType_Private}) {
-                data->currentWorkspace = {type, workspace};
-                auto& current = data->getCurrentWorkspace();
-                current.collapsedFolderNames = {{"Folder", "Папка"}};
-                data->createTreeTOs(current);
+                data->setCurrentWorkspaceId({type, workspace});
+                auto const& current = data->getCurrentWorkspace();
+                data->setCollapsedFolderNames(data->getCurrentWorkspaceId(), {{"Folder", "Папка"}});
                 frame([&] { browserView(false); });
                 frame([&] { browserView(false); });
-                data->selectedTreeTO = current.treeTOs.back();
-                auto selected = data->selectedTreeTO;
-                data->filter = "100%";
+                data->setSelectedTreeTO(current.treeTOs.back());
+                auto selected = data->getSelectedTreeTO();
+                data->setFilter("100%");
                 browserSort(GallerySorting_MostDownloads);
                 browserPage(1);
                 ImGuiTable* originalTable = nullptr;
@@ -376,10 +409,10 @@ TEST_F(BrowserLocalizationTests, l6bBrowserKeepsWorkspaceTableSortSelectionFilte
                             ASSERT_FALSE(current.sortSpecs.empty());
                             EXPECT_EQ(NetworkResourceColumnId_Timestamp, current.sortSpecs.front().ColumnUserID);
                         }
-                        EXPECT_EQ(type, data->currentWorkspace.resourceType);
-                        EXPECT_EQ(workspace, data->currentWorkspace.workspaceType);
-                        EXPECT_EQ(selected, data->selectedTreeTO);
-                        EXPECT_EQ("100%", data->filter);
+                        EXPECT_EQ(type, data->getCurrentWorkspaceId().resourceType);
+                        EXPECT_EQ(workspace, data->getCurrentWorkspaceId().workspaceType);
+                        EXPECT_TRUE(data->isSelected(selected));
+                        EXPECT_EQ("100%", data->getFilter());
                         EXPECT_EQ((std::set<std::vector<std::string>>{{"Folder", "Папка"}}), current.collapsedFolderNames);
                         EXPECT_EQ(1, browserPage());
                         EXPECT_EQ(GallerySorting_MostDownloads, browserSort());
@@ -410,7 +443,7 @@ TEST_F(BrowserLocalizationTests, l6bEmptyBrowserAndPendingRefreshErrorUseIsolate
         for (auto language : {"en", "ru", "en"}) {
             select(language);
             for (int workspace : {WorkspaceType_AlienProject, WorkspaceType_Public, WorkspaceType_Private}) {
-                browserData()->currentWorkspace.workspaceType = workspace;
+                browserData()->setCurrentWorkspaceId({browserData()->getCurrentWorkspaceId().resourceType, workspace});
                 frame([&] { browserView(false); });
                 frame([&] { browserView(true); });
                 EXPECT_TRUE(controller.isRefreshing());
@@ -499,6 +532,7 @@ TEST_F(BrowserLocalizationTests, l6bAllResourceOperationsKeepPendingTasksAndShow
 {
     BrowserServiceScope services;
     initTransfers();
+    initBrowser();
     auto& controller = NetworkTransferController::get();
     std::vector<std::function<void()>> operations{
         [&] { controller.onDownload({}); },
@@ -527,6 +561,7 @@ TEST_F(BrowserLocalizationTests, l6bAllResourceOperationsKeepPendingTasksAndShow
         }
         closeImmediately(GenericMessageDialog::get());
     }
+    destroyBrowser();
     clearTransfers();
 }
 
@@ -536,8 +571,8 @@ TEST_F(BrowserLocalizationTests, l6cGalleryAndTableUseTheSameUnicodeFilterWithou
     initBrowser();
     auto data = browserData();
     for (int type : {NetworkResourceType_Simulation, NetworkResourceType_Genome}) {
-        data->currentWorkspace = {type, WorkspaceType_Public};
-        auto& workspace = data->getCurrentWorkspace();
+        data->setCurrentWorkspaceId({type, WorkspaceType_Public});
+        auto const& workspace = data->getCurrentWorkspace();
         for (int i = 0; i < 3; ++i) {
             auto item = std::make_shared<_NetworkResourceRawTO>();
             item->id = std::to_string(i);
@@ -545,14 +580,15 @@ TEST_F(BrowserLocalizationTests, l6cGalleryAndTableUseTheSameUnicodeFilterWithou
             item->numLikesByEmojiType = {{1, i}};
             item->resourceType = type;
             item->workspaceType = WorkspaceType_Public;
-            workspace.rawTOs.emplace_back(item);
+            auto resources = workspace.rawTOs;
+            resources.emplace_back(item);
+            data->setRawTOs(data->getCurrentWorkspaceId(), resources);
         }
         browserSort(0);
         for (auto const& language : {"en", "ru", "en"}) {
             select(language);
             for (auto query : {"мИр", "ГеНоМ", "ёЖ"}) {
-                data->filter = query;
-                data->createTreeTOs(workspace);
+                data->setFilter(query);
                 auto sorted = browserSorted();
                 ASSERT_EQ(2, sorted.size());
                 EXPECT_EQ("1", sorted.at(0)->id);
@@ -560,11 +596,97 @@ TEST_F(BrowserLocalizationTests, l6cGalleryAndTableUseTheSameUnicodeFilterWithou
                 EXPECT_EQ("МИР/ГЕНОМ/ЁЖ", workspace.rawTOs.at(0)->resourceName);
                 EXPECT_EQ(2, std::count_if(workspace.treeTOs.begin(), workspace.treeTOs.end(), [](auto const& tree) { return tree->isLeaf(); }));
             }
-            data->filter = "ЕЖ";
-            data->createTreeTOs(workspace);
+            data->setFilter("ЕЖ");
             EXPECT_TRUE(workspace.treeTOs.empty());
             EXPECT_TRUE(browserSorted().empty());
         }
     }
     destroyBrowser();
+}
+
+TEST_F(BrowserLocalizationTests, syncUploadVisibilityValidationAndConfirmation)
+{
+    BrowserServiceScope services;
+    initBrowser();
+    initTransfers();
+    for (auto workspace : {WorkspaceType_Public, WorkspaceType_Private}) {
+        browserUpload(NetworkResourceType_Simulation);
+        validUploadData();
+        services.stub->state = PersisterRequestState::InProgress;
+        submitUpload(workspace);
+        ASSERT_TRUE(services.stub->uploaded);
+        EXPECT_EQ(workspace, services.stub->uploaded->workspaceType);
+        EXPECT_EQ("Папка/Folder", services.stub->uploaded->folderName);
+        EXPECT_EQ("Water world", services.stub->uploaded->resourceWithoutFolderName);
+        EXPECT_TRUE(std::holds_alternative<UploadNetworkResourceRequestData::SimulationData>(services.stub->uploaded->data));
+        services.stub->state = PersisterRequestState::Finished;
+        static_cast<MainLoopEntity&>(NetworkTransferController::get()).process();
+        EXPECT_TRUE(GenericMessageDialog::get().isOpen());
+        EXPECT_TRUE(hasConfirmationAction());
+        EXPECT_NE(std::string::npos, confirmation().find("Water world"));
+        closeImmediately(GenericMessageDialog::get());
+    }
+    auto scheduled = services.stub->scheduled;
+    browserUpload(NetworkResourceType_Simulation);
+    invalidUploadName();
+    submitUpload(WorkspaceType_Public);
+    EXPECT_EQ(scheduled, services.stub->scheduled);
+    EXPECT_TRUE(GenericMessageDialog::get().isOpen());
+    closeImmediately(GenericMessageDialog::get());
+    destroyBrowser();
+    clearTransfers();
+}
+
+TEST_F(BrowserLocalizationTests, syncRefreshPreservesResourceSelectionAcrossReplacementObjects)
+{
+    BrowserServiceScope services;
+    initBrowser();
+    auto data = browserData();
+    data->setCurrentWorkspaceId({NetworkResourceType_Simulation, WorkspaceType_Public});
+    auto first = std::make_shared<_NetworkResourceRawTO>();
+    first->id = "stable-resource";
+    first->resourceName = "Folder/Мир";
+    data->setRawTOs(data->getCurrentWorkspaceId(), {first});
+    auto selected = data->getCurrentWorkspace().treeTOs.back();
+    ASSERT_TRUE(selected->isLeaf());
+    data->setSelectedTreeTO(selected);
+    auto replacement = std::make_shared<_NetworkResourceRawTO>(*first);
+    replacement->description = "Обновлено";
+    data->setRawTOs(data->getCurrentWorkspaceId(), {replacement});
+    ASSERT_TRUE(data->getSelectedTreeTO());
+    EXPECT_TRUE(data->isSelected(replacement));
+    EXPECT_EQ(replacement, data->getSelectedTreeTO()->getLeaf().rawTO);
+    data->setRawTOs(data->getCurrentWorkspaceId(), {});
+    EXPECT_FALSE(data->getSelectedTreeTO());
+    destroyBrowser();
+}
+
+TEST_F(BrowserLocalizationTests, syncRecorderPlaybackTransitionsAndWindowVisibility)
+{
+    auto& recorder = RecorderController::get();
+    recorder.setSimulationStartedWithFlight(false);
+    recorder.setWaypoints({});
+    recorder.startPlayback();
+    EXPECT_FALSE(recorder.isPlaying());
+    EXPECT_THROW(recorder.startRecording("unused.mp4"), std::exception);
+    EXPECT_FALSE(recorder.isRecording());
+    recorder.setWaypoints({CameraWaypoint{}, CameraWaypoint{}});
+    recorder.startPlayback();
+    EXPECT_TRUE(recorder.isPlaying());
+    EXPECT_TRUE(recorder.getPlaybackTime());
+    recorder.setWaypoints({});
+    EXPECT_FALSE(recorder.isPlaying());
+    EXPECT_FALSE(recorder.getPlaybackTime());
+    recorder.stop();
+    auto& window = RecorderWindow::get();
+    window.setOn(true);
+    EXPECT_TRUE(window.isOn());
+    window.setOn(false);
+    EXPECT_FALSE(window.isOn());
+    recorder.setSimulationStartedWithFlight(true);
+}
+
+TEST_F(BrowserLocalizationTests, syncConsoleRejectsActivationWhileRecording)
+{
+    verifyConsoleRecordingGuard();
 }

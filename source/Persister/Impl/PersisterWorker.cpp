@@ -324,7 +324,7 @@ _PersisterWorker::PersisterRequestResultOrError _PersisterWorker::processRequest
         success &= NetworkService::get().getEmojiTypeByResourceId(data.emojiTypeByResourceId);
     }
     if (success) {
-        data.numActiveSimulators = NetworkService::get().getNumActiveSimulators();
+        data.activeSimulatorCounts = NetworkService::get().getActiveSimulatorCounts();
     }
 
     if (!success) {
@@ -469,7 +469,7 @@ _PersisterWorker::PersisterRequestResultOrError _PersisterWorker::processRequest
         requestData.downloadCache->insertOrAssign(resourceId, deserializedSim);
     }
 
-    return std::make_shared<_UploadNetworkResourceRequestResult>(request->getRequestId(), UploadNetworkResourceResultData{});
+    return std::make_shared<_UploadNetworkResourceRequestResult>(request->getRequestId(), UploadNetworkResourceResultData{.resourceId = resourceId});
 }
 
 _PersisterWorker::PersisterRequestResultOrError _PersisterWorker::processRequest(

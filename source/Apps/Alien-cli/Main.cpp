@@ -5,6 +5,7 @@
 
 #include <Base/AlienExceptions.h>
 #include <Base/Console.h>
+#include <Base/CrashLogger.h>
 #include <Base/ExitScopeGuard.h>
 #include <Base/FileLogger.h>
 #include <Base/GlobalSettings.h>
@@ -31,8 +32,8 @@
 
 #include "CommandLineParser.h"
 #include "ConsoleOutput.h"
-#include "LoginSession.h"
 #include "PeriodicUploader.h"
+#include "ServerSession.h"
 #include "SimulationRunner.h"
 
 namespace
@@ -46,21 +47,20 @@ namespace
         ConsoleOutput::printStep("trace", std::filesystem::absolute(Const::TraceFilename).string());
     }
 
-    bool logIn(std::optional<LoginSession>& loginSession, CommandLineArguments const& arguments, std::string const& gpuName)
+    bool startServerSession(std::optional<ServerSession>& serverSession, CommandLineArguments const& arguments, std::string const& gpuName)
     {
-        if (arguments.userName.empty()) {
-            return true;
-        }
-        if (arguments.password.empty()) {
+        if (!arguments.userName.empty() && arguments.password.empty()) {
             ConsoleOutput::printError("No password given. A login requires the user name via -u and the password via -p.");
             return false;
         }
-        loginSession.emplace(arguments.userName, arguments.password, gpuName);
-        if (auto const& errorMessage = loginSession->getErrorMessage()) {
+        serverSession.emplace(arguments.userName, arguments.password, gpuName, !arguments.noCountAsActive);
+        if (auto const& errorMessage = serverSession->getErrorMessage()) {
             ConsoleOutput::printError(*errorMessage);
             return false;
         }
-        ConsoleOutput::printStep("user", arguments.userName, NetworkService::get().getServerAddress());
+        if (serverSession->isLoggedIn()) {
+            ConsoleOutput::printStep("user", arguments.userName, NetworkService::get().getServerAddress());
+        }
         return true;
     }
 
@@ -193,10 +193,11 @@ namespace
 
 int main(int argc, char** argv)
 {
+    FileLogger fileLogger = std::make_shared<_FileLogger>();
+    CrashLogger crashLogger = std::make_shared<_CrashLogger>();
+
     auto error = false;
     try {
-        FileLogger fileLogger = std::make_shared<_FileLogger>();
-
         CommandLineArguments arguments;
         if (auto const& exitCode = CommandLineParser::parse(arguments, argc, argv)) {
             return *exitCode;
@@ -214,11 +215,11 @@ int main(int argc, char** argv)
         ExitScopeGuard closeSimulation([] { _SimulationFacade::get()->closeSimulation(); });
         auto simulationFacade = _SimulationFacade::get();
 
-        std::optional<LoginSession> loginSession;
-        if (!logIn(loginSession, arguments, simulationFacade->getGpuName())) {
+        std::optional<ServerSession> serverSession;
+        if (!startServerSession(serverSession, arguments, simulationFacade->getGpuName())) {
             return 1;
         }
-        if (!checkPeriodicUploadArguments(arguments, loginSession.has_value())) {
+        if (!checkPeriodicUploadArguments(arguments, serverSession->isLoggedIn())) {
             return 1;
         }
 

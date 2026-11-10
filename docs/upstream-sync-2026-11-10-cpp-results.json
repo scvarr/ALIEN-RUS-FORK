@@ -1,0 +1,68 @@
+[
+  {
+    "suite": "BaseTests",
+    "exitCode": 0,
+    "ran": 47,
+    "passed": 47
+  },
+  {
+    "suite": "DataTests",
+    "exitCode": 0,
+    "ran": 247,
+    "passed": 247
+  },
+  {
+    "suite": "EngineInterfaceTests",
+    "exitCode": 0,
+    "ran": 2,
+    "passed": 2
+  },
+  {
+    "suite": "McpToolsTests",
+    "exitCode": 0,
+    "ran": 42,
+    "passed": 42
+  },
+  {
+    "suite": "NetworkTests",
+    "exitCode": 0,
+    "ran": 38,
+    "passed": 38
+  },
+  {
+    "suite": "PersisterTests",
+    "exitCode": 0,
+    "ran": 142,
+    "passed": 142
+  },
+  {
+    "suite": "VideoTests",
+    "exitCode": 0,
+    "ran": 21,
+    "passed": 21
+  },
+  {
+    "suite": "GuiLocalizationTests",
+    "exitCode": 0,
+    "ran": 166,
+    "passed": 166
+  },
+  {
+    "suite": "AccountLocalizationTests",
+    "exitCode": 0,
+    "ran": 6,
+    "passed": 6
+  },
+  {
+    "suite": "McpLocalizationTests",
+    "exitCode": 0,
+    "ran": 7,
+    "passed": 7
+  },
+  {
+    "suite": "EngineTests",
+    "exitCode": 0,
+    "ran": 2211,
+    "passed": 2209
+  }
+]

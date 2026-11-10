@@ -326,13 +326,14 @@ protected:
             select(language);
             window.processBackground();
             EXPECT_EQ(DocumentationBaseline::CONTENTS, tool.handler({}).text);
-            for (auto const& [filename, expected] : DocumentationBaseline::CHAPTER_HASHES) {
+            for (auto const& entry : DocumentationBaseline::CHAPTER_HASHES) {
+                auto const& filename = entry.first;
+                std::ifstream stream(Const::DocsPath / filename);
+                ASSERT_TRUE(stream.good()) << filename;
+                std::string english{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+                ASSERT_FALSE(english.empty()) << filename;
                 auto result = tool.handler({{"chapter", filename}});
-                uint64_t hash = 14695981039346656037ull;
-                for (unsigned char c : result.text) {
-                    hash = (hash ^ c) * 1099511628211ull;
-                }
-                EXPECT_EQ(expected, hash) << filename << ": " << language;
+                EXPECT_EQ(english, result.text) << filename << ": " << language;
                 EXPECT_FALSE(result.isError);
                 EXPECT_TRUE(result.images.empty());
                 EXPECT_EQ(result.text, tool.handler({{"chapter", filename + "#section"}}).text);

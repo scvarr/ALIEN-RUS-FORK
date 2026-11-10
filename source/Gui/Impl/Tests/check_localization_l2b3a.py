@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import re
 import unittest
+from check_upstream_sync import assertBaselineKeys
 
 from check_localization_l2b2 import catalog, read, ROOT, GUI
 
@@ -28,7 +29,7 @@ class L2b3aContracts(unittest.TestCase):
     def test_catalogs_and_all_twenty_typed_member_bindings(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in en))
+        assertBaselineKeys(self, en)
         source = read(GUI / "SimulationParametersPresentation.cpp")
         for index, (spec, member) in enumerate(MEMBERS):
             prefix = "parameters." + ("visualization." if index < 13 else "energy.") + member.lower()
@@ -60,7 +61,7 @@ class L2b3aContracts(unittest.TestCase):
                 self.assertEqual(name, en[prefix + '.name'])
                 self.assertEqual(description, en[prefix + '.description'])
                 count += 1
-        self.assertEqual(20, count)
+        self.assertEqual(22, count)
         for index, (english, russian) in enumerate(zip(
                 ["Energy", "Customization", "Lineage + Customization", "Lineage", "Creature"],
                 ["Энергия", "Настройка", "Происхождение + Настройка", "Происхождение", "Организм"])):

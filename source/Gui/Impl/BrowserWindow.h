@@ -1,5 +1,8 @@
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include <Network/NetworkResourceTreeTO.h>
 
 #include <Persister/Interface/Definitions.h>
@@ -17,9 +20,10 @@ class BrowserWindow : public AlienWindow
 public:
     void onRefresh();
     void onPreviewPictureChanged(std::string const& resourceId);
+    void showResource(NetworkResourceType resourceType, WorkspaceType workspaceType, std::string const& resourceId);
     WorkspaceType getCurrentWorkspaceType() const;
 
-    DownloadCache& getSimulationCache();
+    DownloadCache const& getSimulationCache() const;
 
 private:
     BrowserWindow();
@@ -54,6 +58,7 @@ private:
     void onDeleteResource(NetworkResourceTreeTO const& treeTO);
     void onExpandFolders();
     void onCollapseFolders();
+    void revealResource(std::string const& resourceId);
 
     BrowserData _data;
     BrowserGalleryWidget _galleryWidget;
@@ -65,4 +70,5 @@ private:
     bool _galleryView = true;
     bool _showAllEmojis = false;
     float _userTableWidth = 0;
+    std::optional<std::string> _resourceIdToShow;
 };

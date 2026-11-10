@@ -48,11 +48,11 @@ namespace Const
         "If this option is enabled, other users will be able to see in the browser window that you have the following graphics card: ";
     std::string const LoginShareGpuInfoTooltip2 = "As a result, you will be able to see the GPU information of other registered users who have shared it.";
 
-    std::string const BrowserActiveSimulatorsTooltip =
-        "Number of ALIEN instances that fetched the browser list in the last 25 minutes, including those without a login. Every running instance "
-        "does this on startup and then every 20 minutes.\n\nInstances are told apart by a hash of their IP address that the server keeps only in "
-        "memory for 25 minutes and never stores. Instances sharing one IP address count once. Instances where 'Count me as active' is disabled in the "
-        "network settings are not included.";
+    std::string const BrowserSimulatorCountsTooltip =
+        "Active: ALIEN instances running in the last 25 minutes.\n"
+        "Last 24h: different IP addresses that ran ALIEN in the last 24 hours.\n\n"
+        "Both include the command-line interface and instances without login. The server keeps only a hash of each IP address in memory and deletes it "
+        "24 hours after the last report. Instances sharing one IP address count once. Disable 'Count me as active' in the network settings to be left out.";
 
     std::string const NetworkCountAsActiveTooltip = "localui.network.activehelp";
 

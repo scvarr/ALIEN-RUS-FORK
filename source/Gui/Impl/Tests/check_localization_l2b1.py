@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import unittest
+from check_upstream_sync import assertBaselineKeys
 
 ROOT = Path(__file__).resolve().parents[4]
 GUI = ROOT / 'source/Gui/Impl'
@@ -66,7 +67,7 @@ class L2b1Contracts(unittest.TestCase):
             return result
         en, ru = [json.loads(read(ROOT / f'resources/locales/{lang}.json'), object_pairs_hook=unique) for lang in ('en', 'ru')]
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in en))
+        assertBaselineKeys(self, en)
         for key in en:
             self.assertEqual(re.findall(r'\{[^}]*\}', en[key]), re.findall(r'\{[^}]*\}', ru[key]))
             self.assertNotIn('##', en[key])

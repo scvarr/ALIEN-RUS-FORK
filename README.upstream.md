@@ -55,7 +55,7 @@ https://github.com/user-attachments/assets/27f244b2-2792-4854-9042-6c8b179638c0
 - Evolution dashboard with lineages, population statistics and long-term plots
 - Autosave with save points and flashbacks to return to interesting moments
 
-https://user-images.githubusercontent.com/73127001/229569056-0db6562b-0147-43c8-a977-5f12c1b6277b.mp4
+https://github.com/user-attachments/assets/77e4ac57-8d3f-4a51-9f69-65cb8e31d097
 
 ### AI agents
 - Built-in MCP server: connect an AI agent and describe in plain language what you want
@@ -95,13 +95,13 @@ Plenty of examples can be found on the [YouTube channel](https://youtube.com/cha
 
 ## 🌌 Gallery
 
-**Plant-like populations around a radiation source**
+**Various populations around a radiation source**
 
-![Plant-like populations around a radiation source](https://user-images.githubusercontent.com/73127001/229311601-839649a6-c60c-4723-99b3-26086e3e4340.jpg)
+<img width="2048" height="1152" alt="radiation_source" src="https://github.com/user-attachments/assets/a55cd25e-a443-42d8-ad5a-7dbe59640a31" />
 
-**Close-up of different organisms showing their cell networks**
+****Close-up of evolved digital organisms****
 
-![Close-up of different organisms showing their cell networks](https://user-images.githubusercontent.com/73127001/229311604-3ee433d4-7dd8-46e2-b3e6-489eaffbda7b.jpg)
+<img width="1920" height="1080" alt="alien-closeup-d-frost" src="https://github.com/user-attachments/assets/490c740a-02f1-4682-ba10-b63cf89d1fda" />
 
 **Swarms attacking an ecosystem**
 
@@ -119,25 +119,23 @@ Plenty of examples can be found on the [YouTube channel](https://youtube.com/cha
 | ------------------ | ----------------------------------- | ----------------------------------- |
 | **Windows**        | nightly build or build from sources | nightly build or build from sources |
 | **Linux**          | build from sources                  | build from sources                  |
-| **Cloud instance** | Docker image, headless              | not available                       |
+| **Cloud instance** | Docker image, CLI only              | not available                       |
 
-NVIDIA: compute capability 7.5 or higher, i.e. GeForce RTX 20 series or newer ([list of supported GPUs](https://en.wikipedia.org/wiki/CUDA#GPUs_supported)). AMD: RDNA2 or newer.
+NVIDIA: compute capability 7.5 or higher, i.e. GeForce GTX 16 series, RTX 20 series or newer ([list of supported GPUs](https://en.wikipedia.org/wiki/CUDA#GPUs_supported)). AMD: RDNA2 or newer. Support for AMD GPUs is experimental, so ALIEN may run slowly or crash.
 
 ### Windows: nightly build
 
-Download and unpack https://alien-project.org/files/alien-develop.zip, which is built every night from the `develop` branch. It contains two executables:
-- `alien.exe` for NVIDIA GPUs
-- `alien-amd.exe` for AMD GPUs (RDNA2, RDNA3 and RDNA4)
+Download and run https://alien-project.org/files/alien-setup.exe, which is built every night from the `develop` branch. It installs ALIEN for the current user without administrator rights, asks for the graphics card (NVIDIA, or AMD as an experimental option) and creates a Start menu entry and, if desired, a desktop shortcut. ALIEN is uninstalled under *Settings > Apps* or with *Uninstall ALIEN* in the Start menu.
 
-Start it directly from the unpacked folder, otherwise it will not find the resource folder. If the program crashes for an unknown reason, please refer to the [troubleshooting](#-troubleshooting) section below.
+If the program crashes for an unknown reason, please refer to the [troubleshooting](#-troubleshooting) section below.
 
 ### Cloud and Docker
 
-For long runs without local hardware, a nightly image containing the headless [command-line interface](#command-line-interface) is published on Docker Hub as `chrxh/alien:nightly`. It holds `alien-cli` and its resource folder. There is no GUI in the image.
+For long runs without local hardware, a nightly image containing the [command-line interface](#command-line-interface) is published on Docker Hub as `chrxh/alien:nightly`. It holds `alien-cli` and its resource folder. There is no GUI in the image.
 
-On a rented GPU instance (for example [vast.ai](https://vast.ai)), enter `chrxh/alien:nightly` as the instance image and filter the offers for a GeForce RTX 20 to 50 series GPU. Upload your simulation file to the instance with `scp`, then connect via SSH and start it by hand:
+On a rented GPU instance (for example [vast.ai](https://vast.ai)), enter `chrxh/alien:nightly` as the instance image and filter the offers for a GeForce RTX 20 series or newer GPU. Upload your simulation file to `/workspace` on the instance with `scp`, then connect via SSH and start it by hand:
 ```
-cd /opt/alien
+cd /workspace
 alien-cli -i example.sim -o output.sim
 ```
 
@@ -198,7 +196,7 @@ cmake --build --preset ninja-release
 
 ### Command-line interface
 
-Besides the graphical program, ALIEN includes `alien-cli` (`alien-cli.exe` on Windows), which runs simulations without a window. It is useful for long experiments, performance measurements and the automated evaluation of simulations with different parameters. For example,
+Besides the graphical program, ALIEN includes `alien-cli` (on Windows `alien-cli.exe` for NVIDIA and `alien-cli-amd.exe` for AMD), which runs simulations without a window. It is useful for long experiments, performance measurements and the automated evaluation of simulations with different parameters. For example,
 ```
 alien-cli -i example.sim -o output.sim -t 1000
 ```
@@ -217,7 +215,7 @@ The same chapters can also be read here on GitHub in [resources/docs](resources/
 ## 🔎 Troubleshooting
 
 If ALIEN does not start or crashes, please make sure that:
-1) You have a supported graphics card: an NVIDIA GPU with compute capability 7.5 or higher (for example GeForce RTX 20 series) or an AMD GPU of the RDNA2 generation or newer.
+1) You have a supported graphics card: an NVIDIA GPU with compute capability 7.5 or higher (for example GeForce GTX 16 or RTX 20 series) or an AMD GPU of the RDNA2 generation or newer.
 2) You have the latest graphics driver installed. It has to support Vulkan 1.3.
 3) The name of the installation directory (including the parent directories) contains no non-English characters. On Windows, the user name should not contain such characters either.
 4) ALIEN has write access to its own directory.
@@ -295,6 +293,7 @@ The following external libraries are used:
 - [cpp-httplib](https://github.com/yhirose/cpp-httplib)
 - [googletest](https://github.com/google/googletest)
 - [vcpkg](https://vcpkg.io/en/index.html)
+- [Inno Setup](https://jrsoftware.org/isinfo.php)
 - [WinReg](https://github.com/GiovanniDicanio/WinReg)
 - [CLI11](https://github.com/CLIUtils/CLI11)
 - [MD4C](https://github.com/mity/md4c)

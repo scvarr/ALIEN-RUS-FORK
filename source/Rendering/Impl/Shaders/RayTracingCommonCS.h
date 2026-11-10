@@ -10,15 +10,10 @@ namespace Shaders
     // Pixel coordinates of the internal images start at the upper left corner of the view, i.e. their rows run along the world y axis. The
     // version, the work group size and the sizes shared with Rendering/Impl/RayTracingResources.cpp are declared before, see createPipeline.
     std::string_view const RayTracingCommonCS = R"(
+const float Pi = 3.14159265;
 const float CameraHeight = 20.0;
-const float EmissionToRadiance = 0.6;
-const float MinLightRadiance = 0.06;
 
-// Visible sizes of the tissue close up in world units
-const float CellRadius = 0.34;
-const float FreeCellRadius = 0.29;
-const float SolidRadius = 0.4;
-const float StrandHalfWidth = 0.165;
+// Visible size of the fills close up in world units, the sizes of the cells and the strands are declared before
 const float FillOffset = 0.105;
 
 // Zoomed out, the tissue approaches the thin lines and dots of the rasterized view, but stays at least as large as a pixel
@@ -58,16 +53,15 @@ struct ObjectVertex
     float color[3];
     int state;
     float highlightIntensity;
-    float lightOrganIntensities[LightOrgansPerCell];
+    float activity;
 };
 
 struct Sphere
 {
     vec4 centerRadius;  // xy: center, w: radius
     vec4 hueMaterial;   // rgb: hue, w: material
-    vec4 emission;      // rgb: glow, w: brightness of the color
-    vec4 details;       // x: 8 bit intensities of the light organs packed into an integer, negative without light organs, y: random seed
-                        // that stays with the object, z: 1 if isolated or at the end of a chain
+    vec4 details;       // x: brightness of the color, y: random seed that stays with the object, z: 1 if isolated or at the end of a chain
+    vec4 neuron;        // x: 1 for a cell with a neuron, y: activity of the neuron
 };
 
 struct Aabb
@@ -88,12 +82,21 @@ struct FluidParticle
     float vel[2];
 };
 
+// Fixed point sums of the objects outside the extracted region, see ShadowGridNodeData in Engine/Interface/GeometryBuffers.h
+struct ShadowGridNode
+{
+    uint numFluids;
+    uint tissueArea;
+    uint tissueHueArea[3];
+    uint solidArea;
+};
+
 // A radiation source that shines from its circular or rectangular area
 struct SourceLight
 {
     vec4 centerRangeShape;  // xy: world position of the center, z: range of the light beyond the area, w: 0 for a circular, 1 for a
                             // rectangular area
-    vec4 color;             // rgb: color times brightness
+    vec4 color;             // rgb: color times brightness, w: share of the light that the objects and the gas on the way can block
     vec4 extent;            // xy: radius of a circular area in both components or half the size of a rectangular area
 };
 
@@ -101,9 +104,7 @@ layout(set = 0, binding = 0, std140) uniform FrameConstants
 {
     vec4 view;        // xy: size in pixels, z: pixels per world unit, w: screen pixels per world unit
     vec4 rect;        // xy: world position of the upper left corner, zw: jitter of the rays in pixels
-    uvec4 counts;     // x: number of objects, y: number of connections, z: number of triangles, w: number of light grid cells
-    vec4 lightGrid;   // xy: world position of the light grid, z: size of a grid cell, which is also the range of the lights
-    ivec4 gridSize;   // xy: number of cells of the light grid
+    uvec4 counts;     // x: number of objects, y: number of connections, z: number of triangles
     vec4 tissue;      // x: 1 close up, 0 zoomed out, y: visibility of the cell details, z: world size of a pixel, w: visibility of the tissue
     vec4 parameters;  // x: scale of the background color, y: 1 for anti-aliasing within the frame, z: weight of the frame in the average with
                       // the previous frames, 1 if there is no average, w: visibility of the structure of the solids
@@ -112,9 +113,13 @@ layout(set = 0, binding = 0, std140) uniform FrameConstants
     vec4 gasLight;    // x: size of the light clusters in world units, y: range of the lights, z: distance of the nodes of the irradiance grid,
                       // w: falloff distance of the lights
     ivec4 gasLightGrid;  // xy: number of light clusters, zw: number of nodes of the irradiance grid
-    vec4 gasLighting;  // xy: world position of the first light cluster, z: strength of the light of the cells in the gas
+    vec4 gasLighting;  // xy: world position of the first light cluster, z: strength of the light of the cells in the gas, w: distance of the
+                       // nodes of the source light grid
     vec4 world;        // xy: size of the world, z: 1 for borderless rendering
-    ivec4 numSourceLights;  // x: number of source lights
+    vec4 shadowGrid;  // xy: world position of the first node of the shadow grid, z: distance of the nodes, w: standard deviation of the blur in
+                      // nodes
+    ivec4 shadowGridSize;  // xy: number of nodes of the shadow grid, z: blur radius in nodes
+    ivec4 numSourceLights;  // x: number of source lights, zw: number of nodes of the source light grid
     SourceLight sourceLights[MaxSourceLights];
 } frame;
 
@@ -126,24 +131,27 @@ layout(set = 0, binding = 5, std430) buffer SphereBuffer { Sphere spheres[]; };
 layout(set = 0, binding = 6, std430) buffer SphereAabbBuffer { Aabb sphereAabbs[]; };
 layout(set = 0, binding = 7, std430) buffer CapsuleAabbBuffer { Aabb capsuleAabbs[]; };
 layout(set = 0, binding = 8, std430) buffer TriangleAabbBuffer { Aabb triangleAabbs[]; };
-layout(set = 0, binding = 9, std430) buffer CellCountBuffer { uint cellCounts[]; };
-layout(set = 0, binding = 10, std430) buffer CellCursorBuffer { uint cellCursors[]; };
-layout(set = 0, binding = 11, std430) buffer CellEntryBuffer { uint cellEntries[]; };
-layout(set = 0, binding = 12, std430) buffer AllocationBuffer { uint allocatedEntries; };
-layout(set = 0, binding = 13, rgba16f) uniform image2D sceneColor;
-layout(set = 0, binding = 14, rgba16f) uniform image2D antiAliased;
-layout(set = 0, binding = 15) uniform sampler2D previousAntiAliased;
-layout(set = 0, binding = 16) uniform sampler2D groundTexture;
-layout(set = 0, binding = 17) uniform sampler2D gasSampler;
-layout(set = 0, binding = 18) uniform sampler2D sceneColorSampler;
-layout(set = 0, binding = 19, std430) readonly buffer FluidParticleBuffer { FluidParticle fluidParticles[]; };
-layout(set = 0, binding = 20, std430) buffer GasAccumulationBuffer { uint gasAccumulation[]; };
-layout(set = 0, binding = 21, std430) buffer GasIntermediateBuffer { vec4 gasIntermediate[]; };
-layout(set = 0, binding = 22, rgba16f) uniform image2D gasImage;
-layout(set = 0, binding = 23) uniform sampler2D energyParticleTexture;
-layout(set = 0, binding = 24, std430) buffer GasLightClusterBuffer { uint gasLightClusters[]; };
-layout(set = 0, binding = 25, rgba16f) uniform image2D gasIrradianceImage;
-layout(set = 0, binding = 26) uniform sampler2D gasIrradianceSampler;
+layout(set = 0, binding = 9, rgba16f) uniform image2D sceneColor;
+layout(set = 0, binding = 10, rgba16f) uniform image2D antiAliased;
+layout(set = 0, binding = 11) uniform sampler2D previousAntiAliased;
+layout(set = 0, binding = 12) uniform sampler2D groundTexture;
+layout(set = 0, binding = 13) uniform sampler2D gasSampler;
+layout(set = 0, binding = 14) uniform sampler2D sceneColorSampler;
+layout(set = 0, binding = 15, std430) readonly buffer FluidParticleBuffer { FluidParticle fluidParticles[]; };
+layout(set = 0, binding = 16, std430) buffer GasAccumulationBuffer { uint gasAccumulation[]; };
+layout(set = 0, binding = 17, std430) buffer GasIntermediateBuffer { vec4 gasIntermediate[]; };
+layout(set = 0, binding = 18, rgba16f) uniform image2D gasImage;
+layout(set = 0, binding = 19) uniform sampler2D energyParticleTexture;
+layout(set = 0, binding = 20, std430) buffer GasLightClusterBuffer { uint gasLightClusters[]; };
+layout(set = 0, binding = 21, rgba16f) uniform image2D gasIrradianceImage;
+layout(set = 0, binding = 22) uniform sampler2D gasIrradianceSampler;
+layout(set = 0, binding = 23, std430) readonly buffer ShadowGridNodeBuffer { ShadowGridNode shadowGridNodes[]; };
+layout(set = 0, binding = 24, rgba16f) uniform image2D shadowGridImage;
+layout(set = 0, binding = 25) uniform sampler2D shadowGridSampler;
+layout(set = 0, binding = 26, std430) buffer ShadowCasterBuffer { vec4 shadowCasters[]; };
+layout(set = 0, binding = 27, std430) buffer OcclusionAccumulationBuffer { uint occlusionAccumulation[]; };
+layout(set = 0, binding = 28, rgba16f) uniform image2D occlusionImage;
+layout(set = 0, binding = 29) uniform sampler2D occlusionSampler;
 
 //*******************
 //* General helpers
@@ -330,53 +338,6 @@ void getTriangleSpheres(uint triangle, out uint sphereA, out uint sphereB, out u
     sphereC = triangleIndices[3u * triangle + 2u];
 }
 
-//*******************************
-//* Light of glowing objects
-//*******************************
-
-ivec2 getLightCell(vec2 position)
-{
-    return ivec2(floor((position - frame.lightGrid.xy) / frame.lightGrid.z));
-}
-
-uint getLightCellIndex(ivec2 cell)
-{
-    bool inGrid = cell.x >= 0 && cell.y >= 0 && cell.x < frame.gridSize.x && cell.y < frame.gridSize.y;
-    return inGrid ? uint(cell.y * frame.gridSize.x + cell.x) : NoEntry;
-}
-
-bool isLight(Sphere sphere)
-{
-    return maxComponent(sphere.emission.rgb) * EmissionToRadiance > MinLightRadiance;
-}
-
-// The light of every glowing object in range spreads through the tissue and the surrounding medium and fades with the distance
-vec3 getScatteredLight(vec2 position)
-{
-    vec3 result = vec3(0.0);
-    float range = frame.lightGrid.z;
-    ivec2 center = getLightCell(position);
-    for (int i = 0; i < 9; ++i) {
-        uint cellIndex = getLightCellIndex(center + ivec2(i % 3 - 1, i / 3 - 1));
-        if (cellIndex == NoEntry) {
-            continue;
-        }
-
-        // The scatter pass has advanced the cursor from the start of the entries of the cell to their end
-        uint count = cellCounts[cellIndex];
-        uint offset = cellCursors[cellIndex] - count;
-        for (uint j = 0u; j < count; ++j) {
-            Sphere light = spheres[cellEntries[offset + j]];
-            vec2 toLight = light.centerRadius.xy - position;
-            float distanceSquared = dot(toLight, toLight);
-            float radiusSquared = light.centerRadius.w * light.centerRadius.w;
-            float window = 1.0 - smoothstep(range * 0.5, range, sqrt(distanceSquared));
-            result += light.emission.rgb * EmissionToRadiance * radiusSquared / (radiusSquared + distanceSquared) * window;
-        }
-    }
-    return result;
-}
-
 //*************************
 //* Background
 //*************************
@@ -489,17 +450,18 @@ vec4 sampleGasLayerSmooth(vec2 world, int layer)
     return sampleRegionCubic(gasSampler, getGasTexel(world), getGasLayerStart(layer), vec2(frame.gasSize.xy), getGasImageSize());
 }
 
-vec4 sampleIrradiance(vec2 world, float regionStart)
+// The light of the cells and the light of the radiation sources lie in the irradiance image side by side, each on its own grid
+vec4 sampleIrradiance(vec2 world, float regionStart, float nodeDistance, ivec2 numNodes)
 {
-    vec2 texel = (world - frame.gasGrid.xy) / frame.gasLight.z + 0.5;
+    vec2 texel = (world - frame.gasGrid.xy) / nodeDistance + 0.5;
     vec2 imageSize = vec2(2 * GasIrradianceImageSize, GasIrradianceImageSize);
-    return sampleRegionCubic(gasIrradianceSampler, texel, vec2(regionStart, 0.0), vec2(frame.gasLightGrid.zw), imageSize);
+    return sampleRegionCubic(gasIrradianceSampler, texel, vec2(regionStart, 0.0), vec2(numNodes), imageSize);
 }
 
 // Light of the cells that reaches a position in the gas
 vec3 sampleGasIrradiance(vec2 world)
 {
-    return sampleIrradiance(world, 0.0).rgb;
+    return sampleIrradiance(world, 0.0, frame.gasLight.z, frame.gasLightGrid.zw).rgb;
 }
 )"
                                                 R"(
@@ -507,16 +469,48 @@ vec3 sampleGasIrradiance(vec2 world)
 //* Light of the radiation sources
 //*******************************
 
-// The shadow rays to the radiation sources stand for beams that lead from the parts of a node of the irradiance grid to the parts of the
+const float GasExtinction = 0.2;
+
+// Light passing through tissue takes on its color, solids block it
+const float TissueExtinction = 6.0;
+const float SolidExtinction = 8.0;
+
+vec3 getAbsorption(Sphere sphere)
+{
+    if (sphere.hueMaterial.w == Material_Solid) {
+        return vec3(SolidExtinction);
+    }
+    return TissueExtinction * getAbsorbedShare(getSaturatedHue(sphere.hueMaterial.rgb));
+}
+
+// The capsules and the triangles cast their shadows with the positions of their spheres and the sum of their absorptions, which are kept
+// together in the buffer of the shadow casters: two entries per capsule followed by three per triangle
+uint getCapsuleShadowEntry(uint capsule)
+{
+    return 2u * capsule;
+}
+
+uint getTriangleShadowEntry(uint triangle)
+{
+    return 2u * frame.counts.y + 3u * triangle;
+}
+
+// The shadow rays to the radiation sources stand for beams that lead from the parts of a node of the source light grid to the parts of the
 // shining area side by side, see Shaders/RayTracingGasIrradianceCS.h. At least this many rays start from a node.
 const int NodeRayStarts = 4;
 
-// The beams may be as wide as the parts of a node, but at least half a world unit, so that large areas need not too many rays when zoomed in
+// In their near part, the beams may be as wide as the parts of a node, but at least half a world unit, so that large areas need not too many
+// rays when zoomed in
 const float MinBeamWidthLimit = 0.5;
+
+float getSourceLightNodeDistance()
+{
+    return frame.gasLighting.w;
+}
 
 float getMaxBeamWidth()
 {
-    return max(sqrt(2.0) * frame.gasLight.z / float(NodeRayStarts), MinBeamWidthLimit);
+    return max(sqrt(2.0) * getSourceLightNodeDistance() / float(NodeRayStarts), MinBeamWidthLimit);
 }
 
 bool isSourceLightActive()
@@ -547,16 +541,96 @@ vec2 getNearestSourceCenter(SourceLight light, vec2 position)
     return light.centerRangeShape.xy + world * round((position - light.centerRangeShape.xy) / world);
 }
 
-// The bounding boxes of the objects are enlarged by half the width of the widest beam, so that the beams meet the objects next to them
+// The bounding boxes of the objects are enlarged by half the maximum width of the beams in their near part, so that the beams meet the
+// objects next to them, see getNearFade in Shaders/RayTracingGasIrradianceCS.h
 float getShadowBeamMargin()
 {
     return isSourceLightActive() ? 0.5 * getMaxBeamWidth() : 0.0;
 }
 
+// The objects shade the light by their occlusion: the width of a shadow that blocks the light completely and takes as much of it as the
+// object, i.e. the average width of the object over all directions times the share of the light that it absorbs on its average path. Unlike
+// the absorption of its area, it does not depend on the width of the beam that passes the object. The shadows treat the objects as convex
+// shapes, see Shaders/RayTracingGasIrradianceCS.h. The average width of a convex shape over all directions is its perimeter divided by pi, the
+// average length of the paths through it is pi times its area divided by its perimeter.
+vec3 getOcclusion(float perimeter, float area, vec3 absorption)
+{
+    if (perimeter < 1e-4) {
+        return vec3(0.0);
+    }
+    return perimeter / Pi * (1.0 - exp(-absorption * Pi * area / perimeter));
+}
+
+// The spheres of the extracted objects add their occlusion to the nodes of the gas grid, see Shaders/RayTracingPrepareCS.h. The
+// OcclusionStride sums at a node are fixed point numbers of the three colors.
+const float OcclusionFixedPointScale = 1024.0;
+
+// The occlusion per area at the nodes of the gas grid and of the shadow grid is blurred and downsampled into a pyramid each, see
+// Shaders/RayTracingOcclusionCS.h, so that a beam finds the occlusion across its width at the level whose node distance matches it. The
+// OcclusionLevels levels of a pyramid lie side by side in the image of its grid: the first level has the nodes of the grid, each following
+// level half as many nodes along both axes, stacked to the right of the first level.
+vec2 getPyramidImageSize(int gridImageSize)
+{
+    return vec2(gridImageSize + gridImageSize / 2, gridImageSize);
+}
+
+ivec2 getPyramidLevelStart(int gridImageSize, int level)
+{
+    return level == 0 ? ivec2(0) : ivec2(gridImageSize, gridImageSize - 2 * (gridImageSize >> level));
+}
+
+ivec2 getPyramidLevelSize(ivec2 gridSize, int level)
+{
+    return (gridSize + (1 << level) - 1) >> level;
+}
+
+struct OcclusionPyramid
+{
+    vec2 gridOrigin;
+    float nodeDistance;
+    ivec2 gridSize;
+    int gridImageSize;
+};
+
+OcclusionPyramid getGasGridPyramid()
+{
+    return OcclusionPyramid(frame.gasGrid.xy, frame.gasGrid.z, frame.gasSize.xy, GasImageSize);
+}
+
+OcclusionPyramid getShadowGridPyramid()
+{
+    return OcclusionPyramid(frame.shadowGrid.xy, frame.shadowGrid.z, frame.shadowGridSize.xy, ShadowGridImageSize);
+}
+
+// Linear map from world positions to the texels of a level and the texels within the level that linear sampling may use. A node of a level
+// lies in the middle of the nodes of the first level that it covers.
+struct PyramidLevel
+{
+    vec2 texelOffset;
+    float texelsPerWorldUnit;
+    vec2 lowerTexel;
+    vec2 upperTexel;
+};
+
+PyramidLevel getPyramidLevel(OcclusionPyramid pyramid, int level)
+{
+    float nodesPerTexel = float(1 << level);
+    vec2 start = vec2(getPyramidLevelStart(pyramid.gridImageSize, level));
+    vec2 size = vec2(getPyramidLevelSize(pyramid.gridSize, level));
+    float texelsPerWorldUnit = 1.0 / (pyramid.nodeDistance * nodesPerTexel);
+    return PyramidLevel(start - pyramid.gridOrigin * texelsPerWorldUnit + 0.5 / nodesPerTexel, texelsPerWorldUnit, start + 0.5, start + size - 0.5);
+}
+
+vec4 samplePyramidLevel(sampler2D image, OcclusionPyramid pyramid, PyramidLevel level, vec2 world)
+{
+    vec2 texel = clamp(world * level.texelsPerWorldUnit + level.texelOffset, level.lowerTexel, level.upperTexel);
+    return texture(image, texel / getPyramidImageSize(pyramid.gridImageSize));
+}
+
 // The light of each source approaches its brightness close to it, see Shaders/RayTracingGasIrradianceCS.h
 vec3 getSourceLight(vec2 world)
 {
-    return max(sampleIrradiance(world, float(GasIrradianceImageSize)).rgb, vec3(0.0));
+    return max(sampleIrradiance(world, float(GasIrradianceImageSize), getSourceLightNodeDistance(), frame.numSourceLights.zw).rgb, vec3(0.0));
 }
 
 // Without borderless rendering, the space outside the world stays dark

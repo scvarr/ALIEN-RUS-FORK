@@ -21,6 +21,9 @@
 namespace
 {
     auto constexpr DarkModeSettingsKey = "settings.dark mode";
+
+    // Code point of ICON_FA_FORWARD
+    auto constexpr ForwardIconCodepoint = ImWchar{0xf04e};
 }
 
 namespace Const
@@ -224,6 +227,11 @@ namespace Const
     ImColor BrowserPlaceholderTileBarColor;
     ImColor BrowserHiddenGpuBarColor;
     ImColor BrowserLoginHintFrameColor;
+
+    ImColor BrowserOnlineSymbolColor;
+    ImColor BrowserLastDayOnlineSymbolColor;
+    ImColor BrowserActiveSimulatorsColor;
+    ImColor BrowserLastDaySimulatorsColor;
 }
 
 void StyleService::setup()
@@ -286,6 +294,11 @@ void StyleService::setup()
 
     // Monospace large font
     _monospaceLargeFont = TextFontService::addFont(*io.Fonts, TextFontRole::Monospace, 128.0f * scaleFactor);
+    {
+        static const ImWchar rangesIcons[] = {ForwardIconCodepoint, ForwardIconCodepoint, 0};
+        io.Fonts->AddFontFromMemoryCompressedTTF(
+            FontAwesomeSolid_compressed_data, FontAwesomeSolid_compressed_size, 128.0f * scaleFactor, &configMerge, rangesIcons);
+    }
 
     _reefMediumFont = io.Fonts->AddFontFromMemoryCompressedTTF(Reef_compressed_data, Reef_compressed_size, 24.0f * scaleFactor);
     _reefLargeFont = io.Fonts->AddFontFromMemoryCompressedTTF(Reef_compressed_data, Reef_compressed_size, 64.0f * scaleFactor);
@@ -481,6 +494,11 @@ void StyleService::setupPalette() const
     BrowserPlaceholderTileBarColor = LineSoftColor;
     BrowserHiddenGpuBarColor = themed(ImColor::HSV(0.570f, 0.222f, 0.459f, 0.420f), ImColor::HSV(0.570f, 0.120f, 0.560f, 0.420f));
     BrowserLoginHintFrameColor = themed(ImColor::HSV(0.0f, 0.0f, 0.0f), ImColor::HSV(0.574f, 0.120f, 0.740f));
+
+    BrowserOnlineSymbolColor = themed(ImColor::HSV(0.0f, 0.8f, 1.0f), ImColor::HSV(0.0f, 0.85f, 0.8f));
+    BrowserLastDayOnlineSymbolColor = themed(ImColor::HSV(0.16f, 0.5f, 0.66f), ImColor::HSV(0.12f, 0.9f, 0.62f));
+    BrowserActiveSimulatorsColor = themed(ImColor::HSV(0.0f, 0.4f, 0.9f), ImColor::HSV(0.0f, 0.7f, 0.7f));
+    BrowserLastDaySimulatorsColor = themed(ImColor::HSV(0.16f, 0.45f, 0.9f), ImColor::HSV(0.12f, 0.9f, 0.6f));
 }
 
 void StyleService::setupColors(ImGuiStyle& style) const

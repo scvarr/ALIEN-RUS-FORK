@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import re
 import unittest
+from check_upstream_sync import assertBaselineKeys
 
 ROOT = Path(__file__).resolve().parents[4]
 GUI = ROOT / "source/Gui/Impl"
@@ -32,8 +33,15 @@ def behavior_digest(body):
 
 class LocalizationL2aContracts(unittest.TestCase):
     def test_menu_actions_shortcuts_and_conditions_match_accepted_l1(self):
-        # Digest of e7f1eaa0e processMenubar, with only presentation strings removed.
-        self.assertEqual("b4587ae877e219cd27aece7d15e3ca1aee893da00e3f217e34dd2a8cea6e4292", behavior_digest(menu_body(read(GUI / "MainLoopController.cpp"))))
+        body = menu_body(read(GUI / "MainLoopController.cpp"))
+        recorder = re.search(r'    AlienGui::MenuItem\(\n        AlienGui::MenuItemParameters\(\).name\(tr\("localui.sync.recorder"\).*?; \}\);', body, re.S)
+        self.assertIsNotNone(recorder)
+        self.assertIn('.keyAlt(true).key(ImGuiKey_V)', recorder.group())
+        self.assertIn('RecorderWindow::get().setOn(!RecorderWindow::get().isOn())', recorder.group())
+        self.assertIn('|| RecorderController::get().isRecording()', body)
+        legacy = body[:recorder.start()] + body[recorder.end():]
+        legacy = legacy.replace(' || RecorderController::get().isRecording()', '')
+        self.assertEqual("b4587ae877e219cd27aece7d15e3ca1aee893da00e3f217e34dd2a8cea6e4292", behavior_digest(legacy))
 
     def test_all_eight_menus_and_items_have_language_independent_ids(self):
         body = menu_body(read(GUI / "MainLoopController.cpp"))
@@ -42,10 +50,10 @@ class LocalizationL2aContracts(unittest.TestCase):
         for menu in menus:
             self.assertRegex(menu, r'tr\("[a-z.]+"\) \+ " ###[a-z.]+"')
         items = re.findall(r'\.name\(([^\n]+?)\)', body)
-        self.assertEqual(43, len(items))
+        self.assertEqual(43 + 1, len(items))
         for item in items:
             self.assertTrue(item.startswith('tr("'), item)
-        ids = re.findall(r'\.name\(tr\("[a-z.]+"\) \+ "###([a-z.]+)"\)', body)
+        ids = re.findall(r'\.name\(tr\("[a-z.]+"\) \+ "###([A-Za-z.]+)"\)', body)
         self.assertEqual(len(items), len(ids))
         self.assertEqual(len(ids), len(set(ids)))
 
@@ -85,7 +93,7 @@ class LocalizationL2aContracts(unittest.TestCase):
 
         catalogs = [json.loads(read(ROOT / f"resources/locales/{lang}.json"), object_pairs_hook=unique) for lang in ("en", "ru")]
         self.assertEqual(set(catalogs[0]), set(catalogs[1]))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in catalogs[0]))
+        assertBaselineKeys(self, catalogs[0])
         for file in ("MainLoopController.cpp", "NewSimulationDialog.cpp", "ExitDialog.cpp", "SavePictureDialog.cpp", "FileTransferController.cpp"):
             for key in re.findall(r'(?:tr|setTitleKey)\("([a-z.]+)"\)', read(GUI / file)):
                 self.assertIn(key, catalogs[0])

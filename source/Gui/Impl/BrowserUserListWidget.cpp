@@ -7,6 +7,7 @@
 #include <cmath>
 #include <functional>
 #include <optional>
+#include <vector>
 
 #include <imgui.h>
 
@@ -34,6 +35,7 @@ namespace
     auto constexpr HiddenGpuBarLengthVariation = 87;
     auto constexpr HiddenGpuBarOffsetY = 4.0f;
     auto constexpr HiddenGpuBarHeight = 8.0f;
+    auto constexpr SimulatorCountBadgeSpacing = 16.0f;
 }
 
 BrowserUserListWidget _BrowserUserListWidget::create(BrowserData const& data)
@@ -70,21 +72,29 @@ namespace
         ImGui::PopStyleColor();
     }
 
-    AlienGui::TabItemParameters getSimulatorsTabParameters(std::optional<int> const& numActiveSimulators)
+    AlienGui::TabBadgeParameters getSimulatorCountBadge(std::string const& text, ImColor const& color, ImColor const& symbolColor)
+    {
+        return AlienGui::TabBadgeParameters().text(text).color(color).icon(ICON_FA_GENDERLESS).iconColor(symbolColor).smallIcon(false);
+    }
+
+    AlienGui::TabItemParameters getSimulatorsTabParameters(std::optional<ActiveSimulatorCountsTO> const& counts)
     {
         auto result = AlienGui::TabItemParameters().name(BrowserPresentation::text("Simulators")).id("Simulators");
-        if (numActiveSimulators) {
-            result.badge("  " + LocalizationGuiText::format("browser.active", {{"count", std::to_string(*numActiveSimulators)}}))
-                .badgeColor(ImColor::HSV(0.0f, 0.4f, 0.9f))
-                .tooltip(BrowserPresentation::text(Const::BrowserActiveSimulatorsTooltip));
+        if (!counts) {
+            return result;
         }
-        return result;
+        std::vector badges{
+            getSimulatorCountBadge(LocalizationGuiText::format("localui.sync.active", {{"count", std::to_string(counts->numActive)}}), Const::BrowserActiveSimulatorsColor, Const::BrowserOnlineSymbolColor)};
+        if (counts->numLastDay > 0) {
+            badges.emplace_back(getSimulatorCountBadge(
+                LocalizationGuiText::format("localui.sync.lastday", {{"count", std::to_string(counts->numLastDay)}}), Const::BrowserLastDaySimulatorsColor, Const::BrowserLastDayOnlineSymbolColor));
+        }
+        return result.badges(badges).badgeSpacing(SimulatorCountBadgeSpacing).tooltip(tr("localui.sync.counthelp"));
     }
 
     void drawLastDayOnlineSymbol()
     {
-        auto color = ImColor::HSV(0.16f, 0.5f, 0.66f);
-        ImGui::PushStyleColor(ImGuiCol_Text, color.Value);
+        ImGui::PushStyleColor(ImGuiCol_Text, Const::BrowserLastDayOnlineSymbolColor.Value);
         ImGui::Text(ICON_FA_GENDERLESS);
         ImGui::PopStyleColor();
     }
@@ -226,7 +236,7 @@ void _BrowserUserListWidget::process()
     auto selectedTabIndex = 0;
     AlienGui::TabBar(
         AlienGui::TabBarParameters().id("##Simulators").style(AlienGui::TabBarStyle::Group),
-        {getSimulatorsTabParameters(_data->numActiveSimulators)},
+        {getSimulatorsTabParameters(_data->getActiveSimulatorCounts())},
         selectedTabIndex);
 
     if (ImGui::BeginTable("Browser", 5, flags, ImVec2(-1, -1), 0.0f)) {
@@ -255,13 +265,13 @@ void _BrowserUserListWidget::process()
         }
         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Const::TableHeaderColor);
 
-        auto numRows = toInt(_data->userTOs.size());
+        auto numRows = toInt(_data->getUserTOs().size());
         std::optional<GpuHintPlacement> gpuHintPlacement;
         ImGuiListClipper clipper;
         clipper.Begin(numRows);
         while (clipper.Step()) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
-                auto const& user = _data->userTOs.at(row);
+                auto const& user = _data->getUserTOs().at(row);
 
                 ImGui::PushID(row);
                 ImGui::TableNextRow(0, scale(BrowserHelper::RowHeight));

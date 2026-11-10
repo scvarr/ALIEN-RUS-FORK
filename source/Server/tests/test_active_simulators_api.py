@@ -1,7 +1,9 @@
-"""Tests for the active simulator count fed by ``/getversionedsimulationlist`` and its hourly history."""
+"""Tests for the active simulator count fed by ``/getversionedsimulationlist`` and ``/reportactivesimulator`` and its hourly history."""
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
@@ -16,10 +18,27 @@ def _fetch_list(client, **data):
     assert resp.status_code == 200
 
 
-def _active_simulators(client):
+def _report(client):
+    resp = client.post("/reportactivesimulator")
+    assert resp.status_code == 200
+    assert resp.json() == {"result": True}
+
+
+def _simulator_counts(client):
     resp = client.get("/getactivesimulatorcount")
     assert resp.status_code == 200
-    return resp.json()["activeSimulators"]
+    return resp.json()
+
+
+def _active_simulators(client):
+    return _simulator_counts(client)["activeSimulators"]
+
+
+def _fake_clock(main, monkeypatch, uptime):
+    now = [1_000_000.0]
+    monkeypatch.setattr(main.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(main, "_server_start_time", now[0] - uptime)
+    return now
 
 
 def test_count_is_zero_without_list_fetches(app_client):
@@ -37,10 +56,36 @@ def test_list_fetches_are_counted_per_address(app_client):
     assert _active_simulators(app_client) == 2
 
 
+def test_opted_in_clients_are_counted(app_client):
+    _fetch_list(_client_from(app_client, "10.0.0.1"), countAsActive="true")
+
+    assert _active_simulators(app_client) == 1
+
+
 def test_opted_out_clients_are_not_counted(app_client):
     _fetch_list(_client_from(app_client, "10.0.0.1"), countAsActive="false")
 
     assert _active_simulators(app_client) == 0
+
+
+def test_reports_are_counted_per_address(app_client):
+    first = _client_from(app_client, "10.0.0.1")
+    second = _client_from(app_client, "10.0.0.2")
+
+    _report(first)
+    _report(first)
+    _report(second)
+
+    assert _active_simulators(app_client) == 2
+
+
+def test_report_and_list_fetch_from_one_address_count_once(app_client):
+    client = _client_from(app_client, "10.0.0.1")
+
+    _report(client)
+    _fetch_list(client)
+
+    assert _active_simulators(app_client) == 1
 
 
 def test_inactive_simulators_expire(app_client, monkeypatch):
@@ -56,19 +101,70 @@ def test_inactive_simulators_expire(app_client, monkeypatch):
     assert _active_simulators(app_client) == 1
 
 
+def test_last_day_count_is_withheld_during_warm_up(app_client, monkeypatch):
+    main = app_client.app_module
+    _fake_clock(main, monkeypatch, main.LAST_DAY_SECONDS - 1)
+
+    _fetch_list(_client_from(app_client, "10.0.0.1"))
+
+    assert _simulator_counts(app_client) == {"activeSimulators": 1}
+
+
+def test_last_day_count_includes_simulators_that_stopped(app_client, monkeypatch):
+    main = app_client.app_module
+    now = _fake_clock(main, monkeypatch, main.LAST_DAY_SECONDS)
+
+    _fetch_list(_client_from(app_client, "10.0.0.1"))
+    now[0] += 2 * 60 * 60
+    _report(_client_from(app_client, "10.0.0.2"))
+
+    assert _simulator_counts(app_client) == {"activeSimulators": 1, "lastDaySimulators": 2}
+
+
+def test_last_day_simulators_expire(app_client, monkeypatch):
+    main = app_client.app_module
+    now = _fake_clock(main, monkeypatch, main.LAST_DAY_SECONDS)
+
+    _fetch_list(_client_from(app_client, "10.0.0.1"))
+    now[0] += main.LAST_DAY_SECONDS / 2
+    _fetch_list(_client_from(app_client, "10.0.0.2"))
+    now[0] += main.LAST_DAY_SECONDS / 2 + 1
+
+    assert _simulator_counts(app_client)["lastDaySimulators"] == 1
+
+
+def test_ipv6_addresses_of_one_prefix_count_once(app_client):
+    _fetch_list(_client_from(app_client, "2001:db8:1:2::1"))
+    _fetch_list(_client_from(app_client, "2001:db8:1:2:abcd:ef01:2345:6789"))
+    _fetch_list(_client_from(app_client, "2001:db8:1:3::1"))
+
+    assert _active_simulators(app_client) == 2
+
+
+def test_ipv4_mapped_addresses_count_as_ipv4(app_client):
+    _fetch_list(_client_from(app_client, "10.0.0.1"))
+    _fetch_list(_client_from(app_client, "::ffff:10.0.0.1"))
+
+    assert _active_simulators(app_client) == 1
+
+
 def test_addresses_are_not_stored_in_plain_text(app_client):
     _fetch_list(_client_from(app_client, "10.0.0.1"))
 
     assert all("10.0.0.1" not in key for key in app_client.app_module._active_simulators)
 
 
-def test_new_simulators_beyond_limit_are_ignored(app_client, monkeypatch):
-    monkeypatch.setattr(app_client.app_module, "MAX_ACTIVE_SIMULATORS", 1)
+def test_oldest_simulators_beyond_limit_are_dropped(app_client, monkeypatch):
+    main = app_client.app_module
+    monkeypatch.setattr(main, "MAX_ACTIVE_SIMULATORS", 2)
 
     _fetch_list(_client_from(app_client, "10.0.0.1"))
     _fetch_list(_client_from(app_client, "10.0.0.2"))
+    _fetch_list(_client_from(app_client, "10.0.0.1"))
+    _fetch_list(_client_from(app_client, "10.0.0.3"))
 
-    assert _active_simulators(app_client) == 1
+    remembered = set(main._active_simulators)
+    assert remembered == {hmac.new(main._active_simulator_key, host.encode("utf-8"), hashlib.sha256).hexdigest() for host in ("10.0.0.1", "10.0.0.3")}
 
 
 def _history(client):
@@ -108,6 +204,33 @@ def test_snapshots_store_the_active_simulator_count(app_client, monkeypatch):
         {"timestamp": "2026-10-18T14:00:00+00:00", "activeSimulators": 1},
         {"timestamp": "2026-10-18T15:00:00+00:00", "activeSimulators": 2},
     ]
+
+
+def test_snapshots_store_the_last_day_count_after_its_warm_up(app_client, monkeypatch):
+    main = app_client.app_module
+    now = _fake_clock(main, monkeypatch, main.LAST_DAY_SECONDS)
+
+    _fetch_list(_client_from(app_client, "10.0.0.1"))
+    now[0] += main.ACTIVE_SIMULATOR_TIMEOUT_SECONDS + 1
+    _fetch_list(_client_from(app_client, "10.0.0.2"))
+    main._store_active_simulator_count(_utc(14))
+
+    assert _history(app_client) == [
+        {"timestamp": "2026-10-18T14:00:00+00:00", "activeSimulators": 1, "lastDaySimulators": 2},
+    ]
+
+
+def test_schema_update_keeps_existing_snapshots(app_client):
+    from sqlalchemy import text
+
+    main = app_client.app_module
+    with main.engine.begin() as conn:
+        conn.execute(text("ALTER TABLE active_simulator_counts DROP COLUMN last_day_count"))
+        conn.execute(text("INSERT INTO active_simulator_counts (timestamp, count) VALUES ('2026-10-18 14:00:00', 7)"))
+
+    main._ensure_active_simulator_counts_schema()
+
+    assert _history(app_client) == [{"timestamp": "2026-10-18T14:00:00+00:00", "activeSimulators": 7}]
 
 
 def test_history_is_sorted_by_time(app_client, monkeypatch):

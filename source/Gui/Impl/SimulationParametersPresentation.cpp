@@ -59,6 +59,12 @@ namespace
         if (references<FloatSpec>(spec, &SimulationParameters::glow)) {
             return "parameters.visualization.glow";
         }
+        if (references<BoolSpec>(spec, &SimulationParameters::hardwareRayTracing)) {
+            return "parameters.visualization.hardwareraytracing";
+        }
+        if (references<FloatSpec>(spec, &SimulationParameters::sourceShadowStrength)) {
+            return "parameters.visualization.sourceshadowstrength";
+        }
         if (references<FloatSpec>(spec, &SimulationParameters::fluidIllumination)) {
             return "parameters.visualization.fluidillumination";
         }

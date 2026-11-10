@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import unittest
+from check_upstream_sync import assertBaselineKeys
 
 ROOT = Path(__file__).resolve().parents[4]
 GUI = ROOT / "source/Gui/Impl"
@@ -27,7 +28,7 @@ class L2b2Contracts(unittest.TestCase):
     def test_nine_declarations_have_separate_complete_catalog_entries(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in en))
+        assertBaselineKeys(self, en)
         slugs = ["general.project", "general.layer", "general.source", "general.opacity", "general.share",
                  "location.layerposition", "location.layervelocity", "location.sourceposition", "location.sourcevelocity"]
         for slug in slugs:

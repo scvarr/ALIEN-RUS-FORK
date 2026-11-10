@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import unittest
+from check_upstream_sync import assertBaselineKeys
 from check_localization_l2b2 import ROOT, GUI, catalog, read
 from check_localization_l2b3b import declarations
 
@@ -47,7 +48,7 @@ class L2b4bContracts(unittest.TestCase):
     def test_ten_typed_bindings_complete_catalogs_and_exact_english(self):
         en, ru = catalog('en'), catalog('ru')
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in en))
+        assertBaselineKeys(self, en)
         adapter = read(GUI / 'SimulationParametersPresentation.cpp')
         blocks = declarations()
         for i, member in enumerate(MEMBERS + ['customizationTransitionMatrix']):

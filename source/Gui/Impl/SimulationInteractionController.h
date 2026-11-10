@@ -72,7 +72,8 @@ private:
         EditTool tool = EditTool_Select;
     };
     Modes _modes;
-    Modes _modesAtClick;
+    std::optional<Modes> _modesAtLeftClick;
+    std::optional<Modes> _modesAtRightClick;
     RealVector2D _editToggleAnchor;
 
     // Navigation

@@ -9,9 +9,9 @@ namespace
     // The radiation center shows the light color of its source darkened, so that it stays in the background
     __device__ float constexpr RadiationCenterBrightness = 0.45f;
 
-    // The light organs approach the signals with this time constant, so that signals changing with every cell function pass do not let them
+    // The rendered activity approaches signal #0 with this time constant, so that signals changing with every cell function pass do not let it
     // flicker
-    __device__ float constexpr LightOrganResponseTimesteps = 30.0f;
+    __device__ float constexpr ActivityResponseTimesteps = 30.0f;
 
     // The outlines of solids follow the lattice of their particles in steps. Where an outline changes between bending outwards and inwards, its
     // particles are rendered closer to the middle of their neighbors on the outline. Outlines that bend in one direction only, such as those of
@@ -24,15 +24,18 @@ namespace
     // The steps of the lattice are smaller than this distance in world units, so particles that stick out further stay close to their position
     __device__ float constexpr MaxSolidOutlineShift = 0.5f;
 
-    __device__ __inline__ void correctPositionForRendering(float2& pos, float2 const& visibleUpperLeft, int2 const& worldSize)
+    // Small worlds repeat within the shadow grid, which collects the periodic copies of an object up to this number of world sizes away
+    __device__ int constexpr MaxShadowCopyDistance = 2;
+
+    __device__ __inline__ void correctPositionForRendering(float2& pos, float2 const& renderedWorldTopLeft, int2 const& worldSize)
     {
         if (cudaSimulationParameters.borderlessRendering.value) {
-            pos.x -= visibleUpperLeft.x;
-            pos.y -= visibleUpperLeft.y;
+            pos.x -= renderedWorldTopLeft.x;
+            pos.y -= renderedWorldTopLeft.y;
             pos.x = Math::modulo(pos.x, toFloat(worldSize.x));
             pos.y = Math::modulo(pos.y, toFloat(worldSize.y));
-            pos.x += visibleUpperLeft.x;
-            pos.y += visibleUpperLeft.y;
+            pos.x += renderedWorldTopLeft.x;
+            pos.y += renderedWorldTopLeft.y;
         } else {
             pos.x = Math::modulo(pos.x, toFloat(worldSize.x));
             pos.y = Math::modulo(pos.y, toFloat(worldSize.y));
@@ -40,20 +43,20 @@ namespace
     }
 }
 
-__global__ void cudaCorrectPositionsForRendering(SimulationData data, float2 visibleTopLeft)
+__global__ void cudaCorrectPositionsForRendering(SimulationData data, float2 renderedWorldTopLeft)
 {
     {
         auto const& partition = calcSystemThreadPartition(data.entities.objects.getNumEntries());
         for (int index = partition.startIndex; index <= partition.endIndex; index += partition.step) {
             auto const& object = data.entities.objects.at(index);
-            correctPositionForRendering(object->pos, visibleTopLeft, data.world.getSize());
+            correctPositionForRendering(object->pos, renderedWorldTopLeft, data.world.getSize());
         }
     }
     {
         auto const& partition = calcSystemThreadPartition(data.entities.energies.getNumEntries());
         for (int index = partition.startIndex; index <= partition.endIndex; index += partition.step) {
             auto const& particle = data.entities.energies.at(index);
-            correctPositionForRendering(particle->pos, visibleTopLeft, data.world.getSize());
+            correctPositionForRendering(particle->pos, renderedWorldTopLeft, data.world.getSize());
         }
     }
 }
@@ -113,33 +116,62 @@ namespace
         return getCustomizationColor(object->color);
     }
 
+    __device__ __inline__ float3 getVertexColor(Object* object)
+    {
+        auto const& cellColor = getObjectColor(object);
+
+        float luminance;
+        if (object->type == ObjectType_Cell) {
+            luminance = object->typeData.cell.getEnergy() / 350.0f;
+        } else if (object->type == ObjectType_FreeCell) {
+            luminance = object->typeData.freeCell.energy / 300.0f;
+        } else if (object->type == ObjectType_Fluid) {
+            luminance = object->typeData.fluid.energy / 300.0f;
+        } else {
+            // Solid - use energy for luminance if available
+            luminance = object->typeData.solid.energy / 300.0f;
+        }
+
+        auto white = luminance / 10.0f;
+        if (object->selected == 1) {
+            luminance = (luminance + 0.05f) * 1.15f;
+            white = 0.1f;
+        }
+        if (object->selected == 2) {
+            luminance = luminance * 1.15f;
+        }
+        luminance = min(3.0f, luminance);
+        white = min(2.0f, white);
+        return {
+            toFloat((cellColor >> 16) & 0xff) / 255.0f * luminance + white,
+            toFloat((cellColor >> 8) & 0xff) / 255.0f * luminance + white,
+            toFloat(cellColor & 0xff) / 255.0f * luminance + white};
+    }
+
     __device__ __inline__ bool isInVisibleRect(float2 const& pos, GeometryExtractionContext const& context)
     {
         return pos.x >= context.visibleTopLeft.x - context.cullingMargin && pos.x <= context.visibleBottomRight.x + context.cullingMargin
             && pos.y >= context.visibleTopLeft.y - context.cullingMargin && pos.y <= context.visibleBottomRight.y + context.cullingMargin;
     }
 
-    // Only visible cells are updated, hence the elapsed simulation time is measured per cell. Paused simulations keep their light organs.
-    __device__ __inline__ void updateLightOrgans(Cell& cell, uint64_t timestep)
+    // Only visible cells are updated, hence the elapsed simulation time is measured per cell. Paused simulations keep their rendered activity.
+    __device__ __inline__ void updateRenderedActivity(Cell& cell, uint64_t timestep)
     {
         auto timestepBits = static_cast<uint16_t>(timestep);
-        auto elapsedTimesteps = static_cast<uint16_t>(timestepBits - cell.lightOrganTimestep);
+        auto elapsedTimesteps = static_cast<uint16_t>(timestepBits - cell.renderedActivityTimestep);
         if (elapsedTimesteps == 0) {
             return;
         }
-        cell.lightOrganTimestep = timestepBits;
-        auto remainingDifference = expf(-toFloat(elapsedTimesteps) / LightOrganResponseTimesteps);
-        for (int i = 0; i < LIGHT_ORGANS_PER_CELL; ++i) {
-            auto intensity = toInt(cell.lightOrganIntensities[i]);
-            auto target = toInt(Cell::getLightOrganTarget(cell.neuralActivity.signals[i]));
-            auto newIntensity = target + toInt(roundf(toFloat(intensity - target) * remainingDifference));
+        cell.renderedActivityTimestep = timestepBits;
+        auto activity = toInt(cell.renderedActivity);
+        auto target = toInt(cell.getRenderedActivityTarget());
+        auto newActivity = target + toInt(roundf(toFloat(activity - target) * expf(-toFloat(elapsedTimesteps) / ActivityResponseTimesteps)));
 
-            // Differences below one step of the 8 bit intensities would otherwise remain forever
-            if (newIntensity == intensity && intensity != target) {
-                newIntensity += intensity < target ? 1 : -1;
-            }
-            cell.lightOrganIntensities[i] = static_cast<uint8_t>(newIntensity);
+        // Differences below one step of the 8 bit activity would otherwise remain forever
+        if (newActivity == activity && activity != target) {
+            newActivity += activity < target ? 1 : -1;
         }
+        cell.renderedActivity = static_cast<uint8_t>(newActivity);
     }
 }
 
@@ -158,35 +190,12 @@ __global__ void cudaExtractObjectData(SimulationData data, ObjectVertexData* obj
 
             auto const& pos = object->pos;
 
-            auto const& cellColor = getObjectColor(object);
-
-            float luminance;
             float zOffset = 0.0f;
             int cellType = 0;
-
             if (object->type == ObjectType_Cell) {
-                luminance = object->typeData.cell.getEnergy() / 350.0f;
                 zOffset = toFloat(object->typeData.cell.creature->id % 1000) / 2000;
                 cellType = object->typeData.cell.cellType;
-            } else if (object->type == ObjectType_FreeCell) {
-                luminance = object->typeData.freeCell.energy / 300.0f;
-            } else if (object->type == ObjectType_Fluid) {
-                luminance = object->typeData.fluid.energy / 300.0f;
-            } else {
-                // Solid - use energy for luminance if available
-                luminance = object->typeData.solid.energy / 300.0f;
             }
-
-            auto white = luminance / 10.0f;
-            if (object->selected == 1) {
-                luminance = (luminance + 0.05f) * 1.15f;
-                white = 0.1f;
-            }
-            if (object->selected == 2) {
-                luminance = luminance * 1.15f;
-            }
-            luminance = min(3.0f, luminance);
-            white = min(2.0f, white);
 
             // Calculate deterministic z-position based on cell id for lighting
             // Use a simple hash function to get a pseudo-random value in range [0, 1]
@@ -200,28 +209,25 @@ __global__ void cudaExtractObjectData(SimulationData data, ObjectVertexData* obj
             objectData[idx].pos[0] = pos.x;
             objectData[idx].pos[1] = pos.y;
             objectData[idx].pos[2] = zPos + zOffset;
-            objectData[idx].color[0] = toFloat((cellColor >> 16) & 0xff) / 255.0f * luminance + white;
-            objectData[idx].color[1] = toFloat((cellColor >> 8) & 0xff) / 255.0f * luminance + white;
-            objectData[idx].color[2] = toFloat(cellColor & 0xff) / 255.0f * luminance + white;
+            auto color = getVertexColor(object);
+            objectData[idx].color[0] = color.x;
+            objectData[idx].color[1] = color.y;
+            objectData[idx].color[2] = color.z;
 
-            // Compute highlight intensity and light organs from cell
+            // Compute highlight intensity and activity from cell
             float highlightIntensity = 0.0f;
-            float lightOrganIntensities[LIGHT_ORGANS_PER_CELL] = {};
+            float activity = 0.0f;
             if (object->type == ObjectType_Cell) {
                 auto& cell = object->typeData.cell;
                 highlightIntensity = toFloat(cell.highlightIntensity) / 255.0f;
-                updateLightOrgans(cell, *data.timestep);
-                for (int i = 0; i < LIGHT_ORGANS_PER_CELL; ++i) {
-                    lightOrganIntensities[i] = toFloat(cell.lightOrganIntensities[i]) / 255.0f;
-                }
+                updateRenderedActivity(cell, *data.timestep);
+                activity = toFloat(cell.renderedActivity) / 255.0f;
             }
 
             // Pack cellType (bits 0-7), objectType (bits 8-15), and isIsolatedOrTail (bit 16) into state field
             objectData[idx].state = cellType | (object->type << 8) | (isIsolatedOrTail << 16);
             objectData[idx].highlightIntensity = highlightIntensity;
-            for (int i = 0; i < LIGHT_ORGANS_PER_CELL; ++i) {
-                objectData[idx].lightOrganIntensities[i] = lightOrganIntensities[i];
-            }
+            objectData[idx].activity = activity;
 
             object->tempValue1.as_uint64 = idx;
         }
@@ -287,6 +293,22 @@ namespace
         return {false, isQuad ? candidate : nullptr};
     }
 
+    // Calls the function with the index of each connection, the index of the connection before it and the sector between them
+    template <typename Function>
+    __device__ __inline__ void forEachSector(Object* object, Function const& function)
+    {
+        int numConnections = object->numConnections;
+        int backIndices[MAX_OBJECT_CONNECTIONS];
+        for (int i = 0; i < numConnections; ++i) {
+            backIndices[i] = object->connections[i].object->getConnectionIndex(object);
+        }
+        for (int i = 0; i < numConnections; ++i) {
+            auto prevIndex = (i + numConnections - 1) % numConnections;
+            function(
+                i, prevIndex, getSector(object, object->connections[i].object, backIndices[i], object->connections[prevIndex].object, backIndices[prevIndex]));
+        }
+    }
+
     struct SolidOutline
     {
         Object* previous;
@@ -303,27 +325,21 @@ namespace
         int numConnections = object->numConnections;
         auto pos = positions.get(object);
         float2 directions[MAX_OBJECT_CONNECTIONS];
-        int backIndices[MAX_OBJECT_CONNECTIONS];
         for (int i = 0; i < numConnections; ++i) {
-            auto connectedObject = object->connections[i].object;
-            directions[i] = data.world.getCorrectedDirection(positions.get(connectedObject) - pos);
-            backIndices[i] = connectedObject->getConnectionIndex(object);
+            directions[i] = data.world.getCorrectedDirection(positions.get(object->connections[i].object) - pos);
         }
         auto uncoveredSector = -1;
+        auto numUncoveredSectors = 0;
         auto coveredAngle = 0.0f;
-        for (int i = 0; i < numConnections; ++i) {
-            auto prevIndex = (i + numConnections - 1) % numConnections;
-            auto sector = getSector(object, object->connections[i].object, backIndices[i], object->connections[prevIndex].object, backIndices[prevIndex]);
+        forEachSector(object, [&](int i, int prevIndex, Sector const& sector) {
             if (!sector.isCovered()) {
-                if (uncoveredSector != -1) {
-                    return false;
-                }
                 uncoveredSector = i;
-                continue;
+                ++numUncoveredSectors;
+                return;
             }
             coveredAngle += atan2f(abs(Math::cross(directions[prevIndex], directions[i]).z), Math::dot(directions[prevIndex], directions[i]));
-        }
-        if (uncoveredSector == -1) {
+        });
+        if (numUncoveredSectors != 1) {
             return false;
         }
         auto openAngle = 2.0f * Const::PI - coveredAngle;
@@ -438,20 +454,13 @@ __global__ void cudaExtractTriangleIndices(SimulationData data, unsigned int* tr
         if (object->numConnections <= 1) {
             continue;
         }
-        int numConnections = object->numConnections;
-        int backIndices[MAX_OBJECT_CONNECTIONS];
-        for (int i = 0; i < numConnections; ++i) {
-            backIndices[i] = object->connections[i].object->getConnectionIndex(object);
-        }
-        for (int i = 0; i < numConnections; ++i) {
-            auto prevIndex = (i + numConnections - 1) % numConnections;
+        forEachSector(object, [&](int i, int prevIndex, Sector const& sector) {
             auto const& connectedObject = object->connections[i].object;
             auto const& prevConnectedObject = object->connections[prevIndex].object;
-            auto sector = getSector(object, connectedObject, backIndices[i], prevConnectedObject, backIndices[prevIndex]);
 
             // Each polygon is added once, by its corner with the lowest id
             if (object->id > connectedObject->id || object->id > prevConnectedObject->id) {
-                continue;
+                return;
             }
             if (sector.isTriangle) {
                 addTriangle(object, object->tempValue1.as_uint64, prevConnectedObject, connectedObject);
@@ -460,7 +469,7 @@ __global__ void cudaExtractTriangleIndices(SimulationData data, unsigned int* tr
                 addTriangle(object, object->tempValue1.as_uint64, connectedObject, sector.quadCorner);
                 addTriangle(object, object->tempValue1.as_uint64, sector.quadCorner, prevConnectedObject);
             }
-        }
+        });
     }
 }
 
@@ -535,7 +544,7 @@ cudaExtractFluidParticleData(SimulationData data, FluidParticleVertexData* fluid
     }
 }
 
-__global__ void cudaExtractLocationData(SimulationData data, LocationVertexData* locationData, uint64_t* numLocations, float2 visibleTopLeft)
+__global__ void cudaExtractLocationData(SimulationData data, LocationVertexData* locationData, uint64_t* numLocations, float2 renderedWorldTopLeft)
 {
     // Extract location data for layers and sources
     // Each location is rendered 5 times (normal + 4 world offsets for periodic boundaries)
@@ -545,7 +554,7 @@ __global__ void cudaExtractLocationData(SimulationData data, LocationVertexData*
     for (int i = 0; i < cudaSimulationParameters.numLayers; ++i) {
         auto const& pos_asRealVector2D = cudaSimulationParameters.layerPosition.layerValues[i];
         float2 pos{pos_asRealVector2D.x, pos_asRealVector2D.y};
-        correctPositionForRendering(pos, visibleTopLeft, data.world.getSize());
+        correctPositionForRendering(pos, renderedWorldTopLeft, data.world.getSize());
         auto color = cudaSimulationParameters.backgroundColor.layerValues[i].value;
         auto shapeType = cudaSimulationParameters.layerShape.layerValues[i];
         auto radius = cudaSimulationParameters.layerCoreRadius.layerValues[i];
@@ -627,7 +636,7 @@ __global__ void cudaExtractLocationData(SimulationData data, LocationVertexData*
         }
         auto const& pos_asRealVector2D = cudaSimulationParameters.sourcePosition.sourceValues[i];
         float2 pos{pos_asRealVector2D.x, pos_asRealVector2D.y};
-        correctPositionForRendering(pos, visibleTopLeft, data.world.getSize());
+        correctPositionForRendering(pos, renderedWorldTopLeft, data.world.getSize());
 
         auto const& lightColor = cudaSimulationParameters.sourceLightColor.sourceValues[i];
         float3 color = {lightColor.r * RadiationCenterBrightness, lightColor.g * RadiationCenterBrightness, lightColor.b * RadiationCenterBrightness};
@@ -873,6 +882,134 @@ __global__ void cudaExtractDetonationEventData(
                 vertex.pos[0] = object->pos.x;
                 vertex.pos[1] = object->pos.y;
                 vertex.radius = cudaSimulationParameters.detonatorRadius.value[object->color];
+            }
+        }
+    }
+}
+
+namespace
+{
+    struct ShadowContribution
+    {
+        float numFluids = 0.0f;
+        float tissueArea = 0.0f;
+        float3 tissueHueArea = {0.0f, 0.0f, 0.0f};
+        float solidArea = 0.0f;
+    };
+
+    // An object covers its disk, like the spheres in the occlusion of the extracted objects in the ray traced view. Its strands and polygons
+    // overlap the disks of the connected objects and each other, see Rendering/Impl/Shaders/RayTracingPrepareCS.h.
+    __device__ __inline__ float getShadowArea(Object* object)
+    {
+        auto radius = RayTracedObjectSizes::CellRadius;
+        if (object->type == ObjectType_Solid) {
+            radius = RayTracedObjectSizes::SolidRadius;
+        } else if (object->type == ObjectType_FreeCell) {
+            radius = RayTracedObjectSizes::FreeCellRadius;
+        }
+        return Const::PI * radius * radius;
+    }
+
+    // The hue is derived as in getHue of Rendering/Impl/Shaders/RayTracingCommonCS.h
+    __device__ __inline__ ShadowContribution getShadowContribution(Object* object)
+    {
+        ShadowContribution result;
+        if (object->type == ObjectType_Fluid) {
+            result.numFluids = 1.0f;
+            return result;
+        }
+        auto area = getShadowArea(object);
+        if (object->type == ObjectType_Solid) {
+            result.solidArea = area;
+            return result;
+        }
+        auto color = getVertexColor(object);
+        auto colorBrightness = max(color.x, max(color.y, color.z));
+        auto hue = colorBrightness > 0.02f
+            ? float3{min(color.x / colorBrightness, 1.0f), min(color.y / colorBrightness, 1.0f), min(color.z / colorBrightness, 1.0f)}
+            : float3{0.5f, 0.5f, 0.5f};
+        result.tissueArea = area;
+        result.tissueHueArea = hue * area;
+        return result;
+    }
+
+    __device__ __inline__ void
+    addToShadowGrid(ShadowGridNodeData* shadowGrid, ShadowGridContext const& shadowGridContext, float2 const& pos, ShadowContribution const& contribution)
+    {
+        auto nodePos = (pos - shadowGridContext.origin) / shadowGridContext.nodeDistance;
+        int2 base{toInt(floorf(nodePos.x)), toInt(floorf(nodePos.y))};
+        float2 fraction{nodePos.x - toFloat(base.x), nodePos.y - toFloat(base.y)};
+        for (int i = 0; i < 4; ++i) {
+            int2 node{base.x + (i & 1), base.y + (i >> 1)};
+            if (node.x < 0 || node.y < 0 || node.x >= shadowGridContext.size.x || node.y >= shadowGridContext.size.y) {
+                continue;
+            }
+            auto weight =
+                ((i & 1) != 0 ? fraction.x : 1.0f - fraction.x) * ((i >> 1) != 0 ? fraction.y : 1.0f - fraction.y) * ShadowGridNodeData::FixedPointScale;
+            auto add = [&](uint32_t& sum, float value) {
+                auto fixedPointValue = static_cast<uint32_t>(weight * value + 0.5f);
+                if (fixedPointValue > 0) {
+                    atomicAdd(&sum, fixedPointValue);
+                }
+            };
+            auto& nodeData = shadowGrid[node.y * shadowGridContext.size.x + node.x];
+            add(nodeData.numFluids, contribution.numFluids);
+            add(nodeData.tissueArea, contribution.tissueArea);
+            add(nodeData.tissueHueArea[0], contribution.tissueHueArea.x);
+            add(nodeData.tissueHueArea[1], contribution.tissueHueArea.y);
+            add(nodeData.tissueHueArea[2], contribution.tissueHueArea.z);
+            add(nodeData.solidArea, contribution.solidArea);
+        }
+    }
+
+    struct CopyRange
+    {
+        int first;
+        int last;
+
+        __device__ __inline__ bool isEmpty() const { return first > last; }
+        __device__ __inline__ bool isOriginalOnly() const { return first == 0 && last == 0; }
+    };
+
+    // Periodic copies of a coordinate that reach the nodes between the bounds
+    __device__ __inline__ CopyRange getShadowCopies(float coordinate, float lowerBound, float upperBound, float worldSize)
+    {
+        return {
+            max(toInt(ceilf((lowerBound - coordinate) / worldSize)), -MaxShadowCopyDistance),
+            min(toInt(floorf((upperBound - coordinate) / worldSize)), MaxShadowCopyDistance)};
+    }
+}
+
+__global__ void
+cudaExtractShadowGrid(SimulationData data, ShadowGridNodeData* shadowGrid, GeometryExtractionContext context, ShadowGridContext shadowGridContext)
+{
+    auto worldSize = data.world.getSize();
+    auto const& origin = shadowGridContext.origin;
+    auto nodeDistance = shadowGridContext.nodeDistance;
+    float2 upperBound{origin.x + toFloat(shadowGridContext.size.x) * nodeDistance, origin.y + toFloat(shadowGridContext.size.y) * nodeDistance};
+
+    auto const& partition = calcSystemThreadPartition(data.entities.objects.getNumEntries());
+    for (int index = partition.startIndex; index <= partition.endIndex; index += partition.step) {
+        auto const& object = data.entities.objects.at(index);
+        auto const& pos = object->pos;
+        auto copiesX = getShadowCopies(pos.x, origin.x - nodeDistance, upperBound.x, toFloat(worldSize.x));
+        auto copiesY = getShadowCopies(pos.y, origin.y - nodeDistance, upperBound.y, toFloat(worldSize.y));
+        if (copiesX.isEmpty() || copiesY.isEmpty()) {
+            continue;
+        }
+
+        // The extracted objects shade the light themselves
+        auto extracted = isInVisibleRect(pos, context);
+        if (extracted && copiesX.isOriginalOnly() && copiesY.isOriginalOnly()) {
+            continue;
+        }
+        auto contribution = getShadowContribution(object);
+        for (int copyY = copiesY.first; copyY <= copiesY.last; ++copyY) {
+            for (int copyX = copiesX.first; copyX <= copiesX.last; ++copyX) {
+                if (extracted && copyX == 0 && copyY == 0) {
+                    continue;
+                }
+                addToShadowGrid(shadowGrid, shadowGridContext, {pos.x + toFloat(copyX * worldSize.x), pos.y + toFloat(copyY * worldSize.y)}, contribution);
             }
         }
     }

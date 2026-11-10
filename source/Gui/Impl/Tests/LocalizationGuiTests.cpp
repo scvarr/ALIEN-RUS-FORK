@@ -1481,7 +1481,7 @@ TEST_F(LocalizationGuiTests, l2b2BilingualFilterPreservesIndicesReferencesAndGro
              {"POSITION", "Location", 2},
              {"СКОРОСТЬ", "Location", 2},
              {"velocity", "Location", 2},
-             {"Visualization", "Visualization", 13},
+             {"Visualization", "Visualization", 15},
              {"Glow", "Visualization", 1},
              {"no such parameter", "General", 0}}) {
         SCOPED_TRACE(query);
@@ -1840,7 +1840,7 @@ TEST_F(LocalizationGuiTests, l2b3aAllTwentyBindingsRetainSpecsAndDescriptions)
     int colors = 0, booleans = 0, numbers = 0, alternatives = 0;
     for (auto const& groupName : {"Visualization", "Guided energy supply"}) {
         auto const& group = parameterGroup(spec, groupName);
-        EXPECT_EQ(std::string(groupName) == "Visualization" ? 13 : 7, group._parameters.size());
+        EXPECT_EQ(std::string(groupName) == "Visualization" ? 15 : 7, group._parameters.size());
         for (auto const& parameter : group._parameters) {
             colors += std::holds_alternative<ColorSpec>(parameter._reference);
             booleans += std::holds_alternative<BoolSpec>(parameter._reference);
@@ -1867,8 +1867,8 @@ TEST_F(LocalizationGuiTests, l2b3aAllTwentyBindingsRetainSpecsAndDescriptions)
         }
     }
     EXPECT_EQ(3, colors);
-    EXPECT_EQ(6, booleans);
-    EXPECT_EQ(10, numbers);
+    EXPECT_EQ(7, booleans);
+    EXPECT_EQ(11, numbers);
     EXPECT_EQ(1, alternatives);
     select("ru");
     for (auto const& name : {"Untranslated extension", "Another extension"}) {
@@ -1960,8 +1960,8 @@ TEST_F(LocalizationGuiTests, l2b3aBilingualSearchRetainsFilterAndOriginalOrder)
 {
     auto const& spec = SimulationParameters::getSpec();
     for (auto const& [query, groupName, count] : std::vector<std::tuple<std::string, std::string, int>>{
-             {"виЗУАЛизация", "Visualization", 13},
-             {"VISUALIZATION", "Visualization", 13},
+             {"виЗУАЛизация", "Visualization", 15},
+             {"VISUALIZATION", "Visualization", 15},
              {"управляемая", "Guided energy supply", 7},
              {"GUIDED ENERGY", "Guided energy supply", 7},
              {"сВеЧеНие", "Visualization", 1},
@@ -1987,7 +1987,7 @@ TEST_F(LocalizationGuiTests, l2b3aBilingualSearchRetainsFilterAndOriginalOrder)
         }
         filter.containedText = "";
         auto full = SimulationParametersPresentation::filter(spec, filter);
-        EXPECT_EQ(13, visibleParameters(parameterGroup(full, "Visualization")));
+        EXPECT_EQ(15, visibleParameters(parameterGroup(full, "Visualization")));
         EXPECT_EQ(7, visibleParameters(parameterGroup(full, "Guided energy supply")));
     }
     select("ru");

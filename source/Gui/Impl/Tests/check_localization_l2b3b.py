@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import unittest
+from check_upstream_sync import assertBaselineKeys
 
 from check_localization_l2b2 import ROOT, GUI, catalog, read
 
@@ -78,7 +79,7 @@ class L2b3bContracts(unittest.TestCase):
     def test_complete_catalogs_and_all_seventeen_typed_bindings(self):
         en, ru = catalog("en"), catalog("ru")
         self.assertEqual(set(en), set(ru))
-        self.assertEqual(433, sum(not key.startswith(("genome.", "neural.", "node.", "mutation.", "genomeissues.", "genegraph.", "preview.", "signals.", "inspection.", "worldtools.", "simulationui.", "localui.", "browser.", "account.", "mcp.")) for key in en))
+        assertBaselineKeys(self, en)
         adapter = read(GUI / "SimulationParametersPresentation.cpp")
         for spec, member, prefix in MEMBERS:
             self.assertIn(f"references<{spec}>(spec, &SimulationParameters::{member})", adapter)

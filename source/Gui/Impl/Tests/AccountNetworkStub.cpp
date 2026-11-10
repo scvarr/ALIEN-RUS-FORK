@@ -130,9 +130,9 @@ bool NetworkService::getUserList(std::vector<UserTO>& result, bool withRetry)
     return {};
 }
 
-std::optional<int> NetworkService::getNumActiveSimulators()
+std::optional<ActiveSimulatorCountsTO> NetworkService::getActiveSimulatorCounts()
 {
-    ADD_FAILURE() << "Unexpected isolated network operation: getNumActiveSimulators";
+    ADD_FAILURE() << "Unexpected isolated network operation: getActiveSimulatorCounts";
     return {};
 }
 
@@ -207,4 +207,9 @@ bool NetworkService::deleteResource(std::string const& simId)
 {
     ADD_FAILURE() << "Unexpected isolated network operation: deleteResource";
     return {};
+}
+
+void NetworkService::reportActiveSimulator()
+{
+    ADD_FAILURE() << "Unexpected isolated network operation: reportActiveSimulator";
 }

@@ -4,6 +4,8 @@
 #include <functional>
 #include <iostream>
 #include <list>
+#include <mutex>
+#include <tuple>
 
 #include <cuda/helper_cuda.h>
 #include <cuda_runtime.h>
@@ -116,6 +118,7 @@ _SimulationCudaFacade::~_SimulationCudaFacade() noexcept
         log(Priority::Unimportant, "skip CUDA shutdown because the CUDA context is invalid");
     } else {
         try {
+            selectDeviceForCurrentThread();
             _cudaGeometryBuffers->release();
             _cudaSimulationData->free();
             _cudaPreviewData->free();
@@ -146,27 +149,27 @@ _SimulationCudaFacade::~_SimulationCudaFacade() noexcept
     log(Priority::Important, "simulation closed");
 }
 
-void _SimulationCudaFacade::copyBuffersFromCudaToRenderer(GeometryBuffers const& geometryBuffers, RealRect const& visibleWorldRect)
+void _SimulationCudaFacade::copyBuffersFromCudaToRenderer(GeometryBuffers const& geometryBuffers, GeometryRequest const& request)
 {
     checkAndProcessSimulationParameterChanges();
 
     KernelProfiler::CategoryScope profilerScope(KernelCategory::Rendering);
     auto simulationData = getSimulationDataPtrCopy();
 
-    GeometryKernelsService::get().correctPositionsForRendering(_settings, simulationData, visibleWorldRect);
+    GeometryKernelsService::get().correctPositionsForRendering(_settings, simulationData, request.visibleWorldRect);
     try {
-        auto numRenderObjects = GeometryKernelsService::get().getNumRenderObjects(_settings, simulationData, visibleWorldRect);
-        geometryBuffers->updateNumObjects(numRenderObjects);
+        auto numRenderObjects = GeometryKernelsService::get().getNumRenderObjects(_settings, simulationData, request.visibleWorldRect);
+        geometryBuffers->updateNumObjects(numRenderObjects, request.shadowGrid);
 
         if (geometryBuffers->isMemoryShareable()) {
             CHECK_FOR_DEVICE_ERRORS(_cudaGeometryBuffers->importSharedMemory(geometryBuffers));
-            GeometryKernelsService::get().extractObjectData(_settings, simulationData, *_cudaGeometryBuffers, visibleWorldRect);
+            GeometryKernelsService::get().extractObjectData(_settings, simulationData, *_cudaGeometryBuffers, request);
             syncAndCheck();
         } else {
             _cudaGeometryBuffers->allocateDeviceBuffers(geometryBuffers);
-            GeometryKernelsService::get().extractObjectData(_settings, simulationData, *_cudaGeometryBuffers, visibleWorldRect);
+            GeometryKernelsService::get().extractObjectData(_settings, simulationData, *_cudaGeometryBuffers, request);
             syncAndCheck();
-            _cudaGeometryBuffers->copyDeviceBuffersTo(geometryBuffers, numRenderObjects);
+            _cudaGeometryBuffers->copyDeviceBuffersTo(geometryBuffers, geometryBuffers->getNumObjects());
         }
     } catch (...) {
         GeometryKernelsService::get().restorePositions(_settings, simulationData);
@@ -729,7 +732,10 @@ void _SimulationCudaFacade::initCuda()
 
 auto _SimulationCudaFacade::checkAndReturnGpuInfo() -> GpuInfo
 {
+    static std::mutex mutex;
     static std::optional<GpuInfo> cachedResult;
+
+    std::lock_guard lock(mutex);
     if (cachedResult) {
         return *cachedResult;
     }
@@ -750,19 +756,24 @@ auto _SimulationCudaFacade::checkAndReturnGpuInfo() -> GpuInfo
         log(Priority::Important, stream.str());
     }
 
-    int highestComputeCapability = 0;
+    std::optional<std::tuple<bool, int, size_t, int>> selectedRank;
+    int selectedComputeCapability = 0;
     for (int deviceNumber = 0; deviceNumber < numberOfDevices; ++deviceNumber) {
         cudaDeviceProp prop;
         CHECK_FOR_DEVICE_ERRORS(cudaGetDeviceProperties(&prop, deviceNumber));
 
+        auto discrete = prop.integrated == 0;
         std::stringstream stream;
-        stream << "device " << deviceNumber << ": " << prop.name << " with compute capability " << prop.major << "." << prop.minor;
+        stream << "device " << deviceNumber << ": " << prop.name << " with compute capability " << prop.major << "." << prop.minor << ", "
+               << (discrete ? "discrete" : "integrated") << ", " << prop.totalGlobalMem / (1024 * 1024) << " MB";
         log(Priority::Important, stream.str());
 
-        int computeCapability = prop.major * 100 + prop.minor;
-        if (computeCapability > highestComputeCapability) {
+        auto computeCapability = prop.major * 100 + prop.minor;
+        auto rank = std::make_tuple(discrete, computeCapability, prop.totalGlobalMem, prop.multiProcessorCount);
+        if (!selectedRank || rank > *selectedRank) {
+            selectedRank = rank;
+            selectedComputeCapability = computeCapability;
             result.deviceNumber = deviceNumber;
-            highestComputeCapability = computeCapability;
             result.gpuModelName = prop.name;
             std::memcpy(result.gpuUuid.data(), &prop.uuid, result.gpuUuid.size());
         }
@@ -771,7 +782,7 @@ auto _SimulationCudaFacade::checkAndReturnGpuInfo() -> GpuInfo
     // The CUDA compute-capability heuristic (major*100+minor, gated at >= 705)
     // is meaningless for AMD GPUs, where prop.major/minor encode the gfx arch.
     // On HIP accept the selected device unconditionally.
-    if (highestComputeCapability < 705) {
+    if (selectedComputeCapability < 705) {
         throw std::runtime_error("No CUDA device with compute capability of 7.5 or higher found.");
     }
 #endif
@@ -779,6 +790,17 @@ auto _SimulationCudaFacade::checkAndReturnGpuInfo() -> GpuInfo
     // Only a successful check is cached, so that each call reports a failure
     cachedResult = result;
     return result;
+}
+
+void _SimulationCudaFacade::selectDeviceForCurrentThread()
+{
+    auto result = cudaSetDevice(checkAndReturnGpuInfo().deviceNumber);
+    if (result != cudaSuccess) {
+        cudaGetLastError();
+        auto text = "CUDA device could not be selected. Error code: " + std::to_string(result);
+        log(Priority::Important, text);
+        throw AlienException(text);
+    }
 }
 
 bool _SimulationCudaFacade::isRenderingInteropWorking(GeometryBuffers const& geometryBuffers)

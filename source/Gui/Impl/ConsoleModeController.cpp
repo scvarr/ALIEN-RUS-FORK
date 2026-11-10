@@ -19,6 +19,7 @@
 #include "AutosaveController.h"
 #include "BrowserController.h"
 #include "MainLoopController.h"
+#include "RecorderController.h"
 #include "WindowController.h"
 
 namespace
@@ -42,7 +43,7 @@ namespace
 
 void ConsoleModeController::activate()
 {
-    if (_active) {
+    if (_active || RecorderController::get().isRecording()) {
         return;
     }
     _active = true;

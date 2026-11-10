@@ -2,6 +2,7 @@
 
 #include "BrowserPresentation.h"
 #include "LocalDialogPresentation.h"
+#include <Fonts/IconsFontAwesome5.h>
 
 #include <Base/VersionParserService.h>
 
@@ -59,18 +60,36 @@ void NetworkTransferController::onDownload(DownloadNetworkResourceRequestData co
         [](auto const& errors) { LocalDialogPresentation::error("browser.error.download", errors); });
 }
 
+namespace
+{
+    void showUploadConfirmation(NetworkResourceType resourceType, WorkspaceType workspaceType, std::string const& resourceName, std::string const& resourceId)
+    {
+        auto isShared = workspaceType == WorkspaceType_Public;
+        auto message = LocalizationGuiText::format(
+            isShared ? "localui.recorder.sharedmessage" : "localui.recorder.privatemessage", {{"name", resourceName}});
+        GenericMessageDialog::get().informationWithAction(
+            tr(isShared ? "localui.recorder.sharedtitle" : "localui.recorder.uploadedtitle"), message,
+            std::string(ICON_FA_EYE "  ") + tr("localui.recorder.showbrowser"), [=] {
+            BrowserWindow::get().showResource(resourceType, workspaceType, resourceId);
+        });
+    }
+}
+
 void NetworkTransferController::onUpload(UploadNetworkResourceRequestData const& requestData)
 {
     printOverlayMessage(BrowserPresentation::text("Uploading ..."));
 
+    auto resourceType = std::holds_alternative<UploadNetworkResourceRequestData::SimulationData>(requestData.data) ? NetworkResourceType_Simulation
+                                                                                                                   : NetworkResourceType_Genome;
     _uploadProcessor->executeTask(
         [&](auto const& senderId) {
             return _PersisterFacade::get()->scheduleUploadNetworkResource(
                 SenderInfo{.senderId = senderId, .wishResultData = true, .wishErrorInfo = true}, requestData);
         },
-        [&](auto const& requestId) {
-            _PersisterFacade::get()->fetchUploadNetworkResourcesData(requestId);
+        [resourceType, workspaceType = requestData.workspaceType, resourceName = requestData.resourceWithoutFolderName](auto const& requestId) {
+            auto data = _PersisterFacade::get()->fetchUploadNetworkResourcesData(requestId);
             BrowserWindow::get().onRefresh();
+            showUploadConfirmation(resourceType, workspaceType, resourceName, data.resourceId);
         },
         [](auto const& errors) { LocalDialogPresentation::error("browser.error.upload", errors); });
 }
@@ -101,11 +120,11 @@ void NetworkTransferController::onDelete(DeleteNetworkResourceRequestData const&
             return _PersisterFacade::get()->scheduleDeleteNetworkResource(
                 SenderInfo{.senderId = senderId, .wishResultData = true, .wishErrorInfo = true}, requestData);
         },
-        [&](auto const& requestId) {
-            _PersisterFacade::get()->fetchDeleteNetworkResourcesData(requestId);
+        [&](auto const& requestId) { _PersisterFacade::get()->fetchDeleteNetworkResourcesData(requestId); },
+        [](auto const& errors) {
             BrowserWindow::get().onRefresh();
-        },
-        [](auto const& errors) { LocalDialogPresentation::error("browser.error.delete", errors); });
+            LocalDialogPresentation::error("browser.error.delete", errors);
+        });
 }
 
 void NetworkTransferController::onEdit(EditNetworkResourceRequestData const& requestData)

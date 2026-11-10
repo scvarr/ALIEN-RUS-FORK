@@ -77,25 +77,26 @@ void BrowserWindow::initIntern()
 
     auto& settings = GlobalSettings::get();
     _galleryView = settings.getValue("windows.browser.gallery view", _galleryView);
-    _data->currentWorkspace.resourceType = settings.getValue("windows.browser.resource type", _data->currentWorkspace.resourceType);
-    _data->currentWorkspace.workspaceType = settings.getValue("windows.browser.workspace type", _data->currentWorkspace.workspaceType);
+    auto currentWorkspaceId = _data->getCurrentWorkspaceId();
+    currentWorkspaceId.resourceType = settings.getValue("windows.browser.resource type", currentWorkspaceId.resourceType);
+    currentWorkspaceId.workspaceType = settings.getValue("windows.browser.workspace type", currentWorkspaceId.workspaceType);
+    _data->setCurrentWorkspaceId(currentWorkspaceId);
     _userTableWidth = settings.getValue("windows.browser.user table width", scale(UserTableWidth)) * WindowController::get().getContentScaleCorrection();
 
     auto firstStart = settings.getValue("windows.browser.first start", true);
     BrowserController::get().refresh(firstStart);
 
-    for (auto& [workspaceId, workspace] : _data->workspaces) {
+    for (auto const& [workspaceId, workspace] : _data->getWorkspaces()) {
         auto initialCollapsedSimulationFolders =
             NetworkResourceService::get().convertFolderNamesToSettings(NetworkResourceService::get().getFolderNames(workspace.rawTOs));
         auto collapsedSimulationFolders = settings.getValue(
             "windows.browser.collapsed folders." + networkResourceTypeToString.at(workspaceId.resourceType) + "."
                 + workspaceTypeToString.at(workspaceId.workspaceType),
             initialCollapsedSimulationFolders);
-        workspace.collapsedFolderNames = NetworkResourceService::get().convertSettingsToFolderNames(collapsedSimulationFolders);
-        _data->createTreeTOs(workspace);
+        _data->setCollapsedFolderNames(workspaceId, NetworkResourceService::get().convertSettingsToFolderNames(collapsedSimulationFolders));
     }
 
-    _data->lastSessionData.load();
+    _data->loadLastSessionData();
 
     EditSimulationDialog::get().setup();
 }
@@ -104,18 +105,18 @@ void BrowserWindow::shutdownIntern()
 {
     auto& settings = GlobalSettings::get();
     settings.setValue("windows.browser.gallery view", _galleryView);
-    settings.setValue("windows.browser.resource type", _data->currentWorkspace.resourceType);
-    settings.setValue("windows.browser.workspace type", _data->currentWorkspace.workspaceType);
+    settings.setValue("windows.browser.resource type", _data->getCurrentWorkspaceId().resourceType);
+    settings.setValue("windows.browser.workspace type", _data->getCurrentWorkspaceId().workspaceType);
     settings.setValue("windows.browser.first start", false);
     settings.setValue("windows.browser.user table width", _userTableWidth);
-    for (auto const& [workspaceId, workspace] : _data->workspaces) {
+    for (auto const& [workspaceId, workspace] : _data->getWorkspaces()) {
         settings.setValue(
             "windows.browser.collapsed folders." + networkResourceTypeToString.at(workspaceId.resourceType) + "."
                 + workspaceTypeToString.at(workspaceId.workspaceType),
             NetworkResourceService::get().convertFolderNamesToSettings(workspace.collapsedFolderNames));
     }
     _galleryWidget->shutdown();
-    _data->lastSessionData.save(_data->getAllRawTOs());
+    _data->saveLastSessionData();
 }
 
 void BrowserWindow::onRefresh()
@@ -128,18 +129,32 @@ void BrowserWindow::onPreviewPictureChanged(std::string const& resourceId)
     _galleryWidget->invalidatePicture(resourceId);
 }
 
-WorkspaceType BrowserWindow::getCurrentWorkspaceType() const
+void BrowserWindow::showResource(NetworkResourceType resourceType, WorkspaceType workspaceType, std::string const& resourceId)
 {
-    return _data->currentWorkspace.workspaceType;
+    _data->setCurrentWorkspaceId(WorkspaceId{.resourceType = resourceType, .workspaceType = workspaceType});
+    _data->setSelectedTreeTO(nullptr);
+    _galleryWidget->resetPage();
+    _resourceIdToShow = resourceId;
+    setOn(true);
 }
 
-DownloadCache& BrowserWindow::getSimulationCache()
+WorkspaceType BrowserWindow::getCurrentWorkspaceType() const
 {
-    return _data->downloadCache;
+    return _data->getCurrentWorkspaceId().workspaceType;
+}
+
+DownloadCache const& BrowserWindow::getSimulationCache() const
+{
+    return _data->getDownloadCache();
 }
 
 void BrowserWindow::processIntern()
 {
+    if (_resourceIdToShow.has_value() && !BrowserController::get().isRefreshing()) {
+        revealResource(*_resourceIdToShow);
+        _resourceIdToShow.reset();
+    }
+
     processToolbar();
     _loginBannerWidget->process();
 
@@ -161,6 +176,8 @@ void BrowserWindow::processIntern()
     processRefreshingScreen({startPos.x, startPos.y});
 
     processEmojiWindow();
+
+    _data->setScrollToSelection(false);
 }
 
 void BrowserWindow::processBackground()
@@ -185,8 +202,9 @@ namespace
 
 void BrowserWindow::processToolbar()
 {
-    std::string resourceTypeString = _data->currentWorkspace.resourceType == NetworkResourceType_Simulation ? "simulation" : "genome";
-    auto isOwnerForSelectedItem = _data->isOwner(_data->selectedTreeTO);
+    auto selectedTreeTO = _data->getSelectedTreeTO();
+    std::string resourceTypeString = _data->getCurrentWorkspaceId().resourceType == NetworkResourceType_Simulation ? "simulation" : "genome";
+    auto isOwnerForSelectedItem = _data->isOwner(selectedTreeTO);
 
     std::vector<AlienGui::ToolbarItem> items{
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
@@ -207,42 +225,42 @@ void BrowserWindow::processToolbar()
                     + ", its folder and name will be suggested."))
                 .action([&] {
                     auto [folder, resourceName] = [&]() -> std::pair<std::string, std::string> {
-                        if (_data->selectedTreeTO == nullptr) {
+                        if (selectedTreeTO == nullptr) {
                             return {};
                         }
-                        auto const& folderNames = _data->selectedTreeTO->folderNames;
+                        auto const& folderNames = selectedTreeTO->folderNames;
                         auto folder = folderNames.empty() ? std::string() : NetworkResourceService::get().concatenateFolderName(folderNames, true);
-                        if (!_data->selectedTreeTO->isLeaf()) {
+                        if (!selectedTreeTO->isLeaf()) {
                             return {folder, std::string()};
                         }
-                        return {folder, _data->selectedTreeTO->getLeaf().leafName};
+                        return {folder, selectedTreeTO->getLeaf().leafName};
                     }();
-                    UploadSimulationDialog::get().open(_data->currentWorkspace.resourceType, folder, resourceName);
+                    UploadSimulationDialog::get().open(_data->getCurrentWorkspaceId().resourceType, folder, resourceName);
                 })),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_EDIT)
                                                 .name(BrowserPresentation::text("Change name or description"))
                                                 .disabled(!isOwnerForSelectedItem)
-                                                .action([&] { onEditResource(_data->selectedTreeTO); })),
+                                                .action([&] { onEditResource(selectedTreeTO); })),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_EXCHANGE_ALT)
                                                 .name(BrowserPresentation::text("Replace " + resourceTypeString))
                                                 .tooltip(BrowserPresentation::text(
                                                     "Replace the selected " + resourceTypeString
                                                     + " with the one that is currently open. The name, description and reactions will be preserved."))
-                                                .disabled(!isOwnerForSelectedItem || !_data->selectedTreeTO->isLeaf())
-                                                .action([&] { onReplaceResource(_data->selectedTreeTO->getLeaf()); })),
+                                                .disabled(!isOwnerForSelectedItem || !selectedTreeTO->isLeaf())
+                                                .action([&] { onReplaceResource(selectedTreeTO->getLeaf()); })),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_SHARE_ALT)
                                                 .name(BrowserPresentation::text("Change visibility"))
                                                 .tooltip(BrowserPresentation::text("Change visibility: Community → Private and Private → Community"))
                                                 .disabled(!isOwnerForSelectedItem)
-                                                .action([&] { onMoveResource(_data->selectedTreeTO); })),
+                                                .action([&] { onMoveResource(selectedTreeTO); })),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_TRASH)
                                                 .name(BrowserPresentation::text("Delete selected " + resourceTypeString))
                                                 .disabled(!isOwnerForSelectedItem)
-                                                .action([&] { onDeleteResource(_data->selectedTreeTO); })),
+                                                .action([&] { onDeleteResource(selectedTreeTO); })),
         AlienGui::ToolbarItem::createSeparator(),
         AlienGui::ToolbarItem::createButton(AlienGui::ToolbarItemParameters()
                                                 .icon(ICON_FA_EXPAND_ARROWS_ALT)
@@ -292,16 +310,13 @@ void BrowserWindow::processWorkspace()
             ImVec2(sizeAvailable.x - _userTableWidth, sizeAvailable.y - scale(BrowserBottomSpace)),
             false,
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-        auto resourceType = _data->currentWorkspace.resourceType;
+        auto workspaceId = _data->getCurrentWorkspaceId();
         AlienGui::TabBar(
             AlienGui::TabBarParameters().id("##Type").style(AlienGui::TabBarStyle::Group),
             {AlienGui::TabItemParameters().name(BrowserPresentation::text("Simulations")).id("Simulations"),
              AlienGui::TabItemParameters().name(BrowserPresentation::text("Genomes")).id("Genomes")},
-            resourceType);
-        if (_data->currentWorkspace.resourceType != resourceType) {
-            _data->currentWorkspace.resourceType = resourceType;
-            _data->selectedTreeTO = nullptr;
-        }
+            workspaceId.resourceType);
+        _data->setCurrentWorkspaceId(workspaceId);
         processResourceView();
     }
     ImGui::EndChild();
@@ -340,7 +355,7 @@ void BrowserWindow::processResourceView()
 
 bool BrowserWindow::isLoginRequired() const
 {
-    return _data->currentWorkspace.workspaceType == WorkspaceType_Private && !NetworkService::get().getLoggedInUserName();
+    return _data->getCurrentWorkspaceId().workspaceType == WorkspaceType_Private && !NetworkService::get().getLoggedInUserName();
 }
 
 void BrowserWindow::processWorkspaceSelection()
@@ -357,18 +372,18 @@ void BrowserWindow::processWorkspaceSelection()
 
 void BrowserWindow::processWorkspaceButton(WorkspaceType workspaceType, std::string const& icon, std::string const& name, std::string const& tooltip)
 {
-    auto isSelected = _data->currentWorkspace.workspaceType == workspaceType;
+    auto currentWorkspaceId = _data->getCurrentWorkspaceId();
+    auto isSelected = currentWorkspaceId.workspaceType == workspaceType;
 
     auto label = icon + "  " + name;
     if (workspaceType != WorkspaceType_Private || NetworkService::get().getLoggedInUserName()) {
-        label += "  (" + std::to_string(_data->workspaces.at(WorkspaceId{_data->currentWorkspace.resourceType, workspaceType}).rawTOs.size()) + ")";
+        label += "  (" + std::to_string(_data->getWorkspace(WorkspaceId{currentWorkspaceId.resourceType, workspaceType}).rawTOs.size()) + ")";
     }
     label += "###workspace" + std::to_string(workspaceType);
 
     auto selected = isSelected;
     if (AlienGui::SelectableButton(AlienGui::SelectableButtonParameters().name(label).tooltip(tooltip), selected) && !isSelected) {
-        _data->currentWorkspace.workspaceType = workspaceType;
-        _data->selectedTreeTO = nullptr;
+        _data->setCurrentWorkspaceId(WorkspaceId{currentWorkspaceId.resourceType, workspaceType});
         _galleryWidget->resetPage();
     }
 }
@@ -410,11 +425,12 @@ void BrowserWindow::processAccountChip()
 void BrowserWindow::processFooter()
 {
     auto filterWidth = std::clamp(scaleInverse(ImGui::GetContentRegionAvail().x), MinFilterWidth, FilterWidth);
+    auto filter = _data->getFilter();
     if (AlienGui::InputFilter(
             AlienGui::InputFilterParameters().width(filterWidth).hint(BrowserPresentation::text("Filter (case insensitive)")).id("Filter (case insensitive)"),
-            _data->filter)) {
+            filter)) {
         _galleryWidget->resetPage();
-        _data->createTreeTOsForAllWorkspaces();
+        _data->setFilter(filter);
     }
 
     if (_galleryView) {
@@ -440,8 +456,8 @@ void BrowserWindow::processStatusBar()
     std::unordered_set<NetworkResourceRawTO> simulations;
     std::unordered_set<NetworkResourceRawTO> genomes;
     for (WorkspaceType workspaceType = 0; workspaceType < WorkspaceType_Count; ++workspaceType) {
-        auto const& simWorkspace = _data->workspaces.at(WorkspaceId{NetworkResourceType_Simulation, workspaceType});
-        auto const& genomeWorkspace = _data->workspaces.at(WorkspaceId{NetworkResourceType_Genome, workspaceType});
+        auto const& simWorkspace = _data->getWorkspace(WorkspaceId{NetworkResourceType_Simulation, workspaceType});
+        auto const& genomeWorkspace = _data->getWorkspace(WorkspaceId{NetworkResourceType_Genome, workspaceType});
         simulations.insert(simWorkspace.rawTOs.begin(), simWorkspace.rawTOs.end());
         genomes.insert(genomeWorkspace.rawTOs.begin(), genomeWorkspace.rawTOs.end());
     }
@@ -458,7 +474,7 @@ void BrowserWindow::processStatusBar()
     }
     statusItems.emplace_back(BrowserPresentation::count("browser.count.simulations", numSimulations));
     statusItems.emplace_back(BrowserPresentation::count("browser.count.genomes", numGenomes));
-    statusItems.emplace_back(BrowserPresentation::count("browser.count.simulators", toInt(_data->userTOs.size())));
+    statusItems.emplace_back(BrowserPresentation::count("browser.count.simulators", toInt(_data->getUserTOs().size())));
 
     if (!NetworkService::get().getLoggedInUserName()) {
         statusItems.emplace_back(BrowserPresentation::text("In order to share and upvote simulations you need to log in."));
@@ -469,9 +485,9 @@ void BrowserWindow::processStatusBar()
 
 void BrowserWindow::processEmojiWindow()
 {
-    if (_data->activateEmojiPopup) {
+    if (_data->isActivateEmojiPopup()) {
         ImGui::OpenPopup("emoji");
-        _data->activateEmojiPopup = false;
+        _data->setActivateEmojiPopup(false);
     }
     if (ImGui::BeginPopup("emoji")) {
         AlienGui::Text(BrowserPresentation::text("Choose a reaction"));
@@ -516,22 +532,22 @@ void BrowserWindow::processEmojiWindow()
 
 void BrowserWindow::processEmojiButton(int emojiType)
 {
-    auto const& emoji = _data->emojis.at(emojiType);
+    auto const& emoji = _data->getEmojis().at(emojiType);
     ImGui::PushStyleColor(ImGuiCol_Button, static_cast<ImVec4>(Const::ToolbarButtonBackgroundColor));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, static_cast<ImVec4>(Const::ToolbarButtonHoveredColor));
     auto cursorPos = ImGui::GetCursorScreenPos();
     auto emojiWidth = scale(toFloat(emoji.width) * EmojiPopupScale);
     auto emojiHeight = scale(toFloat(emoji.height) * EmojiPopupScale);
-    auto leaf = _data->emojiPopupTO->getLeaf();
+    auto leaf = _data->getEmojiPopupTO()->getLeaf();
     ImGui::PushID(emojiType);
     if (ImGui::ImageButton("emoji_popup", emoji.textureId, ImVec2(emojiWidth, emojiHeight), ImVec2(0, 0), ImVec2(1.0f, 1.0f))) {
-        _data->onToggleLike(_data->emojiPopupTO, toInt(emojiType));
+        _data->onToggleLike(_data->getEmojiPopupTO(), toInt(emojiType));
         ImGui::CloseCurrentPopup();
     }
     ImGui::PopStyleColor(2);
     ImGui::PopID();
 
-    bool isLiked = _data->ownEmojiTypeBySimId.contains(leaf.rawTO->id) && _data->ownEmojiTypeBySimId.at(leaf.rawTO->id) == emojiType;
+    bool isLiked = _data->isOwnReaction(leaf.rawTO->id, emojiType);
     if (isLiked) {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         auto& style = ImGui::GetStyle();
@@ -572,39 +588,18 @@ void BrowserWindow::onEditResource(NetworkResourceTreeTO const& treeTO)
 
 void BrowserWindow::onReplaceResource(BrowserLeaf const& leaf)
 {
-    ReplaceSimulationDialog::get().open(_data->currentWorkspace.resourceType, leaf);
+    ReplaceSimulationDialog::get().open(_data->getCurrentWorkspaceId().resourceType, leaf);
 }
 
 void BrowserWindow::onMoveResource(NetworkResourceTreeTO const& treeTO)
 {
-    auto& source = _data->getCurrentWorkspace();
+    auto const& source = _data->getCurrentWorkspace();
     auto rawTOs = NetworkResourceService::get().getMatchingRawTOs(treeTO, source.rawTOs);
 
-    std::vector<NetworkResourceRawTO> movedRawTOs;
-    for (auto const& rawTO : rawTOs) {
-        auto& publicWorkspace = _data->workspaces.at(WorkspaceId{_data->currentWorkspace.resourceType, WorkspaceType_Public});
-        switch (rawTO->workspaceType) {
-        case WorkspaceType_Private: {
-            rawTO->workspaceType = WorkspaceType_Public;
-            publicWorkspace.rawTOs.emplace_back(rawTO);
-            movedRawTOs.emplace_back(rawTO);
-        } break;
-        case WorkspaceType_Public: {
-            rawTO->workspaceType = WorkspaceType_Private;
-            auto findResult = std::ranges::find_if(publicWorkspace.rawTOs, [&](NetworkResourceRawTO const& otherRawTO) { return otherRawTO->id == rawTO->id; });
-            if (findResult != publicWorkspace.rawTOs.end()) {
-                publicWorkspace.rawTOs.erase(findResult);
-            }
-            movedRawTOs.emplace_back(rawTO);
-        } break;
-        default:
-            break;
-        }
-    }
+    auto movedRawTOs = _data->changeVisibility(rawTOs);
     if (movedRawTOs.empty()) {
         return;
     }
-    _data->createTreeTOsForCurrentResourceType();
 
     // Apply changes to server
     MoveNetworkResourceRequestData requestData;
@@ -620,17 +615,7 @@ void BrowserWindow::onDeleteResource(NetworkResourceTreeTO const& treeTO)
 
     auto messageKey = treeTO->isLeaf() ? "browser.doyoureallywanttodeletetheselecteditem" : "browser.doyoureallywanttodeletetheselectedfolder";
     GenericMessageDialog::get().localizedYesNo("Delete", "browser.delete", messageKey, [rawTOs = rawTOs, this]() {
-        // Remove resources form workspace
-        for (WorkspaceType workspaceType = 0; workspaceType < WorkspaceType_Count; ++workspaceType) {
-            auto& workspace = _data->workspaces.at(WorkspaceId{_data->currentWorkspace.resourceType, workspaceType});
-            for (auto const& rawTO : rawTOs) {
-                auto findResult = std::ranges::find_if(workspace.rawTOs, [&](NetworkResourceRawTO const& otherRawTO) { return otherRawTO->id == rawTO->id; });
-                if (findResult != workspace.rawTOs.end()) {
-                    workspace.rawTOs.erase(findResult);
-                }
-            }
-            _data->createTreeTOs(workspace);
-        }
+        _data->removeRawTOs(rawTOs);
 
         // Apply changes to server
         DeleteNetworkResourceRequestData requestData;
@@ -643,14 +628,30 @@ void BrowserWindow::onDeleteResource(NetworkResourceTreeTO const& treeTO)
 
 void BrowserWindow::onExpandFolders()
 {
-    auto& workspace = _data->getCurrentWorkspace();
-    workspace.collapsedFolderNames.clear();
-    _data->createTreeTOs(workspace);
+    _data->setCollapsedFolderNames(_data->getCurrentWorkspaceId(), {});
 }
 
 void BrowserWindow::onCollapseFolders()
 {
-    auto& workspace = _data->getCurrentWorkspace();
-    workspace.collapsedFolderNames = NetworkResourceService::get().getFolderNames(workspace.rawTOs, 1);
-    _data->createTreeTOs(workspace);
+    _data->setCollapsedFolderNames(_data->getCurrentWorkspaceId(), NetworkResourceService::get().getFolderNames(_data->getCurrentWorkspace().rawTOs, 1));
+}
+
+void BrowserWindow::revealResource(std::string const& resourceId)
+{
+    auto const& workspace = _data->getCurrentWorkspace();
+    auto findResult = std::ranges::find_if(workspace.rawTOs, [&](NetworkResourceRawTO const& rawTO) { return rawTO->id == resourceId; });
+    if (findResult == workspace.rawTOs.end()) {
+        return;
+    }
+    auto rawTO = *findResult;
+
+    auto collapsedFolderNames = workspace.collapsedFolderNames;
+    auto folderNames = NetworkResourceService::get().getFolderNames(rawTO->resourceName);
+    for (auto depth : std::views::iota(1, toInt(folderNames.size()) + 1)) {
+        collapsedFolderNames.erase(std::vector(folderNames.begin(), folderNames.begin() + depth));
+    }
+    _data->setCollapsedFolderNames(_data->getCurrentWorkspaceId(), collapsedFolderNames);
+
+    _data->setSelectedTreeTO(BrowserHelper::createLeafTreeTO(rawTO));
+    _data->setScrollToSelection(true);
 }

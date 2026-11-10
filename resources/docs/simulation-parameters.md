@@ -53,6 +53,7 @@ The following parameters can be overridden by layers: background color, friction
 | Customization colors | palette | The ten colors used for rendering and in all color selections. |
 | Object coloring | Customization | How objects are colored: by energy, by customization color, by lineage or by creature. |
 | Glow | 0.3 | Strength of the bloom effect. |
+| Hardware ray tracing | on | Renders the simulation with hardware ray tracing if the GPU supports it. If off, the simulation is rasterized, which needs less GPU time. |
 | Fluid illumination | 0.25 | With hardware ray tracing: how strongly the cells light the surrounding fluids. At 0, the fluids are not lit. At 1, they are lit most strongly. |
 | Borderless rendering | off | Repeats the world periodically in the view. |
 | Grid lines | off | Draws a grid that adapts to the zoom level. |
@@ -61,6 +62,7 @@ The following parameters can be overridden by layers: background color, friction
 | Light color | white | For radiation sources: the color of their light and of their highlighted area. |
 | Light brightness | 0.25 | For radiation sources with hardware ray tracing: the brightness that the light of the source approaches close to its area. The light forms columns of light and shadow in a faint haze. At 0, the source does not shine. |
 | Light range | 150 | For radiation sources: the distance from their area up to which their light reaches. |
+| Shadow strength | 1 | For radiation sources with hardware ray tracing: the share of their light that the objects and fluids on its way can block. At 1, they cast full shadows. At 0, the light penetrates them completely and they cast no shadows. |
 | Show force field | on | For layers: darkens the background according to the force field. |
 
 ## Guided energy supply

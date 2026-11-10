@@ -42,9 +42,9 @@ namespace
 
 void _BrowserTableWidget::process()
 {
-    auto resourceType = _data->currentWorkspace.resourceType;
-    auto& workspace = _data->getCurrentWorkspace();
-    auto columns = getColumns(workspace);
+    auto resourceType = _data->getCurrentWorkspaceId().resourceType;
+    auto const& workspace = _data->getCurrentWorkspace();
+    auto columns = getColumns();
 
     ImGui::PushID(resourceType == NetworkResourceType_Simulation ? "SimulationList" : "GenomeList");
     if (ImGui::BeginTable("Browser", toInt(columns.size()), getTableFlags(resourceType), ImVec2(-1, -BrowserHelper::calcFooterHeight()), 0.0f)) {
@@ -62,7 +62,6 @@ void _BrowserTableWidget::process()
             AlienGui::Text(tr("browser.empty"));
         }
 
-        _recreateTreeTOs = false;
         ImGuiListClipper clipper;
         clipper.Begin(toInt(workspace.treeTOs.size()));
         while (clipper.Step()) {
@@ -74,22 +73,22 @@ void _BrowserTableWidget::process()
         }
         ImGui::EndTable();
 
-        if (_recreateTreeTOs) {
-            _data->createTreeTOs(workspace);
+        if (_pendingCollapsedFolderNames) {
+            _data->setCollapsedFolderNames(_data->getCurrentWorkspaceId(), *_pendingCollapsedFolderNames);
+            _pendingCollapsedFolderNames.reset();
         }
     }
     ImGui::PopID();
 }
 
-std::vector<_BrowserTableWidget::Column> _BrowserTableWidget::getColumns(Workspace& workspace)
+std::vector<_BrowserTableWidget::Column> _BrowserTableWidget::getColumns()
 {
-    auto isSimulation = _data->currentWorkspace.resourceType == NetworkResourceType_Simulation;
+    auto isSimulation = _data->getCurrentWorkspaceId().resourceType == NetworkResourceType_Simulation;
 
     std::vector<Column> result;
-    result.emplace_back(
-        Column{.name = "Name", .width = 210.0f, .sortId = NetworkResourceColumnId_SimulationName, .processField = [&, this](auto const& treeTO) {
-                   processResourceNameField(treeTO, workspace.collapsedFolderNames);
-               }});
+    result.emplace_back(Column{.name = "Name", .width = 210.0f, .sortId = NetworkResourceColumnId_SimulationName, .processField = [this](auto const& treeTO) {
+                                   processResourceNameField(treeTO);
+                               }});
     result.emplace_back(Column{.name = "Description", .width = 200.0f, .sortId = NetworkResourceColumnId_Desc, .processField = [this](auto const& treeTO) {
                                    processDescriptionField(treeTO);
                                }});
@@ -131,14 +130,7 @@ void _BrowserTableWidget::processSortSpecs()
     if (sortSpecs == nullptr || !sortSpecs->SpecsDirty) {
         return;
     }
-    for (WorkspaceType workspaceType = 0; workspaceType < WorkspaceType_Count; ++workspaceType) {
-        auto& workspace = _data->workspaces.at(WorkspaceId{_data->currentWorkspace.resourceType, workspaceType});
-        workspace.sortSpecs.clear();
-        for (int i = 0; i < sortSpecs->SpecsCount; ++i) {
-            workspace.sortSpecs.emplace_back(sortSpecs->Specs[i]);
-        }
-        _data->createTreeTOs(workspace);
-    }
+    _data->setSortSpecs(_data->getCurrentWorkspaceId().resourceType, std::vector(sortSpecs->Specs, sortSpecs->Specs + sortSpecs->SpecsCount));
     sortSpecs->SpecsDirty = false;
 }
 
@@ -169,7 +161,7 @@ namespace
 void _BrowserTableWidget::processRow(NetworkResourceTreeTO const& treeTO, std::vector<Column> const& columns)
 {
     if (treeTO->isLeaf()) {
-        _data->lastSessionData.registrate(treeTO->getLeaf().rawTO);
+        _data->registrateAsSeen(treeTO->getLeaf().rawTO);
     }
 
     ImGui::TableNextRow(0, scale(BrowserHelper::RowHeight));
@@ -179,11 +171,14 @@ void _BrowserTableWidget::processRow(NetworkResourceTreeTO const& treeTO, std::v
     if (AlienGui::TableRowSelectable(
             "", &selected, ImGuiSelectableFlags_AllowDoubleClick, RealVector2D(0, scale(BrowserHelper::RowHeight) - ImGui::GetStyle().FramePadding.y))) {
         if (treeTO->isLeaf() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            _data->selectedTreeTO = treeTO;
+            _data->setSelectedTreeTO(treeTO);
             _data->onDownloadResource(treeTO->getLeaf());
         } else {
-            _data->selectedTreeTO = selected ? treeTO : nullptr;
+            _data->setSelectedTreeTO(selected ? treeTO : nullptr);
         }
+    }
+    if (_data->isScrollToSelection() && selected) {
+        ImGui::SetScrollHereY(0.5f);
     }
     ImGui::SameLine();
 
@@ -198,15 +193,15 @@ void _BrowserTableWidget::processRow(NetworkResourceTreeTO const& treeTO, std::v
     popTextColor();
 }
 
-void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& treeTO, std::set<std::vector<std::string>>& collapsedFolderNames)
+void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& treeTO)
 {
     if (treeTO->isLeaf()) {
         auto& leaf = treeTO->getLeaf();
 
-        processFolderTreeSymbols(treeTO, collapsedFolderNames);
+        processFolderTreeSymbols(treeTO);
         BrowserHelper::DownloadButton(_data, leaf);
         ImGui::SameLine();
-        if (_data->currentWorkspace.workspaceType == WorkspaceType_Private && leaf.rawTO->workspaceType != WorkspaceType_Private) {
+        if (_data->getCurrentWorkspaceId().workspaceType == WorkspaceType_Private && leaf.rawTO->workspaceType != WorkspaceType_Private) {
             AlienGui::Text(ICON_FA_SHARE_ALT);
             AlienGui::Tooltip(AlienGui::TooltipParameters().text(
                 leaf.rawTO->workspaceType == WorkspaceType_AlienProject ? BrowserPresentation::text("Visible in Featured")
@@ -214,7 +209,7 @@ void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& 
         }
         ImGui::SameLine();
 
-        if (!_data->isOwner(treeTO) && _data->lastSessionData.isNew(leaf.rawTO)) {
+        if (_data->isNew(leaf.rawTO)) {
             auto font = StyleService::get().getSmallBoldFont();
             auto origSize = font->Scale;
             font->Scale *= 0.65f;
@@ -232,7 +227,7 @@ void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& 
     } else {
         auto& folder = treeTO->getFolder();
 
-        processFolderTreeSymbols(treeTO, collapsedFolderNames);
+        processFolderTreeSymbols(treeTO);
         AlienGui::Text(AlienGui::TextParameters().text(treeTO->folderNames.back()).truncate(true));
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::TextDecentColor);
@@ -242,7 +237,7 @@ void _BrowserTableWidget::processResourceNameField(NetworkResourceTreeTO const& 
     }
 }
 
-void _BrowserTableWidget::processFolderTreeSymbols(NetworkResourceTreeTO const& treeTO, std::set<std::vector<std::string>>& collapsedFolderNames)
+void _BrowserTableWidget::processFolderTreeSymbols(NetworkResourceTreeTO const& treeTO)
 {
     ImGui::PushStyleColor(ImGuiCol_Text, (ImU32)Const::BrowserResourceSymbolColor);
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0, 0, 0));
@@ -253,14 +248,14 @@ void _BrowserTableWidget::processFolderTreeSymbols(NetworkResourceTreeTO const& 
         switch (folderLine) {
         case FolderTreeSymbols::Expanded: {
             if (AlienGui::Button(ICON_FA_MINUS_SQUARE, 20.0f)) {
-                collapsedFolderNames.insert(treeTO->folderNames);
-                _recreateTreeTOs = true;
+                _pendingCollapsedFolderNames = _data->getCurrentWorkspace().collapsedFolderNames;
+                _pendingCollapsedFolderNames->insert(treeTO->folderNames);
             }
         } break;
         case FolderTreeSymbols::Collapsed: {
             if (AlienGui::Button(ICON_FA_PLUS_SQUARE, 20.0f)) {
-                collapsedFolderNames.erase(treeTO->folderNames);
-                _recreateTreeTOs = true;
+                _pendingCollapsedFolderNames = _data->getCurrentWorkspace().collapsedFolderNames;
+                _pendingCollapsedFolderNames->erase(treeTO->folderNames);
             }
         } break;
         case FolderTreeSymbols::Continue: {
@@ -327,8 +322,8 @@ void _BrowserTableWidget::processReactionList(NetworkResourceTreeTO const& treeT
         auto isAddReaction = AlienGui::ActionButton(AlienGui::ActionButtonParameters().buttonText(ICON_FA_PLUS));
         AlienGui::Tooltip(AlienGui::TooltipParameters().text(BrowserPresentation::text("Add a reaction")).delay(false));
         if (isAddReaction) {
-            _data->activateEmojiPopup = true;
-            _data->emojiPopupTO = treeTO;
+            _data->setActivateEmojiPopup(true);
+            _data->setEmojiPopupTO(treeTO);
         }
 
         // Calc remap which allows to show most frequent like type first
@@ -358,9 +353,9 @@ void _BrowserTableWidget::processReactionList(NetworkResourceTreeTO const& treeT
 
             ImGui::SameLine();
             AlienGui::Text(std::to_string(numLikes));
-            if (emojiType < _data->emojis.size()) {
+            if (emojiType < _data->getEmojis().size()) {
                 ImGui::SameLine();
-                auto const& emoji = _data->emojis.at(emojiType);
+                auto const& emoji = _data->getEmojis().at(emojiType);
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() - scale(7.0f));
                 ImGui::PushStyleColor(ImGuiCol_Button, static_cast<ImVec4>(Const::ToolbarButtonBackgroundColor));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, static_cast<ImVec4>(Const::ToolbarButtonHoveredColor));
@@ -373,7 +368,7 @@ void _BrowserTableWidget::processReactionList(NetworkResourceTreeTO const& treeT
                 if (ImGui::ImageButton("reaction_emoji", emoji.textureId, ImVec2(emojiWidth, emojiHeight), ImVec2(0, 0), ImVec2(1, 1))) {
                     toggleEmojiType = emojiType;
                 }
-                bool isLiked = _data->ownEmojiTypeBySimId.contains(leaf.rawTO->id) && _data->ownEmojiTypeBySimId.at(leaf.rawTO->id) == emojiType;
+                bool isLiked = _data->isOwnReaction(leaf.rawTO->id, emojiType);
                 if (isLiked) {
                     ImGui::GetWindowDrawList()->AddRect(
                         ImVec2(cursorPos.x, cursorPos.y),

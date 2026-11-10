@@ -17,6 +17,15 @@ namespace
         void drawSimulation(RenderView const& view) override {}
         void clearScreen(FloatColorRGB const& color) override {}
         void render(ImDrawData* drawData) override {}
+        void captureSimulationFrame(int numPrecedingRenderings) override
+        {
+            ADD_FAILURE() << "Unexpected frame capture in localization fixture";
+        }
+        std::optional<PictureData> fetchCapturedSimulationFrame() override
+        {
+            ADD_FAILURE() << "Unexpected frame capture result in localization fixture";
+            return std::nullopt;
+        }
         PictureData renderSimulationPicture(RenderView const& view) override { return {}; }
         PictureData renderDrawList(ImDrawList* drawList, IntVector2D const& resolution, ImColor const& backgroundColor, int supersampling) override
         {

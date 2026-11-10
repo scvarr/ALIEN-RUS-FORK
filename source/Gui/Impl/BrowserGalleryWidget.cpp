@@ -124,6 +124,12 @@ void _BrowserGalleryWidget::process()
     _numEntries = toInt(entries.size());
 
     _numPages = std::max(1, (_numEntries + TilesPerPage - 1) / TilesPerPage);
+    if (_data->isScrollToSelection()) {
+        auto findResult = std::ranges::find_if(entries, [&](NetworkResourceRawTO const& rawTO) { return _data->isSelected(rawTO); });
+        if (findResult != entries.end()) {
+            _page = toInt(std::distance(entries.begin(), findResult)) / TilesPerPage;
+        }
+    }
     _page = std::clamp(_page, 0, _numPages - 1);
 
     auto firstIndex = _page * TilesPerPage;
@@ -275,15 +281,6 @@ namespace
             Const::BrowserResourceNewTextColor,
             BrowserPresentation::text("NEW").c_str());
     }
-
-    NetworkResourceTreeTO createLeafTreeTO(NetworkResourceRawTO const& rawTO)
-    {
-        auto result = std::make_shared<_NetworkResourceTreeTO>();
-        result->type = rawTO->resourceType;
-        result->folderNames = NetworkResourceService::get().getFolderNames(rawTO->resourceName);
-        result->node = BrowserLeaf{.leafName = NetworkResourceService::get().removeFoldersFromName(rawTO->resourceName), .rawTO = rawTO};
-        return result;
-    }
 }
 
 _BrowserGalleryWidget::TileLayout _BrowserGalleryWidget::calcTileLayout() const
@@ -308,7 +305,7 @@ float _BrowserGalleryWidget::calcTileHeight(float tileWidth) const
 
 void _BrowserGalleryWidget::processTile(NetworkResourceRawTO const& rawTO, float tileWidth)
 {
-    _data->lastSessionData.registrate(rawTO);
+    _data->registrateAsSeen(rawTO);
 
     auto tileHeight = calcTileHeight(tileWidth);
 
@@ -318,7 +315,7 @@ void _BrowserGalleryWidget::processTile(NetworkResourceRawTO const& rawTO, float
         auto textWidth = ImGui::GetContentRegionAvail().x;
         auto picturePos = ImGui::GetCursorScreenPos();
         processPicture(rawTO, textWidth);
-        if (!_data->isOwner(rawTO) && _data->lastSessionData.isNew(rawTO)) {
+        if (_data->isNew(rawTO)) {
             processNewBadge(picturePos);
         }
 
@@ -327,7 +324,7 @@ void _BrowserGalleryWidget::processTile(NetworkResourceRawTO const& rawTO, float
         AlienGui::Text(AlienGui::TextParameters().text(NetworkResourceService::get().concatenateFolderName(folderNames, true)).truncate(true));
         ImGui::PopStyleColor();
 
-        if (_data->currentWorkspace.workspaceType == WorkspaceType_Private && rawTO->workspaceType != WorkspaceType_Private) {
+        if (_data->getCurrentWorkspaceId().workspaceType == WorkspaceType_Private && rawTO->workspaceType != WorkspaceType_Private) {
             AlienGui::Text(ICON_FA_SHARE_ALT);
             AlienGui::Tooltip(AlienGui::TooltipParameters().text(
                 rawTO->workspaceType == WorkspaceType_AlienProject ? BrowserPresentation::text("Visible in Featured")
@@ -363,6 +360,10 @@ void _BrowserGalleryWidget::processTile(NetworkResourceRawTO const& rawTO, float
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
+
+    if (_data->isScrollToSelection() && _data->isSelected(rawTO)) {
+        ImGui::SetScrollHereY(0.5f);
+    }
 
     auto tileMin = ImGui::GetItemRectMin();
     auto tileMax = ImGui::GetItemRectMax();
@@ -468,8 +469,8 @@ void _BrowserGalleryWidget::processTileTooltip(NetworkResourceRawTO const& rawTO
         AlienGui::Text("-");
     } else {
         for (auto const& [emojiType, numLikes] : rawTO->numLikesByEmojiType) {
-            if (emojiType < toInt(_data->emojis.size())) {
-                auto const& emoji = _data->emojis.at(emojiType);
+            if (emojiType < toInt(_data->getEmojis().size())) {
+                auto const& emoji = _data->getEmojis().at(emojiType);
                 ImGui::Image(emoji.textureId, {scale(toFloat(emoji.width) / 2.5f), scale(toFloat(emoji.height) / 2.5f)});
                 ImGui::SameLine();
             }
@@ -536,8 +537,8 @@ void _BrowserGalleryWidget::processReactionButton(NetworkResourceRawTO const& ra
         processReactionTooltip(rawTO);
     }
     if (isAddReaction) {
-        _data->activateEmojiPopup = true;
-        _data->emojiPopupTO = createLeafTreeTO(rawTO);
+        _data->setActivateEmojiPopup(true);
+        _data->setEmojiPopupTO(BrowserHelper::createLeafTreeTO(rawTO));
     }
 }
 
@@ -549,8 +550,8 @@ void _BrowserGalleryWidget::processReactionTooltip(NetworkResourceRawTO const& r
         AlienGui::Text(BrowserPresentation::text("Add a reaction"));
     } else {
         for (auto const& [emojiType, numLikes] : rawTO->numLikesByEmojiType) {
-            if (emojiType < toInt(_data->emojis.size())) {
-                auto const& emoji = _data->emojis.at(emojiType);
+            if (emojiType < toInt(_data->getEmojis().size())) {
+                auto const& emoji = _data->getEmojis().at(emojiType);
                 ImGui::Image(emoji.textureId, {scale(toFloat(emoji.width) / 2.5f), scale(toFloat(emoji.height) / 2.5f)});
                 ImGui::SameLine();
             }
@@ -571,11 +572,11 @@ std::string _BrowserGalleryWidget::getPageText() const
 
 std::vector<NetworkResourceRawTO> _BrowserGalleryWidget::getSortedEntries() const
 {
-    auto const& workspace = _data->workspaces.at(_data->currentWorkspace);
+    auto const& workspace = _data->getCurrentWorkspace();
 
     std::vector<NetworkResourceRawTO> result;
     for (auto const& rawTO : workspace.rawTOs) {
-        if (_data->filter.empty() || BrowserMetadataSearch::matches(*rawTO, _data->filter)) {
+        if (_data->getFilter().empty() || BrowserMetadataSearch::matches(*rawTO, _data->getFilter())) {
             result.emplace_back(rawTO);
         }
     }
@@ -637,5 +638,5 @@ void _BrowserGalleryWidget::requestMissingPictures(std::vector<NetworkResourceRa
 
 void _BrowserGalleryWidget::onSelectEntry(NetworkResourceRawTO const& rawTO)
 {
-    _data->selectedTreeTO = createLeafTreeTO(rawTO);
+    _data->setSelectedTreeTO(BrowserHelper::createLeafTreeTO(rawTO));
 }

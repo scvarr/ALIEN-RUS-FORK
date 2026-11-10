@@ -6,6 +6,8 @@
 
 #include <Fonts/IconsFontAwesome5.h>
 
+#include <Network/NetworkResourceService.h>
+
 #include "AlienGui.h"
 #include "BrowserData.h"
 #include "StyleService.h"
@@ -32,4 +34,13 @@ void BrowserHelper::DownloadButton(BrowserData const& data, BrowserLeaf const& l
     if (isDownload) {
         data->onDownloadResource(leaf);
     }
+}
+
+NetworkResourceTreeTO BrowserHelper::createLeafTreeTO(NetworkResourceRawTO const& rawTO)
+{
+    auto result = std::make_shared<_NetworkResourceTreeTO>();
+    result->type = rawTO->resourceType;
+    result->folderNames = NetworkResourceService::get().getFolderNames(rawTO->resourceName);
+    result->node = BrowserLeaf{.leafName = NetworkResourceService::get().removeFoldersFromName(rawTO->resourceName), .rawTO = rawTO};
+    return result;
 }

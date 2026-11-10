@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <optional>
 #include <string>
 
@@ -24,21 +25,17 @@ public:
 private:
     UploadSimulationDialog();
 
-    void initIntern() override;
-    void shutdownIntern() override;
     void processIntern() override;
 
-    void onUpload();
+    void onUpload(WorkspaceType workspaceType);
 
     std::string _folder;
-    std::unordered_map<std::string, std::string> _resourceNameByFolder;
-    std::unordered_map<std::string, std::string> _resourceDescriptionByFolder;
+    std::map<std::pair<NetworkResourceType, std::string>, std::string> _resourceDescriptionByTypeAndFolder;
 
     std::string _resourceName;
     std::string _resourceDescription;
 
     NetworkResourceType _resourceType = NetworkResourceType_Simulation;
-    bool _share = false;
 
     ResourcePreviewWidget _preview;
 };

@@ -302,6 +302,7 @@ add_executable(McpToolsTests)
 add_executable(NetworkTests)
 add_executable(PersisterTests)
 add_executable(GuiLocalizationTests)
+add_executable(VideoTests)
 
 # find_package(CUDAToolkit REQUIRED) is too slow
 find_package(Boost REQUIRED)
@@ -363,6 +364,8 @@ add_subdirectory(source/Persister/Interface/Tests)
 add_subdirectory(source/Rendering/Impl)
 add_subdirectory(source/Rendering/Impl/Shaders)
 add_subdirectory(source/Rendering/Interface)
+add_subdirectory(source/Video)
+add_subdirectory(source/Video/Tests)
 
 # Executables linking the HIP relocatable-device-code engine libraries must run
 # the device link themselves (see alien_link_hip_rdc).
@@ -383,7 +386,11 @@ add_custom_target(LocalizationResources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/resources/locales ${CMAKE_CURRENT_BINARY_DIR}/resources/locales
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/resources/fonts ${CMAKE_CURRENT_BINARY_DIR}/resources/fonts)
+        ${CMAKE_SOURCE_DIR}/resources/fonts ${CMAKE_CURRENT_BINARY_DIR}/resources/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/docs $<TARGET_FILE_DIR:alien>/resources/docs
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/resources/docs ${CMAKE_CURRENT_BINARY_DIR}/resources/docs)
 add_dependencies(alien LocalizationResources)
 add_dependencies(GuiLocalizationTests LocalizationResources)
 
@@ -410,10 +417,7 @@ add_custom_command(
 # binaries.
 if(WIN32 AND NOT USE_HIP)
     get_filename_component(CUDA_BIN_DIR "${CMAKE_CUDA_COMPILER}" DIRECTORY)
-    file(GLOB CUDA_RUNTIME_DLL LIST_DIRECTORIES false "${CUDA_BIN_DIR}/cudart64_*.dll")
-    if(NOT CUDA_RUNTIME_DLL)
-        file(GLOB CUDA_RUNTIME_DLL LIST_DIRECTORIES false "${CUDA_BIN_DIR}/x64/cudart64_*.dll")
-    endif()
+    file(GLOB CUDA_RUNTIME_DLL LIST_DIRECTORIES false "${CUDA_BIN_DIR}/cudart64_*.dll" "${CUDA_BIN_DIR}/x64/cudart64_*.dll")
     if(NOT CUDA_RUNTIME_DLL)
         message(FATAL_ERROR
             "Could not find CUDA runtime DLL. Checked: ${CUDA_BIN_DIR}/cudart64_*.dll and ${CUDA_BIN_DIR}/x64/cudart64_*.dll")

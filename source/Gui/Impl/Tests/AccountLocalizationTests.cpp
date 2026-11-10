@@ -402,12 +402,11 @@ protected:
         }
         auto data = BrowserController::get().getData();
         for (int type : {NetworkResourceType_Simulation, NetworkResourceType_Genome}) {
-            auto& workspace = data->workspaces.at({type, WorkspaceType_Public});
+            auto const& workspace = data->getWorkspace({type, WorkspaceType_Public});
             auto item = std::make_shared<_NetworkResourceRawTO>(raw);
             item->resourceType = type;
-            workspace.rawTOs = {item};
-            data->filter = "мир";
-            data->createTreeTOs(workspace);
+            data->setRawTOs({type, WorkspaceType_Public}, {item});
+            data->setFilter("мир");
             EXPECT_EQ(1, workspace.treeTOs.size());
         }
     }

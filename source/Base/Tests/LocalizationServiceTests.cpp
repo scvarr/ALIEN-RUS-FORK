@@ -222,7 +222,11 @@ TEST_F(LocalizationServiceTests, shippedSliceIsCompleteAndValid)
     auto english = boost::json::parse(read(LOCALES / "en.json")).as_object();
     auto russian = boost::json::parse(read(LOCALES / "ru.json")).as_object();
     ASSERT_EQ(english.size(), russian.size());
-    ASSERT_EQ(1513, english.size());
+    ASSERT_GE(english.size(), 1513);
+    for (auto const& key : {"localui.recorder.record", "localui.recorder.openflight",
+                           "parameters.visualization.hardwareraytracing.name", "parameters.visualization.sourceshadowstrength.name"}) {
+        ASSERT_TRUE(english.contains(key)) << key;
+    }
     _service.load(LOCALES);  // Also validates UTF-8, duplicates, key syntax and types in both shipped files.
     ASSERT_TRUE(_service.getDiagnostics().empty());
     for (auto const& member : english) {

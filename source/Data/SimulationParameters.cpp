@@ -113,6 +113,12 @@ ParametersSpec const& SimulationParameters::getSpec()
                         .reference(FloatSpec().member(&SimulationParameters::glow).min(0.0f).max(1.0f))
                         .description("Controls the bloom effect intensity. At 0, no glow is applied. At 1, maximum glow is applied."),
                     ParameterSpec()
+                        .name("Hardware ray tracing")
+                        .reference(BoolSpec().member(&SimulationParameters::hardwareRayTracing))
+                        .description("If activated and supported by the GPU, the simulation is rendered with hardware ray tracing. The cells and the "
+                                     "radiation sources then light the fluids and cast shadows. If deactivated, the simulation is rasterized, which "
+                                     "requires less GPU time."),
+                    ParameterSpec()
                         .name("Fluid illumination")
                         .reference(FloatSpec().member(&SimulationParameters::fluidIllumination).min(0.0f).max(1.0f))
                         .description("With hardware ray tracing, the cells light the surrounding fluids in their colors. This parameter controls the "
@@ -150,6 +156,13 @@ ParametersSpec const& SimulationParameters::getSpec()
                         .reference(FloatSpec().member(&SimulationParameters::sourceLightRange).min(1.0f).max(1000.0f).format("%.0f"))
                         .description("Distance from the area of the radiation source up to which its light reaches. The light fades out smoothly "
                                      "towards this distance."),
+                    ParameterSpec()
+                        .name("Shadow strength")
+                        .reference(FloatSpec().member(&SimulationParameters::sourceShadowStrength).min(0.0f).max(1.0f))
+                        .description("With hardware ray tracing, this parameter sets how much of the light of the radiation source is blocked by the "
+                                     "objects and fluids on its way. At 1, the light does not penetrate them and they cast full shadows. At 0, the "
+                                     "light penetrates them completely and they cast no shadows. In between, the corresponding share of the light "
+                                     "passes through unshaded."),
                     ParameterSpec()
                         .name("Show force field")
                         .reference(BoolSpec().member(&SimulationParameters::layerShowForceField))
